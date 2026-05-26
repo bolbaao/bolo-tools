@@ -43,10 +43,10 @@ export default function Hero() {
 
           <div className="mt-10 flex flex-wrap items-center gap-4">
             <a
-              href="#tools"
+              href="#ai-chat"
               className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-violet-600 px-7 py-3.5 text-sm font-medium text-white shadow-lg shadow-blue-500/25 transition-all hover:shadow-violet-500/35 hover:scale-[1.02] active:scale-[0.98]"
             >
-              探索工具
+              开始闲聊
               <svg
                 className="h-4 w-4 transition-transform group-hover:translate-y-0.5"
                 fill="none"
@@ -56,7 +56,9 @@ export default function Hero() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </a>
-            <span className="text-sm text-white/35">本地实装 · 10 款能力</span>
+            <a href="#tools" className="text-sm text-white/35 hover:text-white/55 transition-colors">
+              浏览全部工具
+            </a>
           </div>
         </div>
 

@@ -1,12 +1,14 @@
 "use client";
 
 import AssetsPasswordModal from "@/components/AssetsPasswordModal";
+import PineappleMark from "@/components/PineappleMark";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 
 const navItems = [
   { label: "首页", href: "/" },
+  { label: "闲聊", href: "/#ai-chat" },
   { label: "工具", href: "/#tools" },
 ];
 
@@ -40,10 +42,14 @@ export default function Header() {
               <button
                 type="button"
                 onClick={onPineappleClick}
-                aria-label="菠萝"
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 ring-1 ring-white/10 transition-transform hover:scale-105 active:scale-95 select-none"
+                aria-label="素材库"
+                className="group relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-zinc-900 via-zinc-950 to-black shadow-lg shadow-amber-500/10 ring-1 ring-white/[0.12] transition-all duration-300 hover:scale-105 hover:ring-amber-400/25 hover:shadow-amber-500/20 active:scale-95 select-none overflow-hidden"
               >
-                菠
+                <span
+                  className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-400/10 via-transparent to-violet-500/10 opacity-0 transition-opacity group-hover:opacity-100"
+                  aria-hidden
+                />
+                <PineappleMark size={26} className="relative drop-shadow-[0_0_8px_rgba(251,191,36,0.35)]" />
               </button>
               <Link
                 href="/"

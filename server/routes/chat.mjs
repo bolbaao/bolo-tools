@@ -1,108 +1,60 @@
-import { randomUUID } from "crypto";
 import { Router } from "express";
 import OpenAI from "openai";
 import { env } from "../lib/env.mjs";
-import {
-  buildChatPrompt,
-  isGrokCliReady,
-  runGrokCli,
-} from "../lib/grok-cli.mjs";
 import { HttpError, sendError } from "../lib/http-error.mjs";
 
 const router = Router();
 
-const XAI_DEFAULT_BASE = "https://api.x.ai/v1";
-const XAI_DEFAULT_MODEL = "grok-4-1-fast";
-
-function useGrokCli() {
-  const flag = env("GROK_USE_CLI").toLowerCase();
-  if (flag === "1" || flag === "true" || flag === "yes") return true;
-  if (flag === "0" || flag === "false" || flag === "no") return false;
-  return !resolveChatConfig();
-}
+const ARK_DEFAULT_BASE = "https://ark.cn-beijing.volces.com/api/v3";
+const ARK_DEFAULT_MODEL = "doubao-1-5-pro-32k-250115";
 
 function resolveChatConfig() {
-  const xaiKey = env("XAI_API_KEY") || env("GROK_API_KEY");
-  if (xaiKey) {
-    return {
-      apiKey: xaiKey,
-      baseURL: env("XAI_BASE_URL") || env("OPENAI_BASE_URL") || XAI_DEFAULT_BASE,
-      model:
-        env("XAI_MODEL") ||
-        env("GROK_MODEL") ||
-        env("OPENAI_MODEL") ||
-        XAI_DEFAULT_MODEL,
-    };
-  }
+  const arkKey = env("ARK_API_KEY") || env("VOLC_API_KEY");
+  if (!arkKey) return null;
 
-  const openaiKey = env("OPENAI_API_KEY");
-  if (openaiKey) {
-    return {
-      apiKey: openaiKey,
-      baseURL: env("OPENAI_BASE_URL") || undefined,
-      model: env("OPENAI_MODEL") || "gpt-4o-mini",
-    };
-  }
+  return {
+    apiKey: arkKey,
+    baseURL: env("ARK_BASE_URL") || env("OPENAI_BASE_URL") || ARK_DEFAULT_BASE,
+    model: env("ARK_MODEL") || env("OPENAI_MODEL") || ARK_DEFAULT_MODEL,
+  };
+}
 
-  return null;
+function formatChatError(err) {
+  const msg = err?.message || String(err);
+  if (/InvalidEndpointOrModel|does not exist/i.test(msg)) {
+    return "模型或接入点无效。请在 .env 设置 ARK_MODEL（火山方舟控制台中的模型 ID 或 ep-xxx）";
+  }
+  if (/timeout|timed out|ETIMEDOUT|AbortError|ECONNREFUSED|ENOTFOUND|fetch failed|Connection error/i.test(msg)) {
+    return "无法连接火山方舟 API。请检查网络后重启 ./start.sh";
+  }
+  return msg;
 }
 
 router.post("/", async (req, res) => {
   try {
-    const { messages, sessionId: clientSessionId } = req.body ?? {};
+    const { messages } = req.body ?? {};
     if (!Array.isArray(messages) || messages.length === 0) {
       throw new HttpError(400, "messages 不能为空");
-    }
-
-    if (useGrokCli()) {
-      if (!isGrokCliReady()) {
-        throw new HttpError(
-          503,
-          "Grok CLI 未就绪。请运行：curl -fsSL https://x.ai/cli/install.sh | bash，然后 grok login；或在 .env 配置 XAI_API_KEY",
-        );
-      }
-
-      const sessionId =
-        typeof clientSessionId === "string" && clientSessionId.trim()
-          ? clientSessionId.trim()
-          : randomUUID();
-
-      const lastUser = [...messages].reverse().find((m) => m.role === "user");
-      const prompt =
-        clientSessionId && messages.length > 1
-          ? String(lastUser?.content ?? "").trim()
-          : buildChatPrompt(messages);
-
-      if (!prompt) throw new HttpError(400, "messages 不能为空");
-
-      const model =
-        env("XAI_MODEL") || env("GROK_MODEL") || env("OPENAI_MODEL") || "";
-      const reply = await runGrokCli({
-        prompt,
-        sessionId,
-        model: model || undefined,
-      });
-
-      res.json({ ok: true, reply, sessionId });
-      return;
     }
 
     const chatConfig = resolveChatConfig();
     if (!chatConfig) {
       throw new HttpError(
         503,
-        "未配置 AI。请安装 Grok CLI（./scripts/install-grok-cli.sh + grok login）或设置 XAI_API_KEY / OPENAI_API_KEY",
+        "未配置 ARK_API_KEY。请在 .env 填入火山方舟 API Key（https://console.volcengine.com/ark）",
       );
     }
 
+    const timeoutMs = Number(env("CHAT_TIMEOUT_MS", "60000")) || 60000;
     const client = new OpenAI({
       apiKey: chatConfig.apiKey,
       baseURL: chatConfig.baseURL,
+      timeout: timeoutMs,
+      maxRetries: 0,
     });
 
-    const model = chatConfig.model;
     const completion = await client.chat.completions.create({
-      model,
+      model: chatConfig.model,
       messages: [
         {
           role: "system",
@@ -123,6 +75,10 @@ router.post("/", async (req, res) => {
 
     res.json({ ok: true, reply });
   } catch (err) {
+    if (!(err instanceof HttpError)) {
+      sendError(res, new HttpError(502, formatChatError(err)));
+      return;
+    }
     sendError(res, err);
   }
 });

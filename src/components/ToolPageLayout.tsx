@@ -1,5 +1,4 @@
 import Link from "next/link";
-import ToolDemoVisual from "@/components/home/ToolDemoVisual";
 import type { Tool } from "@/lib/tools";
 
 type Props = {
@@ -42,11 +41,8 @@ export default function ToolPageLayout({ tool, children }: Props) {
                   <p className="mt-2 text-sm text-white/40 leading-relaxed font-light">
                     {tool.description}
                   </p>
-                  <p className="mt-2 text-xs text-white/25">{tool.demoHint}</p>
+                  <p className="mt-2 text-xs text-white/30">{tool.demoHint}</p>
                 </div>
-              </div>
-              <div className="mt-6">
-                <ToolDemoVisual toolId={tool.id} large />
               </div>
             </div>
           </div>

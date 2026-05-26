@@ -1,1 +1,1 @@
-export { default } from "@/components/home/ToolDemoVideo";
+export { default } from "@/components/home/ToolDemoVisualFallback";

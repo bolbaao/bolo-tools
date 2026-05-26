@@ -1,4 +1,5 @@
 import Hero from "@/components/home/Hero";
+import HomeAiChatSection from "@/components/home/HomeAiChatSection";
 import PageShell from "@/components/home/PageShell";
 import ToolsSection from "@/components/ToolsSection";
 
@@ -10,6 +11,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent reveal reveal-d2" />
         </div>
+        <HomeAiChatSection />
         <ToolsSection />
       </div>
     </PageShell>

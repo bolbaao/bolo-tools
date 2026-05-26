@@ -45,11 +45,11 @@ export default function BentoToolCard({ tool, index = 0 }: Props) {
             {tool.description}
           </p>
 
-          <div className="mt-4 flex-1 min-h-0">
+          <div className="mt-4 flex-1 min-h-[88px]">
             <ToolDemoVisual toolId={tool.id} large={isLarge} />
           </div>
 
-          <p className="mt-3 text-[10px] text-white/25 truncate">{tool.demoHint}</p>
+          <p className="mt-3 text-[10px] text-white/30 truncate">{tool.demoHint}</p>
 
           <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-4">
             <span className="text-sm font-medium text-blue-300/70 group-hover:text-blue-200 transition-colors">

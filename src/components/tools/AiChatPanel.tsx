@@ -10,7 +10,6 @@ export default function AiChatPanel() {
   const [messages, setMessages] = useState<{ role: "user" | "ai"; text: string }[]>([
     { role: "ai", text: welcomeMessage },
   ]);
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,15 +31,11 @@ export default function AiChatPanel() {
           content: m.text,
         }));
 
-      const data = await apiPost<{ ok: boolean; reply: string; sessionId?: string }>(
+      const data = await apiPost<{ ok: boolean; reply: string }>(
         "/api/chat",
-        {
-          messages: apiMessages,
-          sessionId,
-        },
+        { messages: apiMessages },
+        { timeoutMs: 35000 },
       );
-
-      if (data.sessionId) setSessionId(data.sessionId);
 
       setMessages((m) => [...m, { role: "ai", text: data.reply }]);
     } catch (e) {
@@ -54,7 +49,6 @@ export default function AiChatPanel() {
 
   const clearChat = () => {
     setMessages([{ role: "ai", text: welcomeMessage }]);
-    setSessionId(null);
     setInput("");
     setError(null);
   };
@@ -62,11 +56,18 @@ export default function AiChatPanel() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-white/45 leading-relaxed">
-        推荐用官方 Grok CLI：<code className="text-violet-300/80">./scripts/install-grok-cli.sh</code>{" "}
-        后执行 <code className="text-violet-300/80">grok login</code>，并在{" "}
-        <code className="text-violet-300/80">.env</code> 设置{" "}
-        <code className="text-violet-300/80">GROK_USE_CLI=1</code>。也可配置{" "}
-        <code className="text-violet-300/80">XAI_API_KEY</code> 走 API。
+        已接入火山方舟。请在 <code className="text-violet-300/80">.env</code> 配置{" "}
+        <code className="text-violet-300/80">ARK_API_KEY</code>、{" "}
+        <code className="text-violet-300/80">ARK_MODEL</code>（见{" "}
+        <a
+          href="https://console.volcengine.com/ark"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-violet-300/80 hover:underline"
+        >
+          火山方舟控制台
+        </a>
+        ）。
       </p>
 
       <div className="rounded-xl border border-white/8 bg-black/20 flex flex-col h-[360px] sm:h-[420px]">

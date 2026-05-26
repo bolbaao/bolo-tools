@@ -38,15 +38,6 @@ else
   fi
 fi
 
-# Grok CLI（闲聊对话，可选）
-if command -v grok >/dev/null 2>&1; then
-  echo "✓ grok CLI 已存在: $(command -v grok)"
-else
-  echo "→ 闲聊对话可用 Grok CLI（可选）："
-  echo "   ./scripts/install-grok-cli.sh && grok login"
-  echo "   然后在 .env 设置 GROK_USE_CLI=1"
-fi
-
 echo ""
 echo "✅ 完成。启动前请确保 PATH 包含："
 echo "   $(pwd)/.local/bin"

@@ -10,6 +10,8 @@ export type Tool = {
   tag: string;
   bento: BentoSize;
   demoHint: string;
+  /** 首页独立展示，不出现在下方工具网格 */
+  homeFeatured?: boolean;
 };
 
 export const tools: Tool[] = [
@@ -87,8 +89,9 @@ export const tools: Tool[] = [
     icon: "◎",
     gradient: "from-purple-500/20 to-violet-500/10",
     tag: "AI",
-    bento: "hero",
+    bento: "default",
     demoHint: "像朋友一样轻松闲聊",
+    homeFeatured: true,
   },
   {
     id: "hot-trends",
@@ -103,14 +106,14 @@ export const tools: Tool[] = [
   },
   {
     id: "media-search",
-    title: "影视资源搜索",
-    description: "快速检索电影、剧集、综艺资源信息，聚合多源结果便于对比筛选。",
+    title: "影视查找",
+    description: "搜索电影、剧集、综艺与动画，查看评分、简介与 TMDB 详情。",
     href: "/tools/media-search",
     icon: "🎬",
     gradient: "from-blue-500/20 to-indigo-500/10",
     tag: "影视",
     bento: "wide",
-    demoHint: "搜索片名 → TMDB 影视数据库",
+    demoHint: "片名搜索 · 热门推荐 · TMDB",
   },
   {
     id: "spider-builder",
@@ -136,6 +139,10 @@ export function getToolById(id: string): Tool | undefined {
   return tools.find((t) => t.id === id);
 }
 
+export function getGridTools(): Tool[] {
+  return tools.filter((t) => !t.homeFeatured);
+}
+
 /** 分类展示顺序（不含「全部」） */
 const CATEGORY_ORDER = ["AI", "图像", "视频", "音频", "运营", "影视", "开发"];
 
@@ -146,8 +153,9 @@ export type ToolCategory = {
 };
 
 export function getToolCategories(): ToolCategory[] {
+  const grid = getGridTools();
   const counts = new Map<string, number>();
-  for (const tool of tools) {
+  for (const tool of grid) {
     counts.set(tool.tag, (counts.get(tool.tag) ?? 0) + 1);
   }
 
@@ -157,10 +165,11 @@ export function getToolCategories(): ToolCategory[] {
     count: counts.get(tag)!,
   }));
 
-  return [{ id: "all", label: "全部", count: tools.length }, ...tagged];
+  return [{ id: "all", label: "全部", count: grid.length }, ...tagged];
 }
 
 export function filterToolsByCategory(categoryId: string): Tool[] {
-  if (categoryId === "all") return tools;
-  return tools.filter((t) => t.tag === categoryId);
+  const grid = getGridTools();
+  if (categoryId === "all") return grid;
+  return grid.filter((t) => t.tag === categoryId);
 }
