@@ -2,26 +2,27 @@ import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="border-t border-white/8 mt-auto">
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-medium text-white/90">菠萝工具箱</p>
-            <p className="mt-1 text-xs text-white/40 max-w-md leading-relaxed">
-              面向个人创作者的一站式工具集合。当前为前端演示版本，功能接口将陆续接入。
-            </p>
+    <footer className="mt-auto border-t border-white/[0.06]">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 text-xs font-bold text-white">
+              菠
+            </span>
+            <p className="text-sm text-white/40">菠萝工具箱 · 为创作而生</p>
           </div>
-          <div className="flex flex-wrap gap-4 text-xs text-white/40">
-            <Link href="/" className="hover:text-white/70 transition-colors">
+          <div className="flex gap-6 text-sm text-white/35">
+            <Link href="/" className="hover:text-white/60 transition-colors">
               首页
             </Link>
-            <span className="text-white/20">·</span>
-            <span>© {new Date().getFullYear()} Pineapple Toolkit</span>
+            <Link href="/#tools" className="hover:text-white/60 transition-colors">
+              工具
+            </Link>
           </div>
         </div>
-        <div className="mt-8 pt-6 border-t border-white/5 text-center text-[11px] text-white/25">
-          简洁 · 高效 · 为创作而生
-        </div>
+        <p className="mt-8 text-center text-[11px] text-white/20">
+          © {new Date().getFullYear()} Pineapple Toolkit
+        </p>
       </div>
     </footer>
   );

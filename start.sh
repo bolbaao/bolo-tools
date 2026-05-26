@@ -1,9 +1,14 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 
+ROOT="$(pwd)"
 if [ -d ".node-portable/bin" ]; then
-  export PATH="$(pwd)/.node-portable/bin:$PATH"
+  export PATH="$ROOT/.node-portable/bin:$PATH"
 fi
+# 本机工具：yt-dlp、ffmpeg 等
+export PATH="$ROOT/.local/bin:$PATH"
+export PATH="${HOME}/.grok/bin:$PATH"
+export PATH="${HOME}/Library/Python/3.9/bin:${HOME}/Library/Python/3.10/bin:${HOME}/Library/Python/3.11/bin:${HOME}/Library/Python/3.12/bin:$PATH"
 
 if ! command -v node >/dev/null 2>&1; then
   echo "❌ 未找到 Node.js，请先安装：https://nodejs.org"
@@ -26,6 +31,15 @@ fi
 if [ ! -d "node_modules" ]; then
   echo "📦 正在安装依赖…"
   npm install || exit 1
+fi
+
+# 启动前尝试刷新抖音 Cookie（已配置 cookies/douyin.txt 或 setup 脚本时）
+if [ -f "cookies/douyin.txt" ] && command -v python3 >/dev/null 2>&1; then
+  if python3 -c "import browser_cookie3" 2>/dev/null; then
+    python3 scripts/export-douyin-cookies.py 2>/dev/null && echo "✓ 已刷新抖音 Cookie" || true
+  fi
+elif [ ! -f "cookies/douyin.txt" ]; then
+  echo "💡 抖音解析建议运行一次: ./scripts/setup-douyin-cookies.sh"
 fi
 
 echo "🔨 正在构建静态网站…"

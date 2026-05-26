@@ -25,8 +25,8 @@ export default function MockButton({
 
   const base =
     variant === "primary"
-      ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white hover:opacity-90 shadow-lg shadow-violet-500/20"
-      : "bg-white/5 text-white/80 border border-white/10 hover:bg-white/10";
+      ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-600/20 ring-1 ring-white/10 hover:shadow-violet-500/30 hover:brightness-110 active:scale-[0.98]"
+      : "bg-white/5 text-white/80 border border-white/10 hover:bg-white/8 hover:border-white/15 active:scale-[0.98]";
 
   return (
     <div className={className}>
@@ -34,9 +34,18 @@ export default function MockButton({
         type="button"
         onClick={handleClick}
         disabled={status === "loading"}
-        className={`w-full rounded-xl px-6 py-3 text-sm font-medium transition-all disabled:opacity-60 ${base}`}
+        className={`w-full rounded-xl px-6 py-3.5 text-sm font-medium transition-all disabled:opacity-60 ${base}`}
       >
-        {status === "loading" ? "处理中…" : status === "done" ? "已完成 ✓" : label}
+        {status === "loading" ? (
+          <span className="inline-flex items-center gap-2">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+            处理中…
+          </span>
+        ) : status === "done" ? (
+          "已完成 ✓"
+        ) : (
+          label
+        )}
       </button>
       {status === "done" && (
         <p className="mt-3 text-center text-xs text-emerald-400/90">{successMessage}</p>

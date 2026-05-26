@@ -1,3 +1,5 @@
+export type BentoSize = "hero" | "wide" | "tall" | "default";
+
 export type Tool = {
   id: string;
   title: string;
@@ -6,6 +8,8 @@ export type Tool = {
   icon: string;
   gradient: string;
   tag: string;
+  bento: BentoSize;
+  demoHint: string;
 };
 
 export const tools: Tool[] = [
@@ -17,15 +21,19 @@ export const tools: Tool[] = [
     icon: "♪",
     gradient: "from-violet-500/20 to-fuchsia-500/10",
     tag: "音频",
+    bento: "default",
+    demoHint: "上传音频 → 选择格式 → 一键转换下载",
   },
   {
     id: "video-extract",
     title: "视频链接提取",
-    description: "粘贴视频链接，快速解析并提取无水印资源，支持多平台。",
+    description: "抖音、B 站、YouTube、X、Telegram、Instagram 等；多清晰度与本页直接下载。",
     href: "/tools/video-extract",
     icon: "▶",
     gradient: "from-cyan-500/20 to-blue-500/10",
     tag: "视频",
+    bento: "default",
+    demoHint: "主流社媒链接 → 解析下载",
   },
   {
     id: "ai-video",
@@ -35,6 +43,8 @@ export const tools: Tool[] = [
     icon: "✦",
     gradient: "from-amber-500/20 to-orange-500/10",
     tag: "AI",
+    bento: "wide",
+    demoHint: "输入描述 → AI 生成创意短视频",
   },
   {
     id: "smart-cutout",
@@ -44,6 +54,8 @@ export const tools: Tool[] = [
     icon: "◈",
     gradient: "from-emerald-500/20 to-teal-500/10",
     tag: "图像",
+    bento: "default",
+    demoHint: "上传图片 → AI 自动抠出透明背景",
   },
   {
     id: "image-sharpen",
@@ -53,6 +65,8 @@ export const tools: Tool[] = [
     icon: "◇",
     gradient: "from-sky-500/20 to-indigo-500/10",
     tag: "图像",
+    bento: "tall",
+    demoHint: "智能锐化，模糊照片秒变清晰",
   },
   {
     id: "image-compress",
@@ -62,15 +76,19 @@ export const tools: Tool[] = [
     icon: "◐",
     gradient: "from-lime-500/20 to-green-500/10",
     tag: "图像",
+    bento: "default",
+    demoHint: "拖拽上传 → 调节质量 → 压缩导出",
   },
   {
     id: "ai-chat",
-    title: "AI 角色聊天",
-    description: "与多种人设 AI 对话，获取创意灵感、脚本建议与运营思路。",
+    title: "闲聊对话",
+    description: "轻松唠嗑、吐槽日常、分享心情，像和朋友聊天一样自然随意。",
     href: "/tools/ai-chat",
     icon: "◎",
     gradient: "from-purple-500/20 to-violet-500/10",
     tag: "AI",
+    bento: "hero",
+    demoHint: "像朋友一样轻松闲聊",
   },
   {
     id: "hot-trends",
@@ -80,6 +98,8 @@ export const tools: Tool[] = [
     icon: "◉",
     gradient: "from-red-500/20 to-orange-500/10",
     tag: "运营",
+    bento: "wide",
+    demoHint: "抖音 / 小红书实时热点榜",
   },
   {
     id: "media-search",
@@ -89,27 +109,58 @@ export const tools: Tool[] = [
     icon: "🎬",
     gradient: "from-blue-500/20 to-indigo-500/10",
     tag: "影视",
+    bento: "wide",
+    demoHint: "搜索片名 → TMDB 影视数据库",
   },
   {
     id: "spider-builder",
-    title: "制作爬虫",
-    description: "可视化配置抓取规则，生成爬虫脚本模板，支持定时任务与数据导出。",
+    title: "小蜘蛛爬虫",
+    description: "选场景、填网址、一键抓取——像玩游戏一样把网页数据收进篮子，还能导出 JSON/CSV。",
     href: "/tools/spider-builder",
     icon: "🕷",
     gradient: "from-slate-500/20 to-zinc-500/10",
     tag: "开发",
-  },
-  {
-    id: "assets",
-    title: "我的素材库",
-    description: "集中管理音频、视频与图片素材，分类检索，随时调用。",
-    href: "/tools/assets",
-    icon: "▣",
-    gradient: "from-rose-500/20 to-pink-500/10",
-    tag: "管理",
+    bento: "default",
+    demoHint: "选场景 → 出发抓取 → 导出收获",
   },
 ];
 
+export const bentoClass: Record<BentoSize, string> = {
+  hero: "sm:col-span-2 sm:row-span-2 lg:col-span-2 lg:row-span-2",
+  wide: "sm:col-span-2 lg:col-span-2",
+  tall: "sm:row-span-2 lg:row-span-2",
+  default: "",
+};
+
 export function getToolById(id: string): Tool | undefined {
   return tools.find((t) => t.id === id);
+}
+
+/** 分类展示顺序（不含「全部」） */
+const CATEGORY_ORDER = ["AI", "图像", "视频", "音频", "运营", "影视", "开发"];
+
+export type ToolCategory = {
+  id: string;
+  label: string;
+  count: number;
+};
+
+export function getToolCategories(): ToolCategory[] {
+  const counts = new Map<string, number>();
+  for (const tool of tools) {
+    counts.set(tool.tag, (counts.get(tool.tag) ?? 0) + 1);
+  }
+
+  const tagged = CATEGORY_ORDER.filter((tag) => counts.has(tag)).map((tag) => ({
+    id: tag,
+    label: tag,
+    count: counts.get(tag)!,
+  }));
+
+  return [{ id: "all", label: "全部", count: tools.length }, ...tagged];
+}
+
+export function filterToolsByCategory(categoryId: string): Tool[] {
+  if (categoryId === "all") return tools;
+  return tools.filter((t) => t.tag === categoryId);
 }

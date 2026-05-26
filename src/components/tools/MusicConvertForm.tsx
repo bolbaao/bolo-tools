@@ -1,32 +1,52 @@
 "use client";
 
-import MockButton from "@/components/MockButton";
+import ActionButton from "@/components/ActionButton";
+import { ApiError, apiUpload, downloadBlob } from "@/lib/api";
 import { useState } from "react";
 
 const formats = ["MP3", "WAV", "FLAC", "AAC", "OGG"];
 
 export default function MusicConvertForm() {
   const [targetFormat, setTargetFormat] = useState("MP3");
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    setFileName(file ? file.name : null);
+  const handleConvert = async () => {
+    if (!file) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("format", targetFormat);
+      const blob = await apiUpload<Blob>("/api/audio/convert", fd);
+      if (!(blob instanceof Blob)) throw new Error("转换失败");
+      const ext = targetFormat.toLowerCase();
+      const base = file.name.replace(/\.[^.]+$/, "");
+      downloadBlob(blob, `${base}.${ext}`);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "转换失败");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <label className="block text-sm text-white/60 mb-2">上传音频文件</label>
-        <label className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-10 cursor-pointer hover:border-violet-500/40 hover:bg-violet-500/5 transition-all">
-          <span className="text-3xl opacity-60">♪</span>
-          <span className="text-sm text-white/50">
-            {fileName ?? "点击或拖拽文件到此处"}
-          </span>
-          <span className="text-xs text-white/25">支持 MP3 / WAV / FLAC 等</span>
-          <input type="file" accept="audio/*" className="hidden" onChange={handleFileChange} />
-        </label>
-      </div>
+      <label className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-10 cursor-pointer hover:border-violet-500/40 hover:bg-violet-500/5 transition-all">
+        <span className="text-3xl opacity-60">♪</span>
+        <span className="text-sm text-white/50">{file?.name ?? "点击上传音频文件"}</span>
+        <input
+          type="file"
+          accept="audio/*"
+          className="hidden"
+          onChange={(e) => {
+            setFile(e.target.files?.[0] ?? null);
+            setError(null);
+          }}
+        />
+      </label>
 
       <div>
         <label className="block text-sm text-white/60 mb-2">目标格式</label>
@@ -48,10 +68,17 @@ export default function MusicConvertForm() {
         </div>
       </div>
 
-      <MockButton
-        label={`转换为 ${targetFormat}`}
-        successMessage={`已模拟转换为 ${targetFormat} 格式（演示）`}
+      {error && <p className="text-sm text-red-400/90 text-center">{error}</p>}
+
+      <ActionButton
+        label={`转换为 ${targetFormat} 并下载`}
+        loading={loading}
+        disabled={!file}
+        onClick={handleConvert}
       />
+      <p className="text-center text-xs text-white/25">
+        服务端使用 ffmpeg 转换 · 需本机安装 ffmpeg · 单文件最大 50MB
+      </p>
     </div>
   );
 }

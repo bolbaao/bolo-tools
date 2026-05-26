@@ -1,26 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { ApiError, apiGet } from "@/lib/api";
+import { useCallback, useEffect, useState } from "react";
 
 type Platform = "douyin" | "xiaohongshu";
 
-const trends: Record<Platform, { rank: number; title: string; heat: string; tag: string }[]> = {
-  douyin: [
-    { rank: 1, title: "#春日氛围感穿搭", heat: "1286万", tag: "时尚" },
-    { rank: 2, title: "#一人食治愈料理", heat: "982万", tag: "美食" },
-    { rank: 3, title: "#居家健身跟练", heat: "876万", tag: "运动" },
-    { rank: 4, title: "#职场高效技巧", heat: "754万", tag: "职场" },
-    { rank: 5, title: "#旅行vlog拍摄", heat: "691万", tag: "旅行" },
-    { rank: 6, title: "#AI工具实测", heat: "623万", tag: "科技" },
-  ],
-  xiaohongshu: [
-    { rank: 1, title: "早八通勤伪素颜妆", heat: "52.3万笔记", tag: "美妆" },
-    { rank: 2, title: "租房改造低成本", heat: "41.8万笔记", tag: "家居" },
-    { rank: 3, title: "减脂便当一周食谱", heat: "38.6万笔记", tag: "健康" },
-    { rank: 4, title: "副业自媒体起号", heat: "35.2万笔记", tag: "成长" },
-    { rank: 5, title: "周末城市微度假", heat: "31.7万笔记", tag: "旅行" },
-    { rank: 6, title: "数码好物清单", heat: "28.9万笔记", tag: "数码" },
-  ],
+type TrendItem = {
+  rank: number;
+  title: string;
+  heat: string;
+  tag: string;
 };
 
 const platforms: { id: Platform; label: string; color: string }[] = [
@@ -30,9 +19,36 @@ const platforms: { id: Platform; label: string; color: string }[] = [
 
 export default function HotTrendsPanel() {
   const [platform, setPlatform] = useState<Platform>("douyin");
+  const [list, setList] = useState<TrendItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState<string | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const list = trends[platform];
+  const load = useCallback(async (p: Platform) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiGet<{
+        ok: boolean;
+        list: TrendItem[];
+        source?: string;
+        notice?: string;
+        updatedAt?: string;
+      }>(`/api/trends/${p}`);
+      setList(data.list);
+      setNotice(data.notice || (data.source === "fallback" ? "实时数据暂不可用" : null));
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "加载失败");
+      setList([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load(platform);
+  }, [platform, load]);
 
   const copyTopic = (rank: number, title: string) => {
     navigator.clipboard?.writeText(title).catch(() => {});
@@ -60,15 +76,24 @@ export default function HotTrendsPanel() {
       </div>
 
       <div className="flex items-center justify-between text-xs text-white/40">
-        <span>今日热点榜 · 演示数据</span>
-        <span className="text-white/25">更新于 {new Date().toLocaleDateString("zh-CN")}</span>
+        <span>{loading ? "加载中…" : `共 ${list.length} 条热点`}</span>
+        <button
+          type="button"
+          onClick={() => void load(platform)}
+          className="text-violet-300/80 hover:text-violet-200"
+        >
+          刷新
+        </button>
       </div>
+
+      {notice && <p className="text-xs text-amber-300/70 text-center">{notice}</p>}
+      {error && <p className="text-xs text-red-400/80 text-center">{error}</p>}
 
       <ul className="space-y-2">
         {list.map((item) => (
           <li
             key={item.rank}
-            className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3.5 hover:bg-white/[0.04] transition-colors group"
+            className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3.5 hover:bg-white/[0.04] transition-colors"
           >
             <span
               className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
@@ -95,13 +120,6 @@ export default function HotTrendsPanel() {
           </li>
         ))}
       </ul>
-
-      <button
-        type="button"
-        className="w-full rounded-xl border border-dashed border-orange-500/30 bg-orange-500/10 py-3 text-sm text-orange-200/90 hover:bg-orange-500/15 transition-colors"
-      >
-        刷新热点（演示）
-      </button>
     </div>
   );
 }

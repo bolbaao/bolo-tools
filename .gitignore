@@ -23,6 +23,16 @@
 # production
 /build
 
+# local binaries (install-deps)
+.local/
+
+# uploaded assets
+/data/
+
+# exported browser cookies (keep README)
+/cookies/*.txt
+/cookies/cron.log
+
 # misc
 .DS_Store
 *.pem
@@ -34,7 +44,10 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files
-.env*
+.env
+.env.local
+.env.*.local
+!.env.example
 
 # typescript
 *.tsbuildinfo
