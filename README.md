@@ -9,7 +9,7 @@
 | 图片变清晰 | `/tools/image-sharpen` | 浏览器 Canvas 锐化 |
 | 压缩图片 | `/tools/image-compress` | 浏览器 Canvas 压缩 |
 | 智能抠图 | `/tools/smart-cutout` | 浏览器 AI（@imgly/background-removal） |
-| 闲聊对话 | `/tools/ai-chat` | 火山方舟 Ark API |
+| 智能助手 | `/tools/ai-chat` | 火山方舟 Ark · 对话操控全站工具 |
 | 热点中心 | `/tools/hot-trends` | 服务端拉取热点 |
 | 影视搜索 | `/tools/media-search` | 豆瓣+TMDB 并行检索 · 资源链接包 |
 | 制作爬虫 | `/tools/spider-builder` | 服务端 Cheerio 抓取 |
@@ -42,15 +42,19 @@ cp .env.example .env
 | `REPLICATE_API_TOKEN` | AI 生视频 | 可选 |
 | `ASSETS_PASSWORD` | 素材库访问密码 | 使用素材库时必需 |
 
-### 闲聊对话：火山方舟
+### 智能助手（火山方舟）
 
-在 [火山方舟控制台](https://console.volcengine.com/ark) 获取 API Key 与模型 ID，写入 `.env`：
+在 [火山方舟控制台](https://console.volcengine.com/ark) 获取 API Key，写入 `.env`：
 
 ```bash
 ARK_API_KEY=你的密钥
 ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 ARK_MODEL=doubao-1-5-pro-32k-250115
 ```
+
+对话流程：**用户输入 → AI 解析意图并拆解计划 → 前端执行跳转/预填/筛选 → 返回执行结果**。
+
+示例：「帮我把这个抖音链接提取出来 https://…」→ 自动打开视频提取并填入链接。
 
 ## 运行方式
 

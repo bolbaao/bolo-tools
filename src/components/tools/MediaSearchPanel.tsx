@@ -1,6 +1,7 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
+import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { ApiError, apiGet } from "@/lib/api";
 import { useCallback, useEffect, useState } from "react";
 
@@ -34,6 +35,11 @@ type AggregateResponse = {
 
 export default function MediaSearchPanel() {
   const [keyword, setKeyword] = useState("");
+
+  const applyPrefill = useCallback((fields: Record<string, string>) => {
+    if (fields.keyword) setKeyword(fields.keyword);
+  }, []);
+  useAgentPrefill("media-search", applyPrefill);
   const [results, setResults] = useState<AggregateResult[]>([]);
   const [stats, setStats] = useState<AggregateResponse["stats"] | null>(null);
   const [hotKeywords, setHotKeywords] = useState<string[]>([]);

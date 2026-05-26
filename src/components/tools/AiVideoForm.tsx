@@ -1,8 +1,9 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
+import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { ApiError, apiPost } from "@/lib/api";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 const styles = ["电影感", "动漫", "写实", "赛博朋克", "水彩"];
 
@@ -14,6 +15,11 @@ export default function AiVideoForm() {
   const [error, setError] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const applyPrefill = useCallback((fields: Record<string, string>) => {
+    if (fields.prompt) setPrompt(fields.prompt);
+  }, []);
+  useAgentPrefill("ai-video", applyPrefill);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;

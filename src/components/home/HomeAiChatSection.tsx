@@ -15,10 +15,10 @@ export default function HomeAiChatSection() {
             AI
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            闲聊<span className="text-gradient-accent">对话</span>
+            智能<span className="text-gradient-accent">助手</span>
           </h2>
           <p className="mt-2 text-sm text-white/40 font-light max-w-lg">
-            打开首页即可开聊，无需先翻工具列表
+            用自然语言操作全站工具，自动跳转并预填表单
           </p>
         </div>
         <Link

@@ -1,8 +1,9 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
+import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { ApiError, apiPost, downloadBlob } from "@/lib/api";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 type VideoFormat = {
   formatId?: string;
@@ -78,6 +79,11 @@ function detectClientPlatform(text: string): string | null {
 
 export default function VideoExtractForm() {
   const [url, setUrl] = useState("");
+
+  const applyPrefill = useCallback((fields: Record<string, string>) => {
+    if (fields.url) setUrl(fields.url);
+  }, []);
+  useAgentPrefill("video-extract", applyPrefill);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

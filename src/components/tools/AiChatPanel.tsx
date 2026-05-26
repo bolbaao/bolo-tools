@@ -1,23 +1,44 @@
 "use client";
 
+import { executeAgentActions, formatActionResults } from "@/lib/agent-executor";
+import type { ActionResult, AgentAction, AgentPageContext, AgentResponse } from "@/lib/agent-types";
 import { ApiError, apiPost } from "@/lib/api";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useState } from "react";
 
-const welcomeMessage = "嗨～我是你的闲聊搭子。想聊什么都可以，不用正经，随便唠。";
+const welcomeMessage =
+  "你好，我是菠萝工具箱智能助手。你可以直接说想做什么，例如：「帮我把这个抖音链接提取出来」「打开影视搜索搜奥本海默」「看看视频类工具有哪些」。";
+
+type ChatMessage = {
+  role: "user" | "ai";
+  text: string;
+  plan?: string[];
+  actionResults?: ActionResult[];
+};
 
 export default function AiChatPanel() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<{ role: "user" | "ai"; text: string }[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     { role: "ai", text: welcomeMessage },
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const getPageContext = useCallback((): AgentPageContext => {
+    const toolMatch = pathname?.match(/^\/tools\/([^/]+)/);
+    return {
+      path: pathname ?? "/",
+      toolId: toolMatch?.[1],
+    };
+  }, [pathname]);
+
   const send = async () => {
     if (!input.trim() || loading) return;
     const userMsg = input.trim();
     setInput("");
-    const nextMessages = [...messages, { role: "user" as const, text: userMsg }];
+    const nextMessages: ChatMessage[] = [...messages, { role: "user", text: userMsg }];
     setMessages(nextMessages);
     setLoading(true);
     setError(null);
@@ -35,24 +56,40 @@ export default function AiChatPanel() {
           content: m.text,
         }));
 
-      if (apiMessages.length === 0 || !apiMessages.some((m) => m.role === "user")) {
+      if (!apiMessages.some((m) => m.role === "user")) {
         throw new Error("消息为空");
       }
 
-      const data = await apiPost<{ ok: boolean; reply: string }>(
+      const data = await apiPost<AgentResponse>(
         "/api/chat",
-        { messages: apiMessages },
+        {
+          messages: apiMessages,
+          pageContext: getPageContext(),
+        },
         { timeoutMs: 65000 },
       );
 
-      setMessages((m) => [...m, { role: "ai", text: data.reply }]);
+      let actionResults: ActionResult[] = [];
+      if (data.actions?.length) {
+        await new Promise((r) => setTimeout(r, 120));
+        actionResults = await executeAgentActions(data.actions as AgentAction[], router);
+      }
+
+      const resultNote =
+        actionResults.length > 0 ? `\n\n${formatActionResults(actionResults)}` : "";
+
+      setMessages((m) => [
+        ...m,
+        {
+          role: "ai",
+          text: `${data.reply}${resultNote}`,
+          plan: data.plan,
+          actionResults,
+        },
+      ]);
     } catch (e) {
       const msg =
-        e instanceof ApiError
-          ? e.message
-          : e instanceof Error
-            ? e.message
-            : "发送失败";
+        e instanceof ApiError ? e.message : e instanceof Error ? e.message : "发送失败";
       setError(msg);
       setMessages((m) => [...m, { role: "ai", text: `（出错了）${msg}` }]);
     } finally {
@@ -69,23 +106,12 @@ export default function AiChatPanel() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-white/45 leading-relaxed">
-        已接入火山方舟。请在 <code className="text-violet-300/80">.env</code> 配置{" "}
-        <code className="text-violet-300/80">ARK_API_KEY</code>、{" "}
-        <code className="text-violet-300/80">ARK_MODEL</code>（见{" "}
-        <a
-          href="https://console.volcengine.com/ark"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-violet-300/80 hover:underline"
-        >
-          火山方舟控制台
-        </a>
-        ）。
+        对话 → 意图解析 → 任务拆解 → 自动打开工具 / 预填表单 → 返回结果。支持跳转各工具页并预填链接、关键词等。
       </p>
 
       <div className="rounded-xl border border-white/8 bg-black/20 flex flex-col h-[360px] sm:h-[420px]">
         <div className="flex items-center justify-between border-b border-white/8 px-4 py-2.5">
-          <span className="text-xs text-white/40">闲聊中</span>
+          <span className="text-xs text-white/40">智能助手</span>
           <button
             type="button"
             onClick={clearChat}
@@ -99,10 +125,20 @@ export default function AiChatPanel() {
           {messages.map((msg, i) => (
             <div
               key={i}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex flex-col gap-2 ${msg.role === "user" ? "items-end" : "items-start"}`}
             >
+              {msg.plan && msg.plan.length > 0 && (
+                <div className="max-w-[90%] rounded-xl border border-violet-500/20 bg-violet-500/5 px-3 py-2 text-xs text-white/55">
+                  <p className="font-medium text-violet-300/80 mb-1">执行计划</p>
+                  <ol className="list-decimal list-inside space-y-0.5">
+                    {msg.plan.map((step, j) => (
+                      <li key={j}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
+              )}
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
                   msg.role === "user"
                     ? "bg-violet-600/40 text-white"
                     : "bg-white/8 text-white/85"
@@ -113,7 +149,7 @@ export default function AiChatPanel() {
             </div>
           ))}
           {loading && (
-            <p className="text-xs text-white/30 animate-pulse">对方正在输入…</p>
+            <p className="text-xs text-white/30 animate-pulse">正在解析并执行…</p>
           )}
         </div>
 
@@ -123,7 +159,7 @@ export default function AiChatPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void send()}
-            placeholder="随便聊点什么…"
+            placeholder="说说想做什么…"
             className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-violet-500/50"
           />
           <button

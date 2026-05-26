@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { AGENT_UI_EVENT } from "@/lib/agent-executor";
+import { useEffect, useMemo, useState } from "react";
 import BentoToolCard from "@/components/BentoToolCard";
 import { filterToolsByCategory, getGridTools, getToolCategories } from "@/lib/tools";
 
@@ -8,6 +9,24 @@ export default function ToolsSection() {
   const categories = useMemo(() => getToolCategories(), []);
   const [activeId, setActiveId] = useState("all");
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const onAgentUi = (e: Event) => {
+      const cat = (e as CustomEvent<{ filterCategory?: string }>).detail?.filterCategory;
+      if (!cat || cat === "全部") {
+        setActiveId("all");
+      } else {
+        const match = categories.find((c) => c.label === cat || c.id === cat);
+        if (match) setActiveId(match.id);
+      }
+      setOpen(true);
+      requestAnimationFrame(() => {
+        document.getElementById("tools")?.scrollIntoView({ behavior: "smooth" });
+      });
+    };
+    window.addEventListener(AGENT_UI_EVENT, onAgentUi);
+    return () => window.removeEventListener(AGENT_UI_EVENT, onAgentUi);
+  }, [categories]);
 
   const filtered = useMemo(
     () => filterToolsByCategory(activeId),

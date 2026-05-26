@@ -83,14 +83,14 @@ export const tools: Tool[] = [
   },
   {
     id: "ai-chat",
-    title: "闲聊对话",
-    description: "轻松唠嗑、吐槽日常、分享心情，像和朋友聊天一样自然随意。",
+    title: "智能助手",
+    description: "用对话操控全站工具：自动跳转、预填表单、筛选功能，对话即操作。",
     href: "/tools/ai-chat",
     icon: "◎",
     gradient: "from-purple-500/20 to-violet-500/10",
     tag: "AI",
     bento: "default",
-    demoHint: "像朋友一样轻松闲聊",
+    demoHint: "说需求 → 自动打开工具并预填",
     homeFeatured: true,
   },
   {

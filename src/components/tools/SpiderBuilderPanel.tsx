@@ -3,7 +3,8 @@
 import ActionButton from "@/components/ActionButton";
 import { ApiError, apiPost, downloadBlob } from "@/lib/api";
 import { SPIDER_MOODS, SPIDER_PRESETS, type SpiderPreset } from "@/lib/spider-presets";
-import { useMemo, useState } from "react";
+import { useAgentPrefill } from "@/hooks/useAgentPrefill";
+import { useCallback, useMemo, useState } from "react";
 
 type CrawlItem = { title: string; link: string };
 
@@ -77,6 +78,11 @@ export default function SpiderBuilderPanel() {
   const [loading, setLoading] = useState(false);
   const [codeLoading, setCodeLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const applyPrefill = useCallback((fields: Record<string, string>) => {
+    if (fields.url) setUrl(fields.url);
+  }, []);
+  useAgentPrefill("spider-builder", applyPrefill);
 
   const preset = useMemo(
     () => SPIDER_PRESETS.find((p) => p.id === presetId) ?? SPIDER_PRESETS[0],
