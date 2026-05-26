@@ -24,22 +24,35 @@ export default function AiChatPanel() {
 
     try {
       const apiMessages = nextMessages
-        .filter((m) => m.role === "user" || m.role === "ai")
+        .filter(
+          (m) =>
+            m.role === "user" ||
+            (m.role === "ai" && m.text !== welcomeMessage && !m.text.startsWith("（出错了）")),
+        )
         .slice(-12)
         .map((m) => ({
-          role: m.role === "user" ? "user" : "assistant",
+          role: m.role === "user" ? ("user" as const) : ("assistant" as const),
           content: m.text,
         }));
+
+      if (apiMessages.length === 0 || !apiMessages.some((m) => m.role === "user")) {
+        throw new Error("消息为空");
+      }
 
       const data = await apiPost<{ ok: boolean; reply: string }>(
         "/api/chat",
         { messages: apiMessages },
-        { timeoutMs: 35000 },
+        { timeoutMs: 65000 },
       );
 
       setMessages((m) => [...m, { role: "ai", text: data.reply }]);
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "发送失败";
+      const msg =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "发送失败";
       setError(msg);
       setMessages((m) => [...m, { role: "ai", text: `（出错了）${msg}` }]);
     } finally {

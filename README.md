@@ -11,7 +11,7 @@
 | 智能抠图 | `/tools/smart-cutout` | 浏览器 AI（@imgly/background-removal） |
 | 闲聊对话 | `/tools/ai-chat` | 火山方舟 Ark API |
 | 热点中心 | `/tools/hot-trends` | 服务端拉取热点 |
-| 影视查找 | `/tools/media-search` | TMDB 搜索 · 热门 · 详情 |
+| 影视搜索 | `/tools/media-search` | 豆瓣+TMDB 并行检索 · 资源链接包 |
 | 制作爬虫 | `/tools/spider-builder` | 服务端 Cheerio 抓取 |
 | 音乐转格式 | `/tools/music-convert` | 浏览器解锁 NCM/KGM/KWM/XM；ffmpeg 互转 |
 | 视频链接提取 | `/tools/video-extract` | 抖音 / B 站 / YouTube / X / Telegram / Instagram 等 |

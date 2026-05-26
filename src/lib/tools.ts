@@ -18,13 +18,13 @@ export const tools: Tool[] = [
   {
     id: "music-convert",
     title: "音乐转格式",
-    description: "将 MP3、WAV、FLAC 等音频一键转换为所需格式，保持高品质输出。",
+    description: "NCM/KGM/KWM 等云音乐解锁与 MP3/FLAC 等格式互转，统一批量处理。",
     href: "/tools/music-convert",
     icon: "♪",
     gradient: "from-violet-500/20 to-fuchsia-500/10",
     tag: "音频",
     bento: "default",
-    demoHint: "上传音频 → 选择格式 → 一键转换下载",
+    demoHint: "拖入 NCM 或 MP3 → 选格式 → 批量下载",
   },
   {
     id: "video-extract",
@@ -106,14 +106,14 @@ export const tools: Tool[] = [
   },
   {
     id: "media-search",
-    title: "影视查找",
-    description: "搜索电影、剧集、综艺与动画，查看评分、简介与 TMDB 详情。",
+    title: "影视搜索",
+    description: "多源并行检索片名，聚合豆瓣与 TMDB，一键复制资源链接包。",
     href: "/tools/media-search",
     icon: "🎬",
     gradient: "from-blue-500/20 to-indigo-500/10",
     tag: "影视",
     bento: "wide",
-    demoHint: "片名搜索 · 热门推荐 · TMDB",
+    demoHint: "多源检索 → 链接包 → 一键复制",
   },
   {
     id: "spider-builder",

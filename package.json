@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -H 127.0.0.1",
-    "dev:api": "node server/index.mjs",
+    "dev:api": "PORT=3001 node server/index.mjs",
     "build": "next build",
     "start": "node server/index.mjs",
     "clean": "rm -rf .next out",

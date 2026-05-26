@@ -61,16 +61,21 @@ router.post("/", async (req, res) => {
           content:
             "你是轻松友好的闲聊伙伴。用口语化中文回复，简短自然，像朋友聊天。不要扮演专家或顾问，不要列长清单。",
         },
-        ...messages.map((m) => ({
-          role: m.role === "user" ? "user" : "assistant",
-          content: String(m.content ?? ""),
-        })),
+        ...messages
+          .map((m) => ({
+            role: m.role === "user" ? "user" : "assistant",
+            content: String(m.content ?? "").trim(),
+          }))
+          .filter((m) => m.content.length > 0),
       ],
       temperature: 0.85,
       max_tokens: 512,
     });
 
-    const reply = completion.choices[0]?.message?.content?.trim();
+    const choice = completion.choices[0]?.message;
+    const reply =
+      choice?.content?.trim() ||
+      (typeof choice?.reasoning_content === "string" ? choice.reasoning_content.trim() : "");
     if (!reply) throw new HttpError(502, "AI 未返回有效内容");
 
     res.json({ ok: true, reply });

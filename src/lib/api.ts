@@ -10,11 +10,43 @@ export class ApiError extends Error {
   }
 }
 
+function extractErrorMessage(data: unknown, res: Response): string {
+  if (data && typeof data === "object") {
+    const o = data as Record<string, unknown>;
+    if (typeof o.error === "string" && o.error) return o.error;
+    if (typeof o.message === "string" && o.message) return o.message;
+  }
+  if (res.status === 404) {
+    return "未找到 API。请用 ./start.sh 启动（若用 npm run dev，需另开终端运行 npm run dev:api）";
+  }
+  if (res.status >= 500) return `服务异常（${res.status}）`;
+  if (res.statusText) return res.statusText;
+  return "请求失败";
+}
+
 async function parseJson<T>(res: Response): Promise<T> {
-  const data = await res.json().catch(() => ({}));
+  const text = await res.text();
+  let data: unknown = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      if (!res.ok) {
+        throw new ApiError(
+          res.status === 404
+            ? "未找到 API。请用 ./start.sh 启动"
+            : `服务返回非 JSON（${res.status}）`,
+          res.status,
+        );
+      }
+    }
+  }
   if (!res.ok) {
-    const msg = (data as { error?: string }).error || res.statusText || "请求失败";
-    throw new ApiError(msg, res.status);
+    throw new ApiError(extractErrorMessage(data, res), res.status);
+  }
+  const body = data as { ok?: boolean; error?: string };
+  if (body.ok === false && body.error) {
+    throw new ApiError(body.error, res.status);
   }
   return data as T;
 }
@@ -46,8 +78,12 @@ export async function apiPost<T>(
     });
     return parseJson<T>(res);
   } catch (e) {
+    if (e instanceof ApiError) throw e;
     if (e instanceof Error && e.name === "AbortError") {
-      throw new ApiError("请求超时，请检查网络或火山方舟 API 配置", 408);
+      throw new ApiError("请求超时，请稍后重试", 408);
+    }
+    if (e instanceof TypeError) {
+      throw new ApiError("无法连接本地服务，请确认已运行 ./start.sh", 0);
     }
     throw e;
   } finally {

@@ -62,9 +62,13 @@ app.use("/api/spider", spiderRouter);
 app.use("/api/trends", trendsRouter);
 app.use("/api/ai-video", aiVideoRouter);
 app.use("/api/assets", assetsRouter);
-app.use((req, res, next) => {
-  if (req.method !== "GET" || req.path.startsWith("/api/")) {
-    next();
+app.use((req, res) => {
+  if (req.path.startsWith("/api/")) {
+    res.status(404).json({ ok: false, error: "接口不存在" });
+    return;
+  }
+  if (req.method !== "GET") {
+    res.status(404).json({ ok: false, error: "Not Found" });
     return;
   }
   const file = resolveFile(req.path);
