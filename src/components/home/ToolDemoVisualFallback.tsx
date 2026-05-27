@@ -73,63 +73,30 @@ export default function ToolDemoVisualFallback({ toolId, large }: Props) {
         </div>
       );
 
-    case "ai-video":
+    case "image-studio":
       return (
-        <div className={`${stage} relative overflow-hidden`}>
-          {[...Array(12)].map((_, i) => (
-            <span
-              key={i}
-              className="absolute h-1 w-1 rounded-full bg-violet-300/80"
-              style={{
-                left: `${15 + (i * 7) % 70}%`,
-                top: `${20 + (i * 11) % 60}%`,
-                animation: `pulse-ring ${1.5 + (i % 3) * 0.3}s ease-out infinite`,
-                animationDelay: `${i * 0.15}s`,
-              }}
-            />
-          ))}
-          <p className="relative text-[10px] font-medium tracking-widest text-white/40 uppercase">
-            AI Generate
-          </p>
-        </div>
-      );
-
-    case "smart-cutout":
-      return (
-        <div className={`${stage} relative`}>
-          <div
-            className="absolute inset-0 opacity-30"
-            style={{
-              backgroundImage:
-                "linear-gradient(45deg,#333 25%,transparent 25%),linear-gradient(-45deg,#333 25%,transparent 25%)",
-              backgroundSize: "10px 10px",
-            }}
-          />
-          <div className="relative mx-auto h-20 w-16 rounded-2xl bg-gradient-to-b from-violet-400/80 to-blue-500/60 shadow-lg shadow-violet-500/20 animate-[hero-float_4s_ease-in-out_infinite]" />
-        </div>
-      );
-
-    case "image-sharpen":
-      return (
-        <div className={`${stage} demo-scan relative grid grid-cols-2 gap-2 p-3`}>
-          <div className="rounded-lg bg-white/5 flex items-center justify-center text-[9px] text-white/30 blur-[2px]">
-            Before
+        <div className={`${stage} flex-col gap-2 p-3`}>
+          <div className="flex gap-1.5 w-full justify-center">
+            {["压缩", "清晰", "抠图", "生图"].map((label, i) => (
+              <span
+                key={label}
+                className={`rounded-md px-1.5 py-0.5 text-[8px] ${
+                  i === 3
+                    ? "bg-violet-500/30 text-violet-200 ring-1 ring-violet-400/40"
+                    : "bg-white/10 text-white/45"
+                }`}
+              >
+                {label}
+              </span>
+            ))}
           </div>
-          <div className="rounded-lg bg-gradient-to-br from-blue-500/20 to-violet-500/20 flex items-center justify-center text-[9px] text-white/80 ring-1 ring-white/20">
-            After
-          </div>
-        </div>
-      );
-
-    case "image-compress":
-      return (
-        <div className={`${stage} flex-col gap-3 p-4`}>
-          <div className="w-full rounded-lg bg-white/10 h-8 flex items-center px-2">
-            <span className="text-[9px] text-white/50">2.4 MB</span>
-          </div>
-          <div className="text-center text-white/20">↓</div>
-          <div className="w-2/3 mx-auto rounded-lg bg-gradient-to-r from-blue-500/30 to-violet-500/30 h-5 flex items-center px-2">
-            <span className="text-[9px] text-emerald-300/90">0.6 MB</span>
+          <div className="demo-scan relative grid grid-cols-2 gap-2 flex-1 w-full">
+            <div className="rounded-lg bg-white/5 flex items-center justify-center text-[9px] text-white/30 blur-[1px]">
+              Before
+            </div>
+            <div className="rounded-lg bg-gradient-to-br from-sky-500/20 to-violet-500/25 flex items-center justify-center text-[9px] text-white/80 ring-1 ring-white/20">
+              After
+            </div>
           </div>
         </div>
       );
@@ -177,6 +144,57 @@ export default function ToolDemoVisualFallback({ toolId, large }: Props) {
             ))}
           </div>
           <p className="text-[9px] text-white/30">🔒 密码保护</p>
+        </div>
+      );
+
+    case "subtitle-workshop":
+      return (
+        <div className={`${stage} p-3 flex-col gap-1.5 w-full max-w-[160px]`}>
+          <div className="text-[9px] text-cyan-300/80 font-mono">00:00:01 → 00:00:04</div>
+          <div className="h-1 w-full rounded bg-white/10 overflow-hidden">
+            <div className="h-full w-3/4 bg-gradient-to-r from-cyan-500 to-teal-500" />
+          </div>
+          <p className="text-[10px] text-white/50">示例字幕文本…</p>
+        </div>
+      );
+
+    case "gif-maker":
+      return (
+        <div className={`${stage} gap-1 px-4`}>
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="w-10 h-8 rounded bg-gradient-to-br from-amber-500/30 to-orange-500/20 ring-1 ring-white/10"
+              style={{ opacity: 0.4 + i * 0.15 }}
+            />
+          ))}
+        </div>
+      );
+
+    case "text-toolbox":
+      return (
+        <div className={`${stage} p-3 flex-col gap-1 w-full max-w-[140px] font-mono text-[9px] text-white/45`}>
+          <div className="text-emerald-400/80">{"{ \"ok\": true }"}</div>
+          <div className="text-white/30">chars: 128 · lines: 6</div>
+        </div>
+      );
+
+    case "doc-convert":
+      return (
+        <div className={`${stage} p-4 flex-col gap-2 w-full max-w-[200px]`}>
+          {["PDF", "DOC", "PNG"].map((label, i) => (
+            <div
+              key={label}
+              className="flex items-center justify-between rounded-lg bg-white/[0.06] px-3 py-2 text-[10px] text-white/55 ring-1 ring-white/10"
+              style={{ animationDelay: `${i * 0.15}s` }}
+            >
+              <span>{label}</span>
+              <span className="text-white/30">→</span>
+              <span className="text-violet-200/70">
+                {label === "PDF" ? "DOC" : label === "DOC" ? "PDF" : "PDF"}
+              </span>
+            </div>
+          ))}
         </div>
       );
 

@@ -7,6 +7,22 @@ if [ -d ".node-portable/bin" ]; then
 fi
 # 本机工具：yt-dlp、ffmpeg 等
 export PATH="$ROOT/.local/bin:$PATH"
+
+# LibreOffice（项目内 .local，无需系统安装）
+LOCAL_SOFFICE="$ROOT/.local/LibreOffice.app/Contents/MacOS/soffice"
+if [ -f ".env" ]; then
+  LO_FROM_ENV="$(grep -E '^[[:space:]]*LIBREOFFICE_PATH=' .env | tail -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | xargs)"
+  if [ -n "$LO_FROM_ENV" ]; then
+    if [ "${LO_FROM_ENV#/}" = "$LO_FROM_ENV" ]; then
+      export LIBREOFFICE_PATH="$ROOT/$LO_FROM_ENV"
+    else
+      export LIBREOFFICE_PATH="$LO_FROM_ENV"
+    fi
+  fi
+fi
+if [ -z "${LIBREOFFICE_PATH:-}" ] && [ -x "$LOCAL_SOFFICE" ]; then
+  export LIBREOFFICE_PATH="$LOCAL_SOFFICE"
+fi
 export PATH="${HOME}/Library/Python/3.9/bin:${HOME}/Library/Python/3.10/bin:${HOME}/Library/Python/3.11/bin:${HOME}/Library/Python/3.12/bin:$PATH"
 
 if ! command -v node >/dev/null 2>&1; then

@@ -4,8 +4,8 @@
   --font-sans:
     -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", var(--font-outfit),
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  --color-surface: #000000;
-  --color-surface-elevated: #0a0a12;
+  --color-surface: #06080f;
+  --color-surface-elevated: #0a0e1a;
   --color-border: rgba(255, 255, 255, 0.08);
   --color-accent-blue: #5e9dff;
   --color-accent-purple: #a78bfa;
@@ -48,10 +48,10 @@ body.page-ready .reveal {
 /* —— 背景层 —— */
 .bg-aurora {
   background:
-    radial-gradient(ellipse 100% 80% at 50% -30%, rgba(59, 130, 246, 0.22), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 90% 10%, rgba(139, 92, 246, 0.18), transparent 50%),
-    radial-gradient(ellipse 60% 40% at 10% 80%, rgba(99, 102, 241, 0.12), transparent 45%),
-    #000000;
+    radial-gradient(ellipse 90% 70% at 50% -20%, rgba(99, 102, 241, 0.2), transparent 58%),
+    radial-gradient(ellipse 65% 45% at 85% 15%, rgba(139, 92, 246, 0.14), transparent 52%),
+    radial-gradient(ellipse 55% 40% at 8% 75%, rgba(59, 130, 246, 0.1), transparent 48%),
+    linear-gradient(180deg, #06080f 0%, #080b14 45%, #06080f 100%);
 }
 
 .bg-grid {
@@ -169,11 +169,230 @@ body.page-ready .reveal {
   transition-duration: 0.15s;
 }
 
+/* —— 首屏 AI 长条 —— */
+.hero-ai-bar {
+  border-radius: 9999px;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.07) 0%,
+    rgba(255, 255, 255, 0.02) 50%,
+    rgba(8, 12, 24, 0.5) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(28px) saturate(1.6);
+  -webkit-backdrop-filter: blur(28px) saturate(1.6);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 8px 32px -12px rgba(0, 0, 0, 0.45);
+}
+
+.hero-ai-panel {
+  overflow: hidden;
+  border-radius: 1.5rem;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.02) 42%,
+    rgba(8, 12, 24, 0.55) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(36px) saturate(1.7);
+  -webkit-backdrop-filter: blur(36px) saturate(1.7);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 16px 48px -16px rgba(0, 0, 0, 0.55);
+}
+
+/* —— 导航玻璃 —— */
+.nav-glass {
+  background: rgba(10, 14, 26, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 8px 32px -12px rgba(0, 0, 0, 0.5);
+}
+
+/* —— 关于区卡片 —— */
+.about-card {
+  border-radius: 1.5rem;
+  padding: 1.5rem 1.75rem;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.02) 45%,
+    rgba(8, 12, 24, 0.45) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(32px) saturate(1.6);
+  -webkit-backdrop-filter: blur(32px) saturate(1.6);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset,
+    0 10px 36px -14px rgba(0, 0, 0, 0.5);
+  transition:
+    border-color 0.4s ease,
+    box-shadow 0.4s ease;
+}
+
+.about-card:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 16px 44px -16px rgba(79, 70, 229, 0.12);
+}
+
+@media (min-width: 640px) {
+  .about-card {
+    padding: 1.75rem 2rem;
+  }
+}
+
+/* —— 首页精选卡片 —— */
+.featured-tool-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.02) 42%,
+    rgba(8, 12, 24, 0.55) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(36px) saturate(1.7);
+  -webkit-backdrop-filter: blur(36px) saturate(1.7);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 12px 40px -16px rgba(0, 0, 0, 0.55);
+  transition:
+    transform 0.55s var(--ease-apple),
+    box-shadow 0.55s var(--ease-apple),
+    border-color 0.45s ease;
+}
+
+.featured-tool-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(129, 140, 248, 0.45) 0%,
+    transparent 40%,
+    transparent 60%,
+    rgba(167, 139, 250, 0.35) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  pointer-events: none;
+}
+
+.featured-tool-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(129, 140, 248, 0.22);
+  box-shadow:
+    0 0 0 1px rgba(129, 140, 248, 0.1) inset,
+    0 28px 56px -20px rgba(79, 70, 229, 0.22),
+    0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.featured-tool-card:hover::before {
+  opacity: 1;
+}
+
+.featured-tool-card:active {
+  transform: translateY(-2px);
+  transition-duration: 0.15s;
+}
+
 .glass-panel {
   background: rgba(18, 18, 28, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(32px) saturate(1.6);
   border-radius: 1.25rem;
+}
+
+/* —— 工具线性图标 · 玻璃拟态容器 —— */
+.tool-icon-box {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.875rem;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.03) 45%,
+    rgba(99, 102, 241, 0.06) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 4px 16px -6px rgba(0, 0, 0, 0.45);
+  transition:
+    transform 0.45s var(--ease-spring),
+    box-shadow 0.45s var(--ease-apple),
+    border-color 0.4s ease,
+    background 0.4s ease;
+}
+
+.tool-icon-box-sm {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.tool-icon-box-md {
+  width: 3rem;
+  height: 3rem;
+}
+
+.tool-icon-box-lg {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 1rem;
+}
+
+.tool-icon-glow {
+  filter: drop-shadow(0 0 6px rgba(165, 196, 255, 0.35));
+  transition: filter 0.45s var(--ease-apple);
+}
+
+.group:hover .tool-icon-box,
+.featured-tool-card:hover .tool-icon-box,
+button:hover .tool-icon-box {
+  transform: scale(1.08);
+  border-color: rgba(165, 180, 252, 0.35);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(129, 140, 248, 0.1) 50%,
+    rgba(167, 139, 250, 0.08) 100%
+  );
+  box-shadow:
+    0 0 0 1px rgba(165, 180, 252, 0.12) inset,
+    0 0 20px rgba(94, 157, 255, 0.22),
+    0 0 40px rgba(167, 139, 250, 0.14),
+    0 8px 24px -8px rgba(0, 0, 0, 0.5);
+}
+
+.group:hover .tool-icon-glow,
+.featured-tool-card:hover .tool-icon-glow,
+button:hover .tool-icon-glow {
+  filter: drop-shadow(0 0 8px rgba(165, 196, 255, 0.55))
+    drop-shadow(0 0 14px rgba(196, 181, 253, 0.35));
 }
 
 .text-gradient-hero {

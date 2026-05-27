@@ -6,22 +6,25 @@
 
 | 工具 | 路径 | 实现方式 |
 |------|------|----------|
-| 图片变清晰 | `/tools/image-sharpen` | 浏览器 Canvas 锐化 |
-| 压缩图片 | `/tools/image-compress` | 浏览器 Canvas 压缩 |
-| 智能抠图 | `/tools/smart-cutout` | 浏览器 AI（@imgly/background-removal） |
-| AI 对话 | `/tools/ai-chat` | 火山方舟 Ark · 闲聊为主，可操控工具 |
-| 热点中心 | `/tools/hot-trends` | 服务端拉取热点 |
+| 图像工坊 | `/tools/image-studio` | 压缩 / 变清晰 / 抠图（本地）· xAI 文生图 |
+| AI 对话 | `/tools/ai-chat` | DeepSeek · 闲聊为主，可操控工具 |
+| 热点中心 | `/tools/hot-trends` | 抖音官方热搜 · 小红书探索页热门笔记 |
 | 影视搜索 | `/tools/media-search` | 豆瓣+TMDB 并行检索 · 资源链接包 |
 | 制作爬虫 | `/tools/spider-builder` | 服务端 Cheerio 抓取 |
 | 音乐工坊 | `/tools/music-convert` | 本地解锁 NCM/KGM/KWM/XM · 批量转码 · ZIP |
 | 视频链接提取 | `/tools/video-extract` | 抖音 / B 站 / YouTube / X / Telegram / Instagram 等 |
-| AI 生视频 | `/tools/ai-video` | Replicate API（可选） |
+| 文档转换 | `/tools/doc-convert` | PDF↔Word（需 LibreOffice）· PDF→图片 · 图片→PDF |
+| 字幕工坊 | `/tools/subtitle-workshop` | 本地 faster-whisper 语音转写 · 提取内嵌字幕 · 时间平移 |
+| GIF 动图 | `/tools/gif-maker` | 视频片段 → GIF（ffmpeg） |
+| 文本工具箱 | `/tools/text-toolbox` | 字数统计 · 去重 · JSON · Markdown 预览（本地） |
 | 我的素材库（隐藏入口） | `/tools/assets` | 双击导航栏「菠」+ 密码 |
 
 ## 环境要求
 
 - Node.js 18.17+
 - **ffmpeg**：音频格式互转（云音乐解锁不需要）→ `brew install ffmpeg`
+- **faster-whisper**（字幕工坊 · 本地语音转写）：`python3 -m pip install --user faster-whisper` 或运行 `./scripts/install-deps.sh`（首次转写会自动下载模型，无需 API Key）
+- **LibreOffice**（可选，PDF ↔ Word）：下载到项目内、无需系统安装 → `./scripts/download-libreoffice.sh`，并在 `.env` 设置 `LIBREOFFICE_PATH=.local/LibreOffice.app/Contents/MacOS/soffice`（PDF 转图片、图片转 PDF 不需要）
 - **酷狗解锁**：运行 `./scripts/download-kgm-mask.sh` 下载 `public/static/kgm.mask`
 - **yt-dlp**（可选）：视频链接提取 → `brew install yt-dlp`
 
@@ -35,21 +38,23 @@ cp .env.example .env
 
 | 变量 | 用途 | 是否必需 |
 |------|------|----------|
-| `ARK_API_KEY` | 闲聊对话（火山方舟） | 使用该功能时必需 |
-| `ARK_BASE_URL` | API 地址（默认北京方舟 v3） | 可选 |
-| `ARK_MODEL` | 模型 ID 或 `ep-xxx` 接入点 | 必需 |
+| `DEEPSEEK_API_KEY` | AI 对话 | 使用该功能时必需 |
+| `DEEPSEEK_BASE_URL` | DeepSeek API（默认 `https://api.deepseek.com/v1`） | 可选 |
+| `DEEPSEEK_MODEL` | 模型（默认 `deepseek-chat`） | 可选 |
 | `TMDB_API_KEY` | 影视搜索 | 使用该功能时必需 |
-| `REPLICATE_API_TOKEN` | AI 生视频 | 可选 |
+| `XAI_API_KEY` | 图像工坊 · AI 生图 | 使用生图时必需 |
+| `WHISPER_MODEL` | 字幕工坊 · 本地转写模型（默认 `base`） | 可选 |
+| `OPENAI_API_KEY` | 字幕工坊 · 云端转写（本地不可用时的备选） | 可选 |
 | `ASSETS_PASSWORD` | 素材库访问密码 | 使用素材库时必需 |
 
-### AI 对话（火山方舟）
+### AI 对话（DeepSeek）
 
-在 [火山方舟控制台](https://console.volcengine.com/ark) 获取 API Key，写入 `.env`：
+在 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 获取 API Key，写入 `.env`：
 
 ```bash
-ARK_API_KEY=你的密钥
-ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
-ARK_MODEL=doubao-1-5-pro-32k-250115
+DEEPSEEK_API_KEY=你的密钥
+DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
+DEEPSEEK_MODEL=deepseek-chat
 ```
 
 **主打**轻松闲聊；**次要**在用户明确要求时充当智能助手（跳转工具、预填链接等）。
@@ -75,8 +80,11 @@ npm install
 npm run build
 npm run start          # 前端 + API
 
-# 或仅改前端时：
-npm run dev            # 需另开终端运行 npm run dev:api 才能调 API
+# 或仅改前端时（API 与前端分端口，避免与 start.sh 的 3000 冲突）：
+npm run dev:all        # 推荐：同时启动 API(3001) + 前端(3002)
+# 或手动：
+npm run dev:api        # 终端 1：API http://127.0.0.1:3001
+npm run dev            # 终端 2：前端 http://127.0.0.1:3002
 ```
 
 ## 项目结构

@@ -9,6 +9,11 @@ import {
   searchDouban,
   searchTmdbParallel,
 } from "../lib/media-aggregate.mjs";
+import {
+  assertSearchAllowed,
+  buildCopyText,
+  searchMediaResources,
+} from "../lib/media-resource-fetch.mjs";
 
 const router = Router();
 const TMDB = "https://api.themoviedb.org/3";
@@ -84,6 +89,26 @@ router.get("/hot", async (req, res) => {
     res.json({ ok: true, keywords });
   } catch {
     res.json({ ok: true, keywords: HOT_FALLBACK });
+  }
+});
+
+/** 多源并行检索网盘资源（参考公开检索聚合接口） */
+router.get("/resource-search", async (req, res) => {
+  try {
+    const check = assertSearchAllowed(req.query.q);
+    if (!check.ok) throw new HttpError(400, check.error);
+
+    const result = await searchMediaResources(check.query);
+    res.json({
+      ok: true,
+      query: result.query,
+      sections: result.sections,
+      stats: result.stats,
+      copyText: buildCopyText(result),
+      errors: result.errors,
+    });
+  } catch (err) {
+    sendError(res, err);
   }
 });
 

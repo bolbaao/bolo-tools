@@ -486,11 +486,6 @@ export default function MusicConvertForm() {
           {error}
         </div>
       )}
-
-      <p className="text-center text-[11px] text-white/22 leading-relaxed">
-        算法参考 Unlock Music · 仅供个人学习 · 酷狗需{" "}
-        <code className="text-white/35">public/static/kgm.mask</code>
-      </p>
     </div>
   );
 }

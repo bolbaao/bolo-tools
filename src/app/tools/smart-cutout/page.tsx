@@ -1,12 +1,17 @@
-import ToolPageLayout from "@/components/ToolPageLayout";
-import SmartCutoutForm from "@/components/tools/SmartCutoutForm";
-import { getToolById } from "@/lib/tools";
+"use client";
 
-export default function SmartCutoutPage() {
-  const tool = getToolById("smart-cutout")!;
+import ToolPageLayout from "@/components/ToolPageLayout";
+import ImageStudioRedirect from "@/components/tools/ImageStudioRedirect";
+import { getToolById } from "@/lib/tools";
+import { Suspense } from "react";
+
+export default function SmartCutoutRedirectPage() {
+  const tool = getToolById("image-studio")!;
   return (
     <ToolPageLayout tool={tool}>
-      <SmartCutoutForm />
+      <Suspense fallback={<p className="text-center text-sm text-white/40 py-12">跳转中…</p>}>
+        <ImageStudioRedirect tab="cutout" />
+      </Suspense>
     </ToolPageLayout>
   );
 }

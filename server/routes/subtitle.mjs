@@ -1,0 +1,161 @@
+import { Router } from "express";
+import multer from "multer";
+import fs from "fs";
+import path from "path";
+import os from "os";
+import { HttpError, sendError } from "../lib/http-error.mjs";
+import { runFfmpeg, runFfprobe } from "../lib/ffmpeg-run.mjs";
+import { transcribeAudioFile, isTranscribeAvailable } from "../lib/transcribe.mjs";
+
+const router = Router();
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 200 * 1024 * 1024 },
+});
+
+const MAX_TRANSCRIBE_SEC = Number(process.env.MAX_TRANSCRIBE_SEC || 600);
+
+async function getMediaDurationSec(filePath) {
+  try {
+    const { stdout } = await runFfprobe([
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
+      filePath,
+    ]);
+    const n = parseFloat(stdout.trim());
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+async function withTmpDir(fn) {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pineapple-sub-"));
+  try {
+    return await fn(tmpDir);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+/** 提取内嵌字幕轨 */
+router.post("/extract", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) throw new HttpError(400, "请上传视频或字幕文件");
+
+    const result = await withTmpDir(async (tmpDir) => {
+      const ext = path.extname(req.file.originalname) || ".mp4";
+      const inputPath = path.join(tmpDir, `input${ext}`);
+      fs.writeFileSync(inputPath, req.file.buffer);
+
+      const outSrt = path.join(tmpDir, "subs.srt");
+      await runFfmpeg([
+        "-y",
+        "-i",
+        inputPath,
+        "-map",
+        "0:s:0",
+        "-c:s",
+        "srt",
+        outSrt,
+      ]);
+
+      if (!fs.existsSync(outSrt)) {
+        throw new HttpError(400, "未检测到可提取的字幕轨，请尝试「语音转字幕」");
+      }
+      return fs.readFileSync(outSrt, "utf8");
+    });
+
+    const base = path.basename(req.file.originalname, path.extname(req.file.originalname));
+    res.json({ ok: true, format: "srt", content: result, filename: `${base}.srt` });
+  } catch (err) {
+    if (err instanceof HttpError) sendError(res, err);
+    else if (/Stream map|does not contain|Invalid argument/i.test(err.message)) {
+      sendError(res, new HttpError(400, "该文件没有内嵌字幕轨"));
+    } else sendError(res, err);
+  }
+});
+
+/** 语音转字幕（本地 faster-whisper，或可选 Whisper 兼容 API） */
+router.post("/transcribe", upload.single("file"), async (req, res) => {
+  try {
+    if (!isTranscribeAvailable()) {
+      throw new HttpError(
+        503,
+        "未安装本地转写引擎。请运行: python3 -m pip install --user faster-whisper（或 ./scripts/install-deps.sh）。也可在 .env 配置 OPENAI_API_KEY 使用云端转写。",
+      );
+    }
+    if (!req.file) throw new HttpError(400, "请上传视频或音频");
+
+    const format = String(req.body.format || "srt").toLowerCase();
+    if (!["srt", "vtt", "text"].includes(format)) {
+      throw new HttpError(400, "format 须为 srt / vtt / text");
+    }
+
+    const payload = await withTmpDir(async (tmpDir) => {
+      const ext = path.extname(req.file.originalname) || ".mp4";
+      const inputPath = path.join(tmpDir, `input${ext}`);
+      const wavPath = path.join(tmpDir, "audio.wav");
+      fs.writeFileSync(inputPath, req.file.buffer);
+
+      const duration = await getMediaDurationSec(inputPath);
+      const trimArgs =
+        duration && duration > MAX_TRANSCRIBE_SEC
+          ? ["-t", String(MAX_TRANSCRIBE_SEC)]
+          : [];
+
+      await runFfmpeg([
+        "-y",
+        "-i",
+        inputPath,
+        ...trimArgs,
+        "-vn",
+        "-acodec",
+        "pcm_s16le",
+        "-ar",
+        "16000",
+        "-ac",
+        "1",
+        wavPath,
+      ]);
+
+      const content = await transcribeAudioFile(wavPath, format);
+      return {
+        content,
+        truncated: Boolean(duration && duration > MAX_TRANSCRIBE_SEC),
+        durationSec: duration,
+      };
+    });
+
+    const base = path.basename(req.file.originalname, path.extname(req.file.originalname));
+    const outExt = format === "text" ? "txt" : format;
+    res.json({
+      ok: true,
+      format,
+      content: payload.content,
+      filename: `${base}.${outExt}`,
+      truncated: payload.truncated,
+      message: payload.truncated
+        ? `仅转写前 ${MAX_TRANSCRIBE_SEC} 秒，可在 .env 调整 MAX_TRANSCRIBE_SEC`
+        : undefined,
+    });
+  } catch (err) {
+    if (err.message === "TRANSCRIBE_KEYS_MISSING" || err.message === "LOCAL_WHISPER_MISSING") {
+      sendError(
+        res,
+        new HttpError(
+          503,
+          "未安装本地转写引擎。请运行: python3 -m pip install --user faster-whisper",
+        ),
+      );
+      return;
+    }
+    sendError(res, err);
+  }
+});
+
+export default router;

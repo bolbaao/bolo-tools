@@ -22,29 +22,10 @@ export const TOOL_DEMO_VIDEOS: Record<string, ToolDemoSource> = {
     poster:
       "https://cdn.coverr.co/videos/coverr-connected-on-the-go-smartphone-in-use/thumbnail?width=640",
   },
-  "ai-video": {
-    localPath: "/demos/ai-video.mp4",
-    remoteUrl: "https://cdn.coverr.co/videos/coverr-mysterious-figure-in-neon-noir-cityscape/1080p.mp4",
-    poster:
-      "https://cdn.coverr.co/videos/coverr-mysterious-figure-in-neon-noir-cityscape/thumbnail?width=640",
-  },
-  "smart-cutout": {
-    localPath: "/demos/smart-cutout.mp4",
-    remoteUrl:
-      "https://cdn.coverr.co/videos/coverr-portrait-of-a-woman-in-a-surreal-smoky-dreamscape/1080p.mp4",
-    poster:
-      "https://cdn.coverr.co/videos/coverr-portrait-of-a-woman-in-a-surreal-smoky-dreamscape/thumbnail?width=640",
-  },
-  "image-sharpen": {
-    localPath: "/demos/image-sharpen.mp4",
+  "image-studio": {
+    localPath: "/demos/image-studio.mp4",
     remoteUrl: "https://cdn.coverr.co/videos/coverr-taking-photos-of-orchids-3595/1080p.mp4",
     poster: "https://cdn.coverr.co/videos/coverr-taking-photos-of-orchids-3595/thumbnail?width=640",
-  },
-  "image-compress": {
-    localPath: "/demos/image-compress.mp4",
-    remoteUrl: "https://cdn.coverr.co/videos/coverr-a-female-s-hands-typing-on-laptop-7520/1080p.mp4",
-    poster:
-      "https://cdn.coverr.co/videos/coverr-a-female-s-hands-typing-on-laptop-7520/thumbnail?width=640",
   },
   "ai-chat": {
     localPath: "/demos/ai-chat.mp4",
@@ -62,8 +43,34 @@ export const TOOL_DEMO_VIDEOS: Record<string, ToolDemoSource> = {
     remoteUrl: "https://cdn.coverr.co/videos/coverr-film-director-s-pov-7972/1080p.mp4",
     poster: "https://cdn.coverr.co/videos/coverr-film-director-s-pov-7972/thumbnail?width=640",
   },
+  "media-download": {
+    localPath: "/demos/media-download.mp4",
+    remoteUrl: "https://cdn.coverr.co/videos/coverr-downloading-files-on-a-laptop-1566/1080p.mp4",
+    poster: "https://cdn.coverr.co/videos/coverr-typing-on-a-laptop-keyboard-1566/thumbnail?width=640",
+  },
   "spider-builder": {
     localPath: "/demos/spider-builder.mp4",
+    remoteUrl: "https://cdn.coverr.co/videos/coverr-developing-coding-sequences-3909/1080p.mp4",
+    poster: "https://cdn.coverr.co/videos/coverr-developing-coding-sequences-3909/thumbnail?width=640",
+  },
+  "doc-convert": {
+    localPath: "/demos/doc-convert.mp4",
+    remoteUrl: "https://cdn.coverr.co/videos/coverr-typing-on-a-laptop-keyboard-1566/1080p.mp4",
+    poster: "https://cdn.coverr.co/videos/coverr-typing-on-a-laptop-keyboard-1566/thumbnail?width=640",
+  },
+  "subtitle-workshop": {
+    localPath: "/demos/subtitle-workshop.mp4",
+    remoteUrl: "https://cdn.coverr.co/videos/coverr-film-director-s-pov-7972/1080p.mp4",
+    poster: "https://cdn.coverr.co/videos/coverr-film-director-s-pov-7972/thumbnail?width=640",
+  },
+  "gif-maker": {
+    localPath: "/demos/gif-maker.mp4",
+    remoteUrl: "https://cdn.coverr.co/videos/coverr-connected-on-the-go-smartphone-in-use/1080p.mp4",
+    poster:
+      "https://cdn.coverr.co/videos/coverr-connected-on-the-go-smartphone-in-use/thumbnail?width=640",
+  },
+  "text-toolbox": {
+    localPath: "/demos/text-toolbox.mp4",
     remoteUrl: "https://cdn.coverr.co/videos/coverr-developing-coding-sequences-3909/1080p.mp4",
     poster: "https://cdn.coverr.co/videos/coverr-developing-coding-sequences-3909/thumbnail?width=640",
   },

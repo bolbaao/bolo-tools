@@ -38,6 +38,35 @@ else
   fi
 fi
 
+# LibreOffice（文档转换，下载到 .local，不装系统级）
+LOCAL_SOFFICE="$(pwd)/.local/LibreOffice.app/Contents/MacOS/soffice"
+if [ -x "$LOCAL_SOFFICE" ]; then
+  echo "✓ LibreOffice 已存在: $LOCAL_SOFFICE"
+else
+  echo "→ 文档转换需要 LibreOffice（将下载到 .local，约 300MB）…"
+  if bash scripts/download-libreoffice.sh; then
+    if ! grep -q '^LIBREOFFICE_PATH=' .env 2>/dev/null; then
+      echo "LIBREOFFICE_PATH=.local/LibreOffice.app/Contents/MacOS/soffice" >> .env
+      echo "✓ 已写入 .env → LIBREOFFICE_PATH"
+    fi
+  else
+    echo "⚠️  LibreOffice 下载失败，可稍后手动运行: ./scripts/download-libreoffice.sh"
+  fi
+fi
+
+# faster-whisper（字幕工坊 · 本地语音转写）
+if python3 -c "import faster_whisper" 2>/dev/null; then
+  echo "✓ faster-whisper 已安装"
+else
+  echo "→ 安装 faster-whisper (pip)…"
+  python3 -m pip install --user faster-whisper
+  if python3 -c "import faster_whisper" 2>/dev/null; then
+    echo "✓ faster-whisper 已安装（首次转写会自动下载模型）"
+  else
+    echo "⚠️  faster-whisper 安装失败，字幕转写需手动: python3 -m pip install --user faster-whisper"
+  fi
+fi
+
 echo ""
 echo "✅ 完成。启动前请确保 PATH 包含："
 echo "   $(pwd)/.local/bin"

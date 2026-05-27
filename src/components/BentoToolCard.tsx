@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import ToolDemoVisual from "@/components/home/ToolDemoVisual";
+import { ToolIconBox } from "@/components/icons/ToolIcon";
 import { bentoClass, type Tool } from "@/lib/tools";
 
 type Props = {
@@ -25,9 +26,7 @@ export default function BentoToolCard({ tool, index = 0 }: Props) {
         />
 
         <div className="relative flex items-start justify-between gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/[0.06] text-xl ring-1 ring-white/10 backdrop-blur-md transition-all duration-300 group-hover:bg-white/10 group-hover:ring-blue-400/30">
-            {tool.icon}
-          </span>
+          <ToolIconBox id={tool.id} size="sm" />
           <span className="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-medium tracking-wide text-white/45 ring-1 ring-white/10">
             {tool.tag}
           </span>
@@ -39,17 +38,10 @@ export default function BentoToolCard({ tool, index = 0 }: Props) {
           >
             {tool.title}
           </h3>
-          <p
-            className={`mt-2 text-white/40 leading-relaxed ${isHero ? "text-sm max-w-sm" : "text-xs sm:text-sm line-clamp-2"}`}
-          >
-            {tool.description}
-          </p>
 
           <div className="mt-4 flex-1 min-h-[88px]">
             <ToolDemoVisual toolId={tool.id} large={isLarge} />
           </div>
-
-          <p className="mt-3 text-[10px] text-white/30 truncate">{tool.demoHint}</p>
 
           <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-4">
             <span className="text-sm font-medium text-blue-300/70 group-hover:text-blue-200 transition-colors">

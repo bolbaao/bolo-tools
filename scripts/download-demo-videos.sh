@@ -35,10 +35,7 @@ download_one() {
 declare -a ITEMS=(
   "music-convert|https://cdn.coverr.co/videos/coverr-man-playing-the-piano-6284/1080p.mp4"
   "video-extract|https://cdn.coverr.co/videos/coverr-connected-on-the-go-smartphone-in-use/1080p.mp4"
-  "ai-video|https://cdn.coverr.co/videos/coverr-mysterious-figure-in-neon-noir-cityscape/1080p.mp4"
-  "smart-cutout|https://cdn.coverr.co/videos/coverr-portrait-of-a-woman-in-a-surreal-smoky-dreamscape/1080p.mp4"
-  "image-sharpen|https://cdn.coverr.co/videos/coverr-taking-photos-of-orchids-3595/1080p.mp4"
-  "image-compress|https://cdn.coverr.co/videos/coverr-a-female-s-hands-typing-on-laptop-7520/1080p.mp4"
+  "image-studio|https://cdn.coverr.co/videos/coverr-taking-photos-of-orchids-3595/1080p.mp4"
   "ai-chat|https://cdn.coverr.co/videos/coverr-woman-texting-and-smiling-3838/1080p.mp4"
   "hot-trends|https://cdn.coverr.co/videos/coverr-scrolling-through-coronavirus-news-6170/1080p.mp4"
   "media-search|https://cdn.coverr.co/videos/coverr-film-director-s-pov-7972/1080p.mp4"

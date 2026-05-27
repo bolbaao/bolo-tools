@@ -2,7 +2,7 @@
 
 import ActionButton from "@/components/ActionButton";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
-import { ApiError, apiPost, downloadBlob } from "@/lib/api";
+import { ApiError, apiNotFoundMessage, apiPost, apiUrl, downloadBlob } from "@/lib/api";
 import { useCallback, useMemo, useState } from "react";
 
 type VideoFormat = {
@@ -107,18 +107,22 @@ export default function VideoExtractForm() {
   };
 
   const handleDownload = async (fmt: VideoFormat, title: string) => {
-    const href =
+    const downloadPath =
       fmt.downloadUrl ||
       `/api/video/download?${new URLSearchParams({
         url: fmt.url,
         platform: result?.platform || "generic",
         name: `${title.slice(0, 60).replace(/[<>:"/\\|?*]/g, "_") || "video"}.${fmt.ext || "mp4"}`,
       })}`;
+    const href = apiUrl(downloadPath);
 
     setDownloading(fmt.formatId || fmt.url);
     try {
       const res = await fetch(href);
       if (!res.ok) {
+        if (res.status === 404) {
+          throw new Error(apiNotFoundMessage());
+        }
         const data = await res.json().catch(() => ({}));
         throw new Error((data as { error?: string }).error || "下载失败");
       }

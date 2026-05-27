@@ -11,9 +11,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "菠萝工具箱 | 个人创作者一站式工具",
+  title: "春雨集",
   description:
-    "影视资源搜索、制作爬虫、图片处理、AI 聊天、热点中心、音视频工具等 — 简洁高效的创作工具集合。",
+    "把日常变得更有想象力。音乐转换、视频提取、AI 创作与热点工具 — 简洁专业的 AI 工具箱。",
 };
 
 export default function RootLayout({

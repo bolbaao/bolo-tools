@@ -1,6 +1,7 @@
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { saveAgentPrefill } from "@/lib/agent-prefill";
 import type { ActionResult, AgentAction } from "@/lib/agent-types";
+import { openToolkit } from "@/lib/toolkit";
 import { getToolById } from "@/lib/tools";
 
 export const AGENT_UI_EVENT = "pineapple-agent:ui";
@@ -48,21 +49,23 @@ async function runOne(action: AgentAction, router: AppRouterInstance): Promise<A
 
     case "scroll": {
       const target = String(p.target ?? "tools");
-      const id = target === "chat" ? "ai-chat" : target === "top" ? undefined : "tools";
-      if (!id) {
+      if (target === "top") {
         window.scrollTo({ top: 0, behavior: "smooth" });
         return { type: action.type, ok: true, message: "已回到页面顶部" };
       }
+      if (target === "tools" || target === "toolkit") {
+        openToolkit();
+        return { type: action.type, ok: true, message: "已打开实用工具箱" };
+      }
+      const id = target === "chat" ? "ai-chat" : target;
       document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
       return { type: action.type, ok: true, message: `已滚动到「${id}」区域` };
     }
 
     case "filter_tools": {
       const category = String(p.category ?? "");
-      window.dispatchEvent(
-        new CustomEvent(AGENT_UI_EVENT, { detail: { filterCategory: category } }),
-      );
-      return { type: action.type, ok: true, message: `已筛选工具：${category || "全部"}` };
+      openToolkit({ filterCategory: category });
+      return { type: action.type, ok: true, message: `已打开工具箱：${category || "全部"}` };
     }
 
     case "prefill": {
