@@ -88,7 +88,7 @@ router.post("/", async (req, res) => {
           }))
           .filter((m) => m.content.length > 0),
       ],
-      temperature: 0.4,
+      temperature: 0.75,
       max_tokens: 1024,
       response_format: { type: "json_object" },
     });

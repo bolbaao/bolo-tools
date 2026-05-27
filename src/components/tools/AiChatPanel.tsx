@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 const welcomeMessage =
-  "你好，我是菠萝工具箱智能助手。你可以直接说想做什么，例如：「帮我把这个抖音链接提取出来」「打开影视搜索搜奥本海默」「看看视频类工具有哪些」。";
+  "嗨～想聊什么都可以，随便唠。要是想用网站上的工具，也可以直接说，比如「帮我把这个视频链接提取出来」。";
 
 type ChatMessage = {
   role: "user" | "ai";
@@ -83,7 +83,7 @@ export default function AiChatPanel() {
         {
           role: "ai",
           text: `${data.reply}${resultNote}`,
-          plan: data.plan,
+          plan: data.intent === "operate" ? data.plan : undefined,
           actionResults,
         },
       ]);
@@ -106,12 +106,12 @@ export default function AiChatPanel() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-white/45 leading-relaxed">
-        对话 → 意图解析 → 任务拆解 → 自动打开工具 / 预填表单 → 返回结果。支持跳转各工具页并预填链接、关键词等。
+        主打轻松 AI 对话；需要时也可当智能助手，帮你打开工具、预填链接或关键词。
       </p>
 
       <div className="rounded-xl border border-white/8 bg-black/20 flex flex-col h-[360px] sm:h-[420px]">
         <div className="flex items-center justify-between border-b border-white/8 px-4 py-2.5">
-          <span className="text-xs text-white/40">智能助手</span>
+          <span className="text-xs text-white/40">AI 对话</span>
           <button
             type="button"
             onClick={clearChat}
@@ -129,7 +129,7 @@ export default function AiChatPanel() {
             >
               {msg.plan && msg.plan.length > 0 && (
                 <div className="max-w-[90%] rounded-xl border border-violet-500/20 bg-violet-500/5 px-3 py-2 text-xs text-white/55">
-                  <p className="font-medium text-violet-300/80 mb-1">执行计划</p>
+                  <p className="font-medium text-violet-300/80 mb-1">助手执行计划</p>
                   <ol className="list-decimal list-inside space-y-0.5">
                     {msg.plan.map((step, j) => (
                       <li key={j}>{step}</li>
@@ -149,7 +149,7 @@ export default function AiChatPanel() {
             </div>
           ))}
           {loading && (
-            <p className="text-xs text-white/30 animate-pulse">正在解析并执行…</p>
+            <p className="text-xs text-white/30 animate-pulse">正在回复…</p>
           )}
         </div>
 
@@ -159,7 +159,7 @@ export default function AiChatPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void send()}
-            placeholder="说说想做什么…"
+            placeholder="随便聊点什么…"
             className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-violet-500/50"
           />
           <button

@@ -1,19 +1,27 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
-import { ApiError, apiUpload, downloadBlob } from "@/lib/api";
+import { downloadBlob } from "@/lib/api";
 import {
-  detectEncryptedFormat,
-  ENCRYPTED_ACCEPT,
-  FORMAT_LABELS,
-  unlockMusicFile,
-} from "@/lib/music-unlock";
-import { useCallback, useState } from "react";
+  buildMusicZip,
+  classifyMusicFile,
+  formatBytes,
+  FORMAT_HINTS,
+  OUTPUT_FORMATS,
+  processMusicFile,
+  toProcessError,
+  type MusicKind,
+  type OutputFormat,
+} from "@/lib/music-convert";
+import { ENCRYPTED_ACCEPT } from "@/lib/music-unlock";
+import { useCallback, useMemo, useRef, useState } from "react";
 
-const convertFormats = ["MP3", "WAV", "FLAC", "AAC", "OGG"];
-const AUDIO_EXT = new Set(["mp3", "wav", "flac", "aac", "ogg", "m4a", "wma", "opus", "aiff", "aif"]);
-
-type MusicKind = "encrypted" | "audio";
+const PLATFORMS = [
+  { label: "网易云", ext: "NCM", tone: "from-rose-500/20 to-pink-500/5 text-rose-200/90 ring-rose-500/25" },
+  { label: "酷狗", ext: "KGM", tone: "from-amber-500/20 to-orange-500/5 text-amber-200/90 ring-amber-500/25" },
+  { label: "酷我", ext: "KWM", tone: "from-sky-500/20 to-cyan-500/5 text-sky-200/90 ring-sky-500/25" },
+  { label: "虾米", ext: "XM", tone: "from-emerald-500/20 to-teal-500/5 text-emerald-200/90 ring-emerald-500/25" },
+] as const;
 
 type MusicItem = {
   id: string;
@@ -28,93 +36,108 @@ function newId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function classifyMusicFile(file: File): MusicKind | null {
-  if (detectEncryptedFormat(file.name)) return "encrypted";
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (AUDIO_EXT.has(ext) || file.type.startsWith("audio/")) return "audio";
-  return null;
+function WaveformDecor({ active }: { active?: boolean }) {
+  return (
+    <div
+      className={`flex items-end justify-center gap-1 h-10 ${active ? "opacity-100" : "opacity-40"}`}
+      aria-hidden
+    >
+      {[0, 1, 2, 3, 4].map((i) => (
+        <span
+          key={i}
+          className={`w-1 rounded-full bg-gradient-to-t from-violet-500/80 to-fuchsia-400/60 ${
+            active ? "animate-[music-bar_1.1s_ease-in-out_infinite]" : "h-3"
+          }`}
+          style={active ? { animationDelay: `${i * 0.12}s`, height: `${12 + (i % 3) * 8}px` } : undefined}
+        />
+      ))}
+    </div>
+  );
 }
 
-function extMatchesTarget(filename: string, targetFormat: string): boolean {
-  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-  const target = targetFormat.toLowerCase();
-  return ext === target || (ext === "mpeg" && target === "mp3");
-}
-
-function outputFilename(baseName: string, format: string): string {
-  const base = baseName.replace(/\.[^.]+$/, "");
-  return `${base}.${format.toLowerCase()}`;
-}
-
-async function convertWithFfmpeg(source: Blob, sourceName: string, format: string): Promise<Blob> {
-  const fd = new FormData();
-  fd.append("file", source, sourceName);
-  fd.append("format", format);
-  const blob = await apiUpload<Blob>("/api/audio/convert", fd);
-  if (!(blob instanceof Blob)) throw new Error("转换失败");
-  return blob;
+function StatusBadge({ status }: { status: MusicItem["status"] }) {
+  const map = {
+    pending: { label: "等待", className: "bg-white/5 text-white/40 ring-white/10" },
+    processing: { label: "处理中", className: "bg-violet-500/15 text-violet-200 ring-violet-500/30" },
+    done: { label: "完成", className: "bg-emerald-500/15 text-emerald-200 ring-emerald-500/30" },
+    error: { label: "失败", className: "bg-red-500/15 text-red-300 ring-red-500/30" },
+  };
+  const s = map[status];
+  return (
+    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${s.className}`}>
+      {status === "processing" ? (
+        <span className="inline-flex items-center gap-1">
+          <span className="h-2 w-2 animate-spin rounded-full border border-violet-300/40 border-t-violet-200" />
+          {s.label}
+        </span>
+      ) : (
+        s.label
+      )}
+    </span>
+  );
 }
 
 export default function MusicConvertForm() {
-  const [targetFormat, setTargetFormat] = useState("MP3");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [targetFormat, setTargetFormat] = useState<OutputFormat>("MP3");
   const [items, setItems] = useState<MusicItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
 
-  const doneCount = items.filter((i) => i.status === "done").length;
-  const errorCount = items.filter((i) => i.status === "error").length;
+  const stats = useMemo(() => {
+    const total = items.length;
+    const done = items.filter((i) => i.status === "done").length;
+    const failed = items.filter((i) => i.status === "error").length;
+    const pending = items.filter((i) => i.status === "pending" || i.status === "error").length;
+    const totalBytes = items.reduce((s, i) => s + i.file.size, 0);
+    return { total, done, failed, pending, totalBytes };
+  }, [items]);
 
-  const addFiles = useCallback((list: FileList | File[]) => {
-    const accepted: MusicItem[] = [];
-    const rejected: string[] = [];
+  const progressPct = useMemo(() => {
+    if (loading && progress.total > 0) {
+      return Math.round((progress.current / progress.total) * 100);
+    }
+    if (stats.total > 0 && stats.done > 0) {
+      return Math.round((stats.done / stats.total) * 100);
+    }
+    return 0;
+  }, [loading, progress, stats]);
 
-    for (const file of Array.from(list)) {
-      const kind = classifyMusicFile(file);
-      if (kind) {
-        accepted.push({ id: newId(), file, kind, status: "pending" });
-      } else {
-        rejected.push(file.name);
+  const addFiles = useCallback(
+    (list: FileList | File[]) => {
+      const accepted: MusicItem[] = [];
+      const rejected: string[] = [];
+
+      for (const file of Array.from(list)) {
+        const kind = classifyMusicFile(file);
+        if (kind) accepted.push({ id: newId(), file, kind, status: "pending" });
+        else rejected.push(file.name);
       }
-    }
 
-    if (accepted.length === 0) {
-      setError(
-        rejected.length
-          ? `不支持的文件：${rejected.slice(0, 3).join("、")}${rejected.length > 3 ? "…" : ""}`
-          : "请选择音频或加密音乐文件",
-      );
-      return;
-    }
-
-    const total = items.length + accepted.length;
-    if (total > 50) {
-      setError("单次建议不超过 50 个文件，以免内存或服务负载过高");
-      return;
-    }
-
-    setError(null);
-    setItems((prev) => [...prev, ...accepted]);
-  }, [items.length]);
-
-  const processFile = async (item: MusicItem): Promise<{ blob: Blob; filename: string }> => {
-    if (item.kind === "encrypted") {
-      const unlocked = await unlockMusicFile(item.file);
-      let blob = unlocked.blob;
-      let name = unlocked.filename;
-      if (!extMatchesTarget(name, targetFormat)) {
-        blob = await convertWithFfmpeg(blob, name, targetFormat);
-        name = outputFilename(name, targetFormat);
+      if (accepted.length === 0) {
+        setError(
+          rejected.length
+            ? `无法识别：${rejected.slice(0, 2).join("、")}${rejected.length > 2 ? " 等" : ""}`
+            : "请添加加密音乐或普通音频文件",
+        );
+        return;
       }
-      return { blob, filename: name };
-    }
 
-    if (extMatchesTarget(item.file.name, targetFormat)) {
-      return { blob: item.file, filename: item.file.name };
-    }
+      if (items.length + accepted.length > 50) {
+        setError("单次最多 50 个文件，请分批处理");
+        return;
+      }
 
-    const blob = await convertWithFfmpeg(item.file, item.file.name, targetFormat);
-    return { blob, filename: outputFilename(item.file.name, targetFormat) };
+      setError(null);
+      setItems((prev) => [...prev, ...accepted]);
+    },
+    [items.length],
+  );
+
+  const removeItem = (id: string) => {
+    setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
   const runBatch = async () => {
@@ -131,14 +154,15 @@ export default function MusicConvertForm() {
         prev.map((i) => (i.id === item.id ? { ...i, status: "processing", error: undefined } : i)),
       );
       try {
-        const result = await processFile(item);
+        const result = await processMusicFile(item.file, item.kind, targetFormat);
         setItems((prev) =>
           prev.map((i) => (i.id === item.id ? { ...i, status: "done", result } : i)),
         );
       } catch (e) {
-        const msg = e instanceof ApiError ? e.message : e instanceof Error ? e.message : "处理失败";
         setItems((prev) =>
-          prev.map((i) => (i.id === item.id ? { ...i, status: "error", error: msg } : i)),
+          prev.map((i) =>
+            i.id === item.id ? { ...i, status: "error", error: toProcessError(e) } : i,
+          ),
         );
       }
       current += 1;
@@ -147,39 +171,16 @@ export default function MusicConvertForm() {
     setLoading(false);
   };
 
-  const downloadOne = (item: MusicItem) => {
-    if (!item.result) return;
-    downloadBlob(item.result.blob, item.result.filename);
-  };
-
-  const downloadAll = () => {
-    items.filter((i) => i.status === "done" && i.result).forEach(downloadOne);
-  };
-
   const downloadZip = async () => {
     const done = items.filter((i) => i.status === "done" && i.result);
     if (done.length === 0) return;
     setLoading(true);
     try {
-      const JSZip = (await import("jszip")).default;
-      const zip = new JSZip();
-      const used = new Set<string>();
-      for (const item of done) {
-        const r = item.result!;
-        let name = r.filename;
-        let n = 1;
-        while (used.has(name)) {
-          const dot = r.filename.lastIndexOf(".");
-          const base = dot > 0 ? r.filename.slice(0, dot) : r.filename;
-          const ext = dot > 0 ? r.filename.slice(dot) : "";
-          name = `${base} (${n})${ext}`;
-          n += 1;
-        }
-        used.add(name);
-        zip.file(name, r.blob);
-      }
-      const blob = await zip.generateAsync({ type: "blob" });
-      downloadBlob(blob, `音乐-${targetFormat}-${Date.now()}.zip`);
+      const blob = await buildMusicZip(
+        done.map((i) => i.result!),
+        targetFormat,
+      );
+      downloadBlob(blob, `菠萝音乐-${targetFormat}-${Date.now()}.zip`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "打包失败");
     } finally {
@@ -187,168 +188,308 @@ export default function MusicConvertForm() {
     }
   };
 
-  const clearAll = () => {
-    setItems([]);
-    setProgress({ current: 0, total: 0 });
-    setError(null);
-  };
-
   const accept = `${ENCRYPTED_ACCEPT},audio/*,.mp3,.wav,.flac,.aac,.ogg,.m4a`;
+  const canProcess = stats.pending > 0 && !loading;
+  const hasDone = stats.done > 0;
 
   return (
-    <div className="space-y-6">
-      <p className="text-center text-xs text-white/40 leading-relaxed">
-        网易云 NCM、酷狗 KGM、酷我 KWM、虾米 XM 等在浏览器本地解密；普通音频由本机 ffmpeg 转码。
-        统一输出为下方所选格式 · 批量建议少于 50 个。
-      </p>
-
-      <div className="flex flex-wrap justify-center gap-2">
-        {Object.entries(FORMAT_LABELS).map(([key, label]) => (
-          <span
-            key={key}
-            className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs text-white/45"
-          >
-            {label}
-          </span>
-        ))}
-        <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs text-white/35">
-          + MP3/WAV/FLAC…
-        </span>
-      </div>
-
-      <div>
-        <label className="block text-sm text-white/60 mb-2">输出格式</label>
-        <div className="flex flex-wrap gap-2">
-          {convertFormats.map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setTargetFormat(f)}
-              className={`rounded-lg px-4 py-2 text-sm transition-all ${
-                targetFormat === f
-                  ? "bg-violet-600/30 text-violet-200 border border-violet-500/40"
-                  : "bg-white/5 text-white/50 border border-white/8 hover:bg-white/10"
-              }`}
-            >
-              {f}
-            </button>
-          ))}
+    <div className="space-y-8">
+      {/* 能力概览 */}
+      <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.04] to-transparent p-5 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-violet-300/70">
+              本地优先
+            </p>
+            <h2 className="mt-1 text-lg font-semibold tracking-tight text-white/95">
+              解锁 · 转码 · 一站完成
+            </h2>
+            <p className="mt-2 text-sm text-white/40 leading-relaxed max-w-md font-light">
+              加密曲目在浏览器内解密，不上传云端；格式不一致时由本机 ffmpeg 转为目标格式。可混选批量处理。
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            {PLATFORMS.map((p) => (
+              <span
+                key={p.ext}
+                className={`inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r px-3 py-1 text-[11px] font-medium ring-1 ${p.tone}`}
+              >
+                <span className="opacity-60">{p.ext}</span>
+                {p.label}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+        <div className="mt-5 flex flex-wrap gap-3 text-[11px] text-white/35">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1 w-1 rounded-full bg-emerald-400/80" />
+            隐私：解密在本地完成
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1 w-1 rounded-full bg-violet-400/80" />
+            批量：建议 ≤50 首
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1 w-1 rounded-full bg-amber-400/80" />
+            不支持 QQ QMC
+          </span>
+        </div>
+      </section>
 
-      <label
-        className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-10 cursor-pointer hover:border-violet-500/40 hover:bg-violet-500/5 transition-all"
+      {/* 输出格式 */}
+      <section>
+        <div className="flex items-baseline justify-between mb-3">
+          <label className="text-sm font-medium text-white/70">输出格式</label>
+          <span className="text-xs text-white/30">{FORMAT_HINTS[targetFormat]}</span>
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+          {OUTPUT_FORMATS.map((f) => {
+            const active = targetFormat === f;
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setTargetFormat(f)}
+                className={`relative rounded-xl px-3 py-3 text-center transition-all duration-300 ${
+                  active
+                    ? "bg-gradient-to-b from-violet-500/25 to-fuchsia-500/10 text-violet-100 ring-1 ring-violet-400/40 shadow-[0_0_24px_-6px_rgba(139,92,246,0.45)]"
+                    : "bg-white/[0.03] text-white/45 ring-1 ring-white/[0.06] hover:bg-white/[0.06] hover:text-white/65"
+                }`}
+              >
+                <span className="block text-sm font-semibold tracking-wide">{f}</span>
+                <span className="mt-0.5 block text-[10px] opacity-60 font-light">{FORMAT_HINTS[f]}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 上传区 */}
+      <section
+        className={`relative overflow-hidden rounded-2xl border-2 border-dashed transition-all duration-300 ${
+          dragActive
+            ? "border-violet-400/50 bg-violet-500/[0.08] scale-[1.01]"
+            : "border-white/12 bg-white/[0.02] hover:border-violet-500/30 hover:bg-violet-500/[0.04]"
+        }`}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          setDragActive(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragActive(false);
+        }}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
+          setDragActive(false);
           if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
         }}
       >
-        <span className="text-3xl opacity-60">♪</span>
-        <span className="text-sm text-white/50">选择或拖入音乐文件（可多选）</span>
-        <span className="text-xs text-white/25 text-center px-4">
-          .ncm · .kgm · .kwm · .xm · MP3 · WAV · FLAC · AAC · OGG 等
-        </span>
-        <input
-          type="file"
-          accept={accept}
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            if (e.target.files?.length) addFiles(e.target.files);
-            e.target.value = "";
-          }}
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(139,92,246,0.12),transparent_55%)]"
+          aria-hidden
         />
-      </label>
+        <label className="relative flex flex-col items-center justify-center gap-4 px-6 py-12 sm:py-14 cursor-pointer">
+          <div
+            className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500/25 to-fuchsia-500/15 ring-1 ring-white/10 transition-transform duration-300 ${
+              dragActive ? "scale-110" : ""
+            }`}
+          >
+            <WaveformDecor active={dragActive || loading} />
+          </div>
+          <div className="text-center">
+            <p className="text-base font-medium text-white/80">
+              {dragActive ? "松开即可添加" : "拖入音乐文件，或点击选择"}
+            </p>
+            <p className="mt-1.5 text-xs text-white/35 max-w-sm">
+              NCM · KGM · KWM · XM · MP3 · WAV · FLAC · AAC · OGG
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              inputRef.current?.click();
+            }}
+            className="pointer-events-auto rounded-full bg-white/10 px-5 py-2 text-xs font-medium text-white/70 ring-1 ring-white/15 hover:bg-white/15 hover:text-white transition-colors"
+          >
+            浏览文件
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept={accept}
+            multiple
+            className="sr-only"
+            onChange={(e) => {
+              if (e.target.files?.length) addFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </section>
 
+      {/* 队列 */}
       {items.length > 0 && (
-        <div className="space-y-3">
-          <div className="text-sm text-white/50">
-            {loading
-              ? `正在处理 ${progress.current}/${progress.total}`
-              : `已选 ${items.length} 个 · 成功 ${doneCount} · 失败 ${errorCount}`}
+        <section className="space-y-4 animate-[bento-in_0.4s_ease-out]">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
+            <div className="flex flex-wrap items-end justify-between gap-4 mb-4">
+              <div className="grid grid-cols-3 gap-4 sm:gap-8">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-white/30">队列</p>
+                  <p className="mt-0.5 text-2xl font-semibold tabular-nums text-white/90">{stats.total}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-emerald-400/60">完成</p>
+                  <p className="mt-0.5 text-2xl font-semibold tabular-nums text-emerald-300/90">
+                    {stats.done}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-red-400/50">失败</p>
+                  <p className="mt-0.5 text-2xl font-semibold tabular-nums text-white/50">
+                    {stats.failed}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-white/30">共 {formatBytes(stats.totalBytes)}</p>
+            </div>
+
+            <div className="h-1 overflow-hidden rounded-full bg-white/5">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-500 ease-out"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            <p className="mt-2 text-[11px] text-white/30 text-right tabular-nums">
+              {loading
+                ? `处理中 ${progress.current} / ${progress.total}`
+                : stats.done === stats.total
+                  ? "全部完成"
+                  : `${progressPct}%`}
+            </p>
           </div>
 
-          <ul className="max-h-56 overflow-y-auto rounded-xl border border-white/8 divide-y divide-white/5">
-            {items.map((item) => (
+          <ul className="space-y-2 max-h-[min(320px,50vh)] overflow-y-auto pr-1 custom-scrollbar">
+            {items.map((item, index) => (
               <li
                 key={item.id}
-                className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
+                className="group flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 transition-colors hover:border-white/10 hover:bg-white/[0.04]"
+                style={{ animationDelay: `${index * 40}ms` }}
               >
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                    item.kind === "encrypted"
+                      ? "bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/25"
+                      : "bg-fuchsia-500/10 text-fuchsia-300/90 ring-1 ring-fuchsia-500/20"
+                  }`}
+                >
+                  {item.kind === "encrypted" ? "锁" : "♪"}
+                </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-white/75">
-                    {item.file.name}
-                    <span className="ml-2 text-xs text-white/30">
-                      {item.kind === "encrypted" ? "解密" : "转码"}
-                    </span>
+                  <p className="truncate text-sm text-white/85">{item.file.name}</p>
+                  <p className="text-[11px] text-white/35 mt-0.5">
+                    {formatBytes(item.file.size)}
+                    {item.kind === "encrypted" ? " · 本地解密" : " · ffmpeg"}
+                    {item.status === "done" && item.result && (
+                      <span className="text-emerald-400/70"> → {item.result.filename}</span>
+                    )}
                   </p>
-                  {item.status === "error" && (
-                    <p className="text-xs text-red-400/90 truncate">{item.error}</p>
-                  )}
-                  {item.status === "done" && item.result && (
-                    <p className="text-xs text-emerald-400/80 truncate">→ {item.result.filename}</p>
+                  {item.status === "error" && item.error && (
+                    <p className="text-[11px] text-red-400/85 mt-1 line-clamp-2">{item.error}</p>
                   )}
                 </div>
-                <span className="shrink-0 text-xs text-white/35">
-                  {item.status === "pending" && "等待"}
-                  {item.status === "processing" && "处理中"}
-                  {item.status === "done" && "完成"}
-                  {item.status === "error" && "失败"}
-                </span>
-                {item.status === "done" && (
+                <StatusBadge status={item.status} />
+                {item.status === "done" && item.result && (
                   <button
                     type="button"
-                    onClick={() => downloadOne(item)}
-                    className="shrink-0 text-xs text-violet-300 hover:text-violet-200"
+                    onClick={() => downloadBlob(item.result!.blob, item.result!.filename)}
+                    className="shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-violet-300 bg-violet-500/10 ring-1 ring-violet-500/25 hover:bg-violet-500/20 transition-colors"
                   >
                     下载
+                  </button>
+                )}
+                {item.status !== "processing" && (
+                  <button
+                    type="button"
+                    onClick={() => removeItem(item.id)}
+                    className="shrink-0 opacity-0 group-hover:opacity-100 p-1.5 text-white/25 hover:text-white/50 transition-all"
+                    aria-label="移除"
+                  >
+                    ×
                   </button>
                 )}
               </li>
             ))}
           </ul>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <ActionButton
-              label={loading ? "处理中…" : `转换为 ${targetFormat}`}
+              className="sm:flex-1"
+              label={loading ? "正在处理…" : `开始转换 · ${targetFormat}`}
               loading={loading}
-              disabled={items.every((i) => i.status === "done")}
+              loadingLabel={`处理中 ${progress.current}/${progress.total || "—"}`}
+              disabled={!canProcess}
               onClick={runBatch}
             />
-            {doneCount > 0 && (
-              <>
+            {hasDone && (
+              <div className="flex gap-2 sm:shrink-0">
                 <button
                   type="button"
-                  onClick={downloadAll}
-                  className="rounded-xl border border-white/12 bg-white/5 px-4 py-2.5 text-sm text-white/60 hover:bg-white/10"
+                  onClick={() =>
+                    items
+                      .filter((i) => i.status === "done" && i.result)
+                      .forEach((i) => downloadBlob(i.result!.blob, i.result!.filename))
+                  }
+                  className="flex-1 sm:flex-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors"
                 >
-                  下载全部
+                  全部下载
                 </button>
                 <button
                   type="button"
                   onClick={downloadZip}
                   disabled={loading}
-                  className="rounded-xl border border-white/12 bg-white/5 px-4 py-2.5 text-sm text-white/60 hover:bg-white/10 disabled:opacity-40"
+                  className="flex-1 sm:flex-none rounded-xl border border-violet-500/25 bg-violet-500/10 px-4 py-3 text-sm text-violet-200 hover:bg-violet-500/20 transition-colors disabled:opacity-40"
                 >
-                  打包 ZIP
+                  ZIP
                 </button>
-              </>
+              </div>
             )}
-            <button
-              type="button"
-              onClick={clearAll}
-              className="rounded-xl border border-white/12 bg-white/5 px-4 py-2.5 text-sm text-white/40 hover:bg-white/10"
-            >
-              清空列表
-            </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setItems([]);
+              setProgress({ current: 0, total: 0 });
+              setError(null);
+            }}
+            className="w-full text-center text-xs text-white/25 hover:text-white/45 transition-colors py-1"
+          >
+            清空队列
+          </button>
+        </section>
+      )}
+
+      {items.length === 0 && !loading && (
+        <p className="text-center text-xs text-white/25 -mt-2">
+          选择输出格式后，添加文件并点击「开始转换」
+        </p>
+      )}
+
+      {error && (
+        <div
+          className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-200/90 text-center leading-relaxed"
+          role="alert"
+        >
+          {error}
         </div>
       )}
 
-      {error && <p className="text-sm text-red-400/90 text-center">{error}</p>}
-
-      <p className="text-center text-xs text-white/25">
-        加密格式浏览器本地解密 · 格式互转需 ffmpeg · 酷狗需 kgm.mask · 不支持 QQ QMC
+      <p className="text-center text-[11px] text-white/22 leading-relaxed">
+        算法参考 Unlock Music · 仅供个人学习 · 酷狗需{" "}
+        <code className="text-white/35">public/static/kgm.mask</code>
       </p>
     </div>
   );

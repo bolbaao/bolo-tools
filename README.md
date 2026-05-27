@@ -9,11 +9,11 @@
 | 图片变清晰 | `/tools/image-sharpen` | 浏览器 Canvas 锐化 |
 | 压缩图片 | `/tools/image-compress` | 浏览器 Canvas 压缩 |
 | 智能抠图 | `/tools/smart-cutout` | 浏览器 AI（@imgly/background-removal） |
-| 智能助手 | `/tools/ai-chat` | 火山方舟 Ark · 对话操控全站工具 |
+| AI 对话 | `/tools/ai-chat` | 火山方舟 Ark · 闲聊为主，可操控工具 |
 | 热点中心 | `/tools/hot-trends` | 服务端拉取热点 |
 | 影视搜索 | `/tools/media-search` | 豆瓣+TMDB 并行检索 · 资源链接包 |
 | 制作爬虫 | `/tools/spider-builder` | 服务端 Cheerio 抓取 |
-| 音乐转格式 | `/tools/music-convert` | 浏览器解锁 NCM/KGM/KWM/XM；ffmpeg 互转 |
+| 音乐工坊 | `/tools/music-convert` | 本地解锁 NCM/KGM/KWM/XM · 批量转码 · ZIP |
 | 视频链接提取 | `/tools/video-extract` | 抖音 / B 站 / YouTube / X / Telegram / Instagram 等 |
 | AI 生视频 | `/tools/ai-video` | Replicate API（可选） |
 | 我的素材库（隐藏入口） | `/tools/assets` | 双击导航栏「菠」+ 密码 |
@@ -42,7 +42,7 @@ cp .env.example .env
 | `REPLICATE_API_TOKEN` | AI 生视频 | 可选 |
 | `ASSETS_PASSWORD` | 素材库访问密码 | 使用素材库时必需 |
 
-### 智能助手（火山方舟）
+### AI 对话（火山方舟）
 
 在 [火山方舟控制台](https://console.volcengine.com/ark) 获取 API Key，写入 `.env`：
 
@@ -52,9 +52,9 @@ ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 ARK_MODEL=doubao-1-5-pro-32k-250115
 ```
 
-对话流程：**用户输入 → AI 解析意图并拆解计划 → 前端执行跳转/预填/筛选 → 返回执行结果**。
+**主打**轻松闲聊；**次要**在用户明确要求时充当智能助手（跳转工具、预填链接等）。
 
-示例：「帮我把这个抖音链接提取出来 https://…」→ 自动打开视频提取并填入链接。
+示例：「今天好累啊」→ 纯对话；「帮我把这个抖音链接提取出来」→ 打开视频提取并预填。
 
 ## 运行方式
 

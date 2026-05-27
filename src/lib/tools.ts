@@ -17,14 +17,14 @@ export type Tool = {
 export const tools: Tool[] = [
   {
     id: "music-convert",
-    title: "音乐转格式",
-    description: "NCM/KGM/KWM 等云音乐解锁与 MP3/FLAC 等格式互转，统一批量处理。",
+    title: "音乐工坊",
+    description: "云音乐本地解锁与高品质格式互转，批量队列、进度可视、一键 ZIP。",
     href: "/tools/music-convert",
     icon: "♪",
     gradient: "from-violet-500/20 to-fuchsia-500/10",
     tag: "音频",
     bento: "default",
-    demoHint: "拖入 NCM 或 MP3 → 选格式 → 批量下载",
+    demoHint: "拖入曲目 · 选输出格式 · 批量转换下载",
   },
   {
     id: "video-extract",
@@ -83,14 +83,14 @@ export const tools: Tool[] = [
   },
   {
     id: "ai-chat",
-    title: "智能助手",
-    description: "用对话操控全站工具：自动跳转、预填表单、筛选功能，对话即操作。",
+    title: "AI 对话",
+    description: "轻松唠嗑、吐槽日常；需要时还能当智能助手，帮你打开工具并预填。",
     href: "/tools/ai-chat",
     icon: "◎",
     gradient: "from-purple-500/20 to-violet-500/10",
     tag: "AI",
     bento: "default",
-    demoHint: "说需求 → 自动打开工具并预填",
+    demoHint: "像朋友一样聊天，也能帮你操作工具",
     homeFeatured: true,
   },
   {
