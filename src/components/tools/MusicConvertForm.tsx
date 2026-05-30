@@ -176,10 +176,7 @@ export default function MusicConvertForm() {
     if (done.length === 0) return;
     setLoading(true);
     try {
-      const blob = await buildMusicZip(
-        done.map((i) => i.result!),
-        targetFormat,
-      );
+      const blob = await buildMusicZip(done.map((i) => i.result!));
       downloadBlob(blob, `菠萝音乐-${targetFormat}-${Date.now()}.zip`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "打包失败");

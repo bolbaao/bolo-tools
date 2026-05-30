@@ -98,7 +98,6 @@ export function toProcessError(e: unknown): string {
 
 export async function buildMusicZip(
   files: { blob: Blob; filename: string }[],
-  targetFormat: string,
 ): Promise<Blob> {
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();

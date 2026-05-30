@@ -15,6 +15,10 @@ export type ClientPhotoItem = {
   height?: number;
   /** 压缩后的预览，仅发往本站 API 做识别 */
   previewDataUrl?: string;
+  /** 服务端识别结果缓存，避免同一会话重复调用视觉 API */
+  visionDescription?: string;
+  visionProvider?: string;
+  visionError?: string;
 };
 
 export type AgentPermissionRequest = {
@@ -51,6 +55,15 @@ export type AgentAction = {
   params: Record<string, unknown>;
 };
 
+export type ChatImageVisionItem = {
+  name: string;
+  lastModified: number;
+  size: number;
+  description?: string;
+  error?: string;
+  visionProvider?: string;
+};
+
 export type AgentResponse = {
   ok: boolean;
   reply: string;
@@ -58,6 +71,8 @@ export type AgentResponse = {
   plan?: string[];
   actions?: AgentAction[];
   permissionRequests?: AgentPermissionRequest[];
+  /** 本轮对话图片识别结果，供客户端缓存 */
+  chatImageVision?: ChatImageVisionItem[];
 };
 
 /** 无需授权即可上报的环境信息 */

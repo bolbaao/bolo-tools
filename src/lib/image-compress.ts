@@ -1,6 +1,7 @@
 import type { ClientPhotoItem } from "@/lib/agent-types";
 
-export const MAX_PREVIEW_BYTES = 450_000;
+/** 视觉 API 上传上限（字符数近似字节） */
+export const MAX_PREVIEW_BYTES = 380_000;
 
 export async function compressImageFile(
   file: File,
@@ -8,9 +9,16 @@ export async function compressImageFile(
   const bitmap = await createImageBitmap(file);
   let width = bitmap.width;
   let height = bitmap.height;
-  const maxDim = 1280;
+  /** 方舟视觉模型要求较短边不低于约 14px，上传前缩放到合理尺寸 */
+  const maxDim = 1024;
+  const minDim = 128;
   if (width > maxDim || height > maxDim) {
     const scale = maxDim / Math.max(width, height);
+    width = Math.round(width * scale);
+    height = Math.round(height * scale);
+  }
+  if (Math.min(width, height) < minDim) {
+    const scale = minDim / Math.min(width, height);
     width = Math.round(width * scale);
     height = Math.round(height * scale);
   }
@@ -34,7 +42,7 @@ export async function compressImageFile(
   return { dataUrl, width, height };
 }
 
-export async function fileToChatImage(file: File): Promise<ClientPhotoItem> {
+async function fileToChatImage(file: File): Promise<ClientPhotoItem> {
   const base: ClientPhotoItem = {
     name: file.name || "image.jpg",
     size: file.size,

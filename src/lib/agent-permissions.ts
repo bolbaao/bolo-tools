@@ -1,5 +1,5 @@
 import type { AgentPermissionType, ClientPermissions } from "@/lib/agent-types";
-import { fileToChatImage, filesToChatImages } from "@/lib/image-compress";
+import { filesToChatImages } from "@/lib/image-compress";
 
 export const PERMISSION_META: Record<
   AgentPermissionType,

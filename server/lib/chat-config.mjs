@@ -18,13 +18,14 @@ function deepseekConfig() {
   };
 }
 
-function arkConfig() {
+/** @returns {{ provider: string, apiKey: string, baseURL: string, model: string } | null} */
+export function resolveArkConfig() {
   const apiKey = env("ARK_API_KEY") || env("VOLC_API_KEY");
   if (!apiKey) return null;
   return {
     provider: "ark",
     apiKey,
-    baseURL: env("ARK_BASE_URL") || ARK_DEFAULT_BASE,
+    baseURL: (env("ARK_BASE_URL") || ARK_DEFAULT_BASE).replace(/\/$/, ""),
     model: env("ARK_MODEL") || ARK_DEFAULT_MODEL,
   };
 }
@@ -42,7 +43,7 @@ function openaiConfig() {
 
 const PROVIDERS = {
   deepseek: deepseekConfig,
-  ark: arkConfig,
+  ark: resolveArkConfig,
   openai: openaiConfig,
 };
 
@@ -55,7 +56,7 @@ export function resolveChatConfig() {
     return null;
   }
 
-  return deepseekConfig() || arkConfig() || openaiConfig();
+  return deepseekConfig() || resolveArkConfig() || openaiConfig();
 }
 
 export function getChatProviderLabel(provider) {

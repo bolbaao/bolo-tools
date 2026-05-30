@@ -1,60 +1,20 @@
+import { resolveArkConfig } from "./chat-config.mjs";
 import { env } from "./env.mjs";
 
-const XAI_BASE = "https://api.x.ai/v1";
-const XAI_VISION_MODEL = "grok-2-vision-1212";
-const DEEPSEEK_DEFAULT_BASE = "https://api.deepseek.com/v1";
-const DEEPSEEK_VISION_MODEL_DEFAULT = "deepseek-v4-pro";
+const ARK_VISION_MODEL_DEFAULT = "doubao-1-5-vision-pro-32k-250115";
+const VISION_PROVIDER_LABEL = "火山方舟";
 
-const DESCRIBE_PROMPT =
+const DESCRIBE_BASE =
   "用中文简要描述这张照片的内容、场景和主要物体（3～5 句），不要编造看不清的细节。";
 
-/**
- * @returns {{ provider: string; apiKey: string; baseURL: string; model: string } | null}
- */
+/** @returns {{ apiKey: string; baseURL: string; model: string } | null} */
 function resolveVisionConfig() {
-  const mode = (env("IMAGE_VISION_PROVIDER", "auto") || "auto").toLowerCase();
-
-  const xai = {
-    provider: "xai",
-    apiKey: env("XAI_API_KEY")?.trim(),
-    baseURL: (env("XAI_BASE_URL") || XAI_BASE).replace(/\/$/, ""),
-    model: env("XAI_VISION_MODEL") || XAI_VISION_MODEL,
-  };
-
-  const deepseek = {
-    provider: "deepseek",
-    apiKey: env("DEEPSEEK_API_KEY")?.trim(),
-    baseURL: (env("DEEPSEEK_BASE_URL") || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, ""),
-    model: env("DEEPSEEK_VISION_MODEL") || DEEPSEEK_VISION_MODEL_DEFAULT,
-  };
-
-  if (mode === "xai") return xai.apiKey ? xai : null;
-  if (mode === "deepseek") return deepseek.apiKey ? deepseek : null;
-
-  // auto：优先 DeepSeek（与对话同一 Key），失败时由调用方回退 xAI
-  if (deepseek.apiKey) return deepseek;
-  if (xai.apiKey) return xai;
-  return null;
-}
-
-function visionFallbackConfig(excludeProvider) {
-  if (excludeProvider === "deepseek") {
-    const key = env("XAI_API_KEY")?.trim();
-    if (!key) return null;
-    return {
-      provider: "xai",
-      apiKey: key,
-      baseURL: (env("XAI_BASE_URL") || XAI_BASE).replace(/\/$/, ""),
-      model: env("XAI_VISION_MODEL") || XAI_VISION_MODEL,
-    };
-  }
-  const key = env("DEEPSEEK_API_KEY")?.trim();
-  if (!key) return null;
+  const ark = resolveArkConfig();
+  if (!ark) return null;
   return {
-    provider: "deepseek",
-    apiKey: key,
-    baseURL: (env("DEEPSEEK_BASE_URL") || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, ""),
-    model: env("DEEPSEEK_VISION_MODEL") || DEEPSEEK_VISION_MODEL_DEFAULT,
+    apiKey: ark.apiKey,
+    baseURL: ark.baseURL,
+    model: env("ARK_VISION_MODEL") || ARK_VISION_MODEL_DEFAULT,
   };
 }
 
@@ -63,15 +23,32 @@ export function photoVisionConfigured() {
 }
 
 export function activeVisionProviderLabel() {
-  const c = resolveVisionConfig();
-  if (!c) return null;
-  return c.provider === "deepseek" ? "DeepSeek" : "xAI";
+  return resolveVisionConfig() ? VISION_PROVIDER_LABEL : null;
+}
+
+function buildDescribePrompt(userContext) {
+  const ctx = typeof userContext === "string" ? userContext.trim().slice(0, 500) : "";
+  if (!ctx) return DESCRIBE_BASE;
+  return `${DESCRIBE_BASE}\n\n用户相关问题或说明：${ctx}\n请侧重与用户问题相关的可见信息。`;
 }
 
 /**
- * @param {string} dataUrl data:image/...;base64,...
+ * @param {{ apiKey: string; baseURL: string; model: string }} cfg
+ * @param {string} dataUrl
+ * @param {string} [userContext]
  */
-async function describeWithProvider(cfg, dataUrl) {
+function ensureArkNoProxy() {
+  const host = "ark.cn-beijing.volces.com";
+  const cur = process.env.NO_PROXY || process.env.no_proxy || "";
+  if (!cur.split(",").some((h) => h.trim() === host)) {
+    const next = [cur, host, "localhost", "127.0.0.1"].filter(Boolean).join(",");
+    process.env.NO_PROXY = next;
+    process.env.no_proxy = next;
+  }
+}
+
+async function describeWithProvider(cfg, dataUrl, userContext) {
+  ensureArkNoProxy();
   const response = await fetch(`${cfg.baseURL}/chat/completions`, {
     method: "POST",
     headers: {
@@ -85,19 +62,23 @@ async function describeWithProvider(cfg, dataUrl) {
           role: "user",
           content: [
             { type: "image_url", image_url: { url: dataUrl } },
-            { type: "text", text: DESCRIBE_PROMPT },
+            { type: "text", text: buildDescribePrompt(userContext) },
           ],
         },
       ],
-      max_tokens: 400,
+      max_tokens: 512,
+      temperature: 0.2,
     }),
   });
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const msg = data?.error?.message || `vision HTTP ${response.status}`;
+    const errBody =
+      typeof data?.error === "string"
+        ? data.error
+        : data?.error?.message || data?.message || data?.code;
+    const msg = errBody ? String(errBody) : `vision HTTP ${response.status}`;
     const err = new Error(msg);
-    err.provider = cfg.provider;
     err.status = response.status;
     throw err;
   }
@@ -106,44 +87,21 @@ async function describeWithProvider(cfg, dataUrl) {
   return text || null;
 }
 
-function isDeepSeekVisionUnsupported(err) {
-  const msg = err?.message || "";
-  return (
-    err?.provider === "deepseek" &&
-    (/image_url|unknown variant|expected `text`/i.test(msg) ||
-      err?.status === 400)
-  );
-}
-
 /**
  * @param {string} dataUrl
+ * @param {string} [userContext]
+ * @returns {Promise<{ description: string | null; providerLabel: string } | null>}
  */
-export async function describePhotoDataUrl(dataUrl) {
-  const primary = resolveVisionConfig();
-  if (!primary) return null;
+export async function describePhotoDataUrl(dataUrl, userContext) {
+  const cfg = resolveVisionConfig();
+  if (!cfg) return null;
 
-  try {
-    return await describeWithProvider(primary, dataUrl);
-  } catch (err) {
-    if (isDeepSeekVisionUnsupported(err)) {
-      const fallback = visionFallbackConfig("deepseek");
-      if (fallback?.provider === "xai") {
-        return describeWithProvider(fallback, dataUrl);
-      }
-      throw new Error(
-        "DeepSeek 对话 API 暂不支持图片输入（deepseek-chat / v4 文本接口均如此）。请配置 XAI_API_KEY 识别图片，或等待 DeepSeek 开放视觉 API。",
-      );
-    }
-    throw err;
-  }
+  const description = await describeWithProvider(cfg, dataUrl, userContext);
+  return { description, providerLabel: VISION_PROVIDER_LABEL };
 }
 
 function visionMissingHint() {
-  const mode = (env("IMAGE_VISION_PROVIDER", "auto") || "auto").toLowerCase();
-  if (mode === "deepseek") {
-    return "（DeepSeek 视觉：当前云端 API 尚不支持 image_url，请设 IMAGE_VISION_PROVIDER=xai 并配置 XAI_API_KEY）";
-  }
-  return "（请配置 XAI_API_KEY，或 IMAGE_VISION_PROVIDER=deepseek + DEEPSEEK_API_KEY 待官方支持视觉）";
+  return "（请配置 ARK_API_KEY、ARK_BASE_URL，以及视觉模型 ARK_VISION_MODEL，见火山方舟控制台）";
 }
 
 export function formatPhotoSnapshotForPrompt(snapshot) {
@@ -171,19 +129,31 @@ export function formatPhotoSnapshotForPrompt(snapshot) {
   return `\n【用户相册照片（请据实回答，勿说无法查看相册）】\n${lines.join("\n")}`;
 }
 
-function stripDataUrlForPrompt(items) {
-  return items.map(({ previewDataUrl: _p, ...rest }) => rest);
-}
+/**
+ * @param {object} img
+ * @param {string} [userContext]
+ */
+async function describeOneImage(img, userContext) {
+  if (img.visionDescription) {
+    return {
+      description: img.visionDescription,
+      error: img.visionError ?? null,
+      visionProvider: img.visionProvider ?? null,
+    };
+  }
 
-async function describeOneImage(img) {
   let description = null;
   let error = null;
   let visionProvider = null;
 
   if (photoVisionConfigured() && img.previewDataUrl) {
     try {
-      description = await describePhotoDataUrl(img.previewDataUrl);
-      visionProvider = activeVisionProviderLabel();
+      const result = await describePhotoDataUrl(img.previewDataUrl, userContext);
+      description = result?.description ?? null;
+      visionProvider = result?.providerLabel ?? VISION_PROVIDER_LABEL;
+      if (!description) {
+        error = "模型未返回描述";
+      }
     } catch (e) {
       error = e.message;
     }
@@ -193,40 +163,43 @@ async function describeOneImage(img) {
 }
 
 /**
- * 对话中用户上传/粘贴的图片（pageContext.chatImages）
+ * @param {object[]} chatImages
+ * @param {{ userContext?: string }} [opts]
  */
-export async function resolveChatImagesSnapshot(chatImages) {
+export async function resolveChatImagesSnapshot(chatImages, opts = {}) {
   if (!Array.isArray(chatImages) || !chatImages.length) return null;
 
-  const withPreview = chatImages.filter((i) => i?.previewDataUrl).slice(0, 6);
+  const userContext = opts.userContext;
+  const withPreview = chatImages
+    .filter((i) => i?.previewDataUrl || i?.visionDescription)
+    .slice(0, 6);
   if (!withPreview.length) {
-    return {
-      error: "图片未包含可识别数据",
-      items: stripDataUrlForPrompt(chatImages),
-    };
+    return { error: "图片未包含可识别数据" };
   }
 
-  const results = [];
-  for (let i = 0; i < withPreview.length; i++) {
-    const img = withPreview[i];
-    const { description, error, visionProvider } = await describeOneImage(img);
-    results.push({
-      index: i + 1,
-      name: img.name,
-      width: img.width,
-      height: img.height,
-      description,
-      error,
-      visionProvider,
-    });
-  }
+  const results = await Promise.all(
+    withPreview.map(async (img, i) => {
+      const { description, error, visionProvider } = await describeOneImage(img, userContext);
+      return {
+        index: i + 1,
+        name: img.name,
+        lastModified: img.lastModified,
+        size: img.size,
+        width: img.width,
+        height: img.height,
+        description,
+        error,
+        visionProvider,
+      };
+    }),
+  );
 
   return { count: withPreview.length, items: results };
 }
 
 export function formatChatImagesForPrompt(snapshot) {
   if (!snapshot) return "";
-  if (snapshot.error && !snapshot.items?.length) {
+  if (snapshot.error) {
     return `\n【对话图片】${snapshot.error}`;
   }
 
@@ -248,13 +221,25 @@ export function formatChatImagesForPrompt(snapshot) {
   return `\n【对话图片识别（请据实回答，勿说看不到图片）】\n${lines.join("\n")}`;
 }
 
-export async function resolveAllImageContext(pageContext) {
-  const chatSnap = await resolveChatImagesSnapshot(pageContext?.chatImages);
-  const albumSnap = await resolvePhotoSnapshot(pageContext);
+export function chatImageVisionPayload(snapshot) {
+  if (!snapshot?.items?.length) return [];
+  return snapshot.items.map((item) => ({
+    name: item.name,
+    lastModified: item.lastModified,
+    size: item.size,
+    description: item.description ?? undefined,
+    error: item.error ?? undefined,
+    visionProvider: item.visionProvider ?? undefined,
+  }));
+}
+
+export async function resolveAllImageContext(pageContext, opts = {}) {
+  const chatSnap = await resolveChatImagesSnapshot(pageContext?.chatImages, opts);
+  const albumSnap = await resolvePhotoSnapshot(pageContext, opts);
   return { chatSnap, albumSnap };
 }
 
-export async function resolvePhotoSnapshot(pageContext) {
+export async function resolvePhotoSnapshot(pageContext, opts = {}) {
   const photos = pageContext?.clientPermissions?.photos;
   if (!photos || photos.status !== "granted" || !Array.isArray(photos.items) || !photos.items.length) {
     return null;
@@ -262,8 +247,11 @@ export async function resolvePhotoSnapshot(pageContext) {
 
   const primary = photos.items[0];
   try {
-    if (primary.previewDataUrl) {
-      const { description, error, visionProvider } = await describeOneImage(primary);
+    if (primary.previewDataUrl || primary.visionDescription) {
+      const { description, error, visionProvider } = await describeOneImage(
+        primary,
+        opts.userContext,
+      );
       if (error) {
         return {
           count: photos.items.length,

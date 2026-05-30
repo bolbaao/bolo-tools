@@ -1,5 +1,6 @@
 "use client";
 
+import { ImageVisionIcon } from "@/components/icons/ToolIcon";
 import AgentPermissionPrompt from "@/components/tools/AgentPermissionPrompt";
 import { listMissingPermissionTypes } from "@/lib/agent-permission-catalog";
 import {
@@ -19,12 +20,17 @@ import type {
   ClientPhotoItem,
 } from "@/lib/agent-types";
 import { ApiError, apiPost } from "@/lib/api";
+import {
+  imageNeedsVisionApi,
+  mergeChatImageVision,
+  prepareChatImagesForApi,
+} from "@/lib/chat-image-vision";
 import { filesToChatImages } from "@/lib/image-compress";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 
 const welcomeMessage =
-  "嗨～想聊什么都可以。可上传或粘贴图片让我识别；也可申请定位、相册等权限。";
+  "嗨～想聊什么都可以，也可以直接告我你想要什么。";
 
 const MAX_IMAGES_PER_SEND = 4;
 const MAX_SESSION_IMAGES = 6;
@@ -196,15 +202,21 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
         throw new Error("消息为空");
       }
 
-      const hasImages = chatImages.some((i) => i.previewDataUrl);
+      const apiImages = prepareChatImagesForApi(chatImages);
+      const needsVision = apiImages.some(imageNeedsVisionApi);
       const data = await apiPost<AgentResponse>(
         "/api/chat",
         {
           messages: apiMessages,
-          pageContext: getPageContext(perms, chatImages),
+          pageContext: getPageContext(perms, apiImages),
         },
-        { timeoutMs: hasImages ? 120000 : 65000 },
+        { timeoutMs: needsVision ? 120000 : 65000 },
       );
+
+      if (data.chatImageVision?.length) {
+        const cached = mergeChatImageVision(chatImages, data.chatImageVision);
+        setSessionChatImages(cached);
+      }
 
       return appendAiFromResponse(data, history);
     },
@@ -350,7 +362,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
     <div className="space-y-4">
       {!isHero && (
         <p className="text-sm text-white/45 leading-relaxed">
-          支持上传/粘贴图片识别（优先 DeepSeek Key，不支持时回退 xAI）；也可申请定位、相册等权限。
+          支持上传/粘贴图片识别（火山方舟 ARK_API_KEY + ARK_VISION_MODEL；同一会话内已识别图片不会重复调用）；也可申请定位、相册等权限。
         </p>
       )}
 
@@ -430,7 +442,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
                         : "bg-white/6 text-white/85"
                     }`}
                   >
-                    {msg.text || (msg.role === "user" ? "" : msg.text)}
+                    {msg.text}
                   </div>
                 )}
                 {msg.role === "ai" && pendingPermissions.length > 0 && (
@@ -452,7 +464,8 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
           })}
           {loading && (
             <p className="text-xs text-white/30 animate-pulse">
-              {sessionChatImages.length > 0 || pendingImages.length > 0
+              {pendingImages.length > 0 ||
+              sessionChatImages.some(imageNeedsVisionApi)
                 ? "正在识别图片并回复…"
                 : "正在回复…"}
             </p>
@@ -516,12 +529,13 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
             />
             <button
               type="button"
-              title="上传图片"
+              title="上传或粘贴图片，AI 识别内容"
+              aria-label="上传或粘贴图片，AI 识别内容"
               disabled={loading || permissionBusy || imageBusy}
               onClick={() => fileInputRef.current?.click()}
-              className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white/70 hover:text-white hover:border-violet-500/40 disabled:opacity-40 transition-colors"
+              className="group/img-btn shrink-0 flex h-[42px] w-[42px] items-center justify-center rounded-xl border border-white/10 bg-white/5 hover:border-violet-500/35 hover:bg-violet-500/8 disabled:opacity-40 transition-colors"
             >
-              🖼
+              <ImageVisionIcon className="h-[22px] w-[22px] opacity-80 transition-opacity group-hover/img-btn:opacity-100" />
             </button>
             <input
               type="text"

@@ -6,10 +6,12 @@ import { getChatProviderLabel, resolveChatConfig } from "../lib/chat-config.mjs"
 import { env } from "../lib/env.mjs";
 import { HttpError, sendError } from "../lib/http-error.mjs";
 import {
+  chatImageVisionPayload,
   formatChatImagesForPrompt,
   formatPhotoSnapshotForPrompt,
   resolveAllImageContext,
 } from "../lib/photo-vision.mjs";
+import { pageContextNeedsVisionApi } from "../../shared/chat-image-vision.mjs";
 import { formatWeatherForPrompt, resolveWeatherSnapshot } from "../lib/weather.mjs";
 
 const router = Router();
@@ -113,12 +115,7 @@ router.post("/", async (req, res) => {
       );
     }
 
-    const hasPhotoUpload =
-      (pageContext?.clientPermissions?.photos?.status === "granted" &&
-        pageContext?.clientPermissions?.photos?.items?.some((p) => p?.previewDataUrl)) ||
-      (Array.isArray(pageContext?.chatImages) &&
-        pageContext.chatImages.some((p) => p?.previewDataUrl));
-    const defaultTimeout = hasPhotoUpload ? 120000 : 60000;
+    const defaultTimeout = pageContextNeedsVisionApi(pageContext) ? 120000 : 60000;
     const timeoutMs = Number(env("CHAT_TIMEOUT_MS", String(defaultTimeout))) || defaultTimeout;
     const client = new OpenAI({
       apiKey: chatConfig.apiKey,
@@ -139,7 +136,11 @@ router.post("/", async (req, res) => {
       messages: normalizedMessages,
       pageContext,
     });
-    const { chatSnap, albumSnap } = await resolveAllImageContext(pageContext);
+    const lastUserText =
+      [...normalizedMessages].reverse().find((m) => m.role === "user")?.content ?? "";
+    const { chatSnap, albumSnap } = await resolveAllImageContext(pageContext, {
+      userContext: lastUserText,
+    });
     const enrichedContext = {
       ...(pageContext && typeof pageContext === "object" ? pageContext : {}),
       weatherSnapshot: formatWeatherForPrompt(weatherResult),
@@ -198,6 +199,7 @@ router.post("/", async (req, res) => {
         plan: [],
         actions: [],
         permissionRequests: [],
+        chatImageVision: chatImageVisionPayload(chatSnap),
       });
       return;
     }
@@ -217,6 +219,7 @@ router.post("/", async (req, res) => {
       plan,
       actions,
       permissionRequests,
+      chatImageVision: chatImageVisionPayload(chatSnap),
     });
   } catch (err) {
     if (!(err instanceof HttpError)) {
