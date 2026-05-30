@@ -2,6 +2,7 @@ import { Router } from "express";
 import OpenAI from "openai";
 import { AGENT_PERMISSION_TYPES } from "../lib/agent-permissions-catalog.mjs";
 import { buildAgentSystemPrompt } from "../lib/agent-catalog.mjs";
+import { getChatProviderLabel, resolveChatConfig } from "../lib/chat-config.mjs";
 import { env } from "../lib/env.mjs";
 import { HttpError, sendError } from "../lib/http-error.mjs";
 import {
@@ -13,47 +14,8 @@ import { formatWeatherForPrompt, resolveWeatherSnapshot } from "../lib/weather.m
 
 const router = Router();
 
-const DEEPSEEK_DEFAULT_BASE = "https://api.deepseek.com/v1";
-const DEEPSEEK_DEFAULT_MODEL = "deepseek-chat";
-const ARK_DEFAULT_BASE = "https://ark.cn-beijing.volces.com/api/v3";
-const ARK_DEFAULT_MODEL = "doubao-1-5-pro-32k-250115";
-
 const ALLOWED_ACTIONS = new Set(["navigate", "scroll", "filter_tools", "prefill"]);
 const ALLOWED_PERMISSIONS = new Set(AGENT_PERMISSION_TYPES);
-
-function resolveChatConfig() {
-  const deepseekKey = env("DEEPSEEK_API_KEY");
-  if (deepseekKey) {
-    return {
-      provider: "deepseek",
-      apiKey: deepseekKey,
-      baseURL: env("DEEPSEEK_BASE_URL") || DEEPSEEK_DEFAULT_BASE,
-      model: env("DEEPSEEK_MODEL") || DEEPSEEK_DEFAULT_MODEL,
-    };
-  }
-
-  const arkKey = env("ARK_API_KEY") || env("VOLC_API_KEY");
-  if (arkKey) {
-    return {
-      provider: "ark",
-      apiKey: arkKey,
-      baseURL: env("ARK_BASE_URL") || ARK_DEFAULT_BASE,
-      model: env("ARK_MODEL") || ARK_DEFAULT_MODEL,
-    };
-  }
-
-  const openaiKey = env("OPENAI_API_KEY");
-  if (openaiKey) {
-    return {
-      provider: "openai",
-      apiKey: openaiKey,
-      baseURL: env("OPENAI_BASE_URL") || "https://api.openai.com/v1",
-      model: env("OPENAI_MODEL") || "gpt-4o-mini",
-    };
-  }
-
-  return null;
-}
 
 function normalizeMessageContent(content) {
   if (typeof content === "string") return content.trim();
@@ -81,16 +43,20 @@ function extractChoiceText(choice) {
   return { raw, finishReason: choice.finish_reason ?? null };
 }
 
-function formatChatError(err) {
+function formatChatError(err, provider) {
+  const label = getChatProviderLabel(provider);
   const msg = err?.message || String(err);
   if (/InvalidEndpointOrModel|does not exist|model.*not found/i.test(msg)) {
-    return "模型无效。请在 .env 设置 DEEPSEEK_MODEL（如 deepseek-chat）";
+    return `模型无效。请检查 .env 中的模型名称（当前：${label}）`;
   }
   if (/timeout|timed out|ETIMEDOUT|AbortError|ECONNREFUSED|ENOTFOUND|fetch failed|Connection error/i.test(msg)) {
-    return "无法连接 DeepSeek API。请检查网络与 API Key 后重启 ./start.sh";
+    if (provider === "openai") {
+      return `无法连接 ${label}。大陆直连 api.openai.com 通常不可用，请在 .env 配置 HTTPS_PROXY，或使用 OPENAI_BASE_URL 指向可访问的兼容网关`;
+    }
+    return `无法连接 ${label}。请检查网络、代理与 API Key 后重启 ./start.sh`;
   }
   if (/401|invalid.*key|authentication/i.test(msg)) {
-    return "DeepSeek API Key 无效或已过期";
+    return `${label} API Key 无效或已过期`;
   }
   return msg;
 }
@@ -132,17 +98,18 @@ function sanitizePermissionRequests(requests) {
 }
 
 router.post("/", async (req, res) => {
+  let chatConfig = null;
   try {
     const { messages, pageContext } = req.body ?? {};
     if (!Array.isArray(messages) || messages.length === 0) {
       throw new HttpError(400, "messages 不能为空");
     }
 
-    const chatConfig = resolveChatConfig();
+    chatConfig = resolveChatConfig();
     if (!chatConfig) {
       throw new HttpError(
         503,
-        "未配置 DEEPSEEK_API_KEY。请在 .env 填入 DeepSeek API Key（https://platform.deepseek.com）",
+        "未配置 AI 对话 Key。请在 .env 填入 DEEPSEEK_API_KEY、OPENAI_API_KEY（ChatGPT）或 ARK_API_KEY，详见 .env.example",
       );
     }
 
@@ -253,7 +220,7 @@ router.post("/", async (req, res) => {
     });
   } catch (err) {
     if (!(err instanceof HttpError)) {
-      sendError(res, new HttpError(502, formatChatError(err)));
+      sendError(res, new HttpError(502, formatChatError(err, chatConfig?.provider)));
       return;
     }
     sendError(res, err);

@@ -14,6 +14,7 @@ import documentsRouter from "./routes/documents.mjs";
 import subtitleRouter from "./routes/subtitle.mjs";
 import gifRouter from "./routes/gif.mjs";
 import xaiImageRouter from "./routes/xai-image.mjs";
+import aiSearchRouter from "./routes/ai-search.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, "..", "out");
@@ -72,6 +73,7 @@ app.use("/api/documents", documentsRouter);
 app.use("/api/subtitle", subtitleRouter);
 app.use("/api/gif", gifRouter);
 app.use("/api/xai-image", xaiImageRouter);
+app.use("/api/ai-search", aiSearchRouter);
 
 if (hasOut && !API_ONLY) {
   app.use((req, res) => {

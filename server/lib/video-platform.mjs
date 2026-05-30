@@ -177,7 +177,7 @@ export function getBilibiliCookieStrategies() {
   return strategies;
 }
 
-/** YouTube / X / Instagram 等：可选 Cookie（登录后清晰度更高） */
+/** YouTube / Instagram 等：可选 Cookie（登录后清晰度更高） */
 export function getSocialCookieStrategies() {
   const strategies = [];
   const seen = new Set();
@@ -193,9 +193,30 @@ export function getSocialCookieStrategies() {
   return strategies;
 }
 
+/** X/Twitter：多数视频需登录 Cookie，优先尝试 Cookie 再回退无 Cookie */
+export function getTwitterCookieStrategies() {
+  const strategies = [];
+  const seen = new Set();
+  const preferred =
+    env("TWITTER_COOKIES_FROM_BROWSER") ||
+    env("SOCIAL_COOKIES_FROM_BROWSER") ||
+    env("YTDLP_COOKIES_FROM_BROWSER") ||
+    "chrome";
+  const browsers = [preferred, "chrome", "safari", "chromium", "brave", "edge", "firefox"];
+  addCookieStrategies(
+    strategies,
+    seen,
+    [env("TWITTER_COOKIES"), env("SOCIAL_COOKIES"), "./cookies/x.txt", "./cookies/social.txt"],
+    browsers,
+  );
+  strategies.push({ name: "default", args: [] });
+  return strategies;
+}
+
 export function getCookieStrategiesForPlatform(platform) {
   if (platform === "douyin") return getDouyinCookieStrategies();
   if (platform === "bilibili") return getBilibiliCookieStrategies();
+  if (platform === "twitter") return getTwitterCookieStrategies();
   if (platform !== "generic" && PLATFORM_REFERERS[platform]) {
     return getSocialCookieStrategies();
   }
@@ -224,8 +245,11 @@ export function formatYtDlpError(stderr, platform) {
   if (platform === "youtube" && /sign in|login|private|members only/i.test(text)) {
     return "该 YouTube 视频需要登录或为私密视频。请在浏览器登录 YouTube 后配置 Cookie（见 .env.example）";
   }
-  if (platform === "twitter" && /login|authenticate|private/i.test(text)) {
-    return "该 X/Twitter 内容可能需要登录。请在浏览器登录 x.com 后配置 Cookie";
+  if (
+    platform === "twitter" &&
+    /login|authenticate|private|csrf|not authorized|No video could be found|no video/i.test(text)
+  ) {
+    return "X 视频解析失败。请在浏览器登录 x.com 后运行 ./scripts/setup-x-cookies.sh，或确认链接为公开视频帖（非纯图片/文字）";
   }
   if (platform === "instagram" && /login|cookie|rate-limit/i.test(text)) {
     return "Instagram 通常需要登录 Cookie。请在浏览器登录 instagram.com 后配置 SOCIAL_COOKIES";
@@ -233,6 +257,15 @@ export function formatYtDlpError(stderr, platform) {
   if (/Unsupported URL|invalid url|no video/i.test(text)) {
     const label = PLATFORM_LABELS[platform] || platform;
     return `无法解析该${label}链接，请确认链接完整且内容为公开视频`;
+  }
+  if (/SSLError|SSL.*EOF|certificate verify failed|wrong version number/i.test(text)) {
+    const proxyHint = env("HTTPS_PROXY") || env("HTTP_PROXY")
+      ? ""
+      : "。访问 YouTube 等境外站点请在 .env 配置 HTTPS_PROXY=http://127.0.0.1:7890";
+    return `网络 SSL 握手失败${proxyHint}。也可运行 ./scripts/download-ytdlp.sh 安装独立版 yt-dlp（避免 macOS 自带 Python 3.9 的 SSL 问题）`;
+  }
+  if (/Python version 3\.9 has been deprecated|NotOpenSSLWarning/i.test(text)) {
+    return "yt-dlp 使用的 Python 3.9 过旧，SSL 可能异常。请运行 ./scripts/download-ytdlp.sh 或 brew install yt-dlp 更新";
   }
   return text.slice(-500) || "解析失败";
 }

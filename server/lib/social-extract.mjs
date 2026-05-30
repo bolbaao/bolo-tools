@@ -1,10 +1,25 @@
 import { getCookieStrategiesForPlatform } from "./video-platform.mjs";
 import { runYtDlpJson } from "./ytdlp-runner.mjs";
 
-function isCookieRelatedError(message) {
-  return /cookie|login|sign in|authenticate|private|members only|rate-limit|age.restricted/i.test(
-    message || "",
-  );
+function isCookieRelatedError(message, platform) {
+  const text = message || "";
+  if (
+    /cookie|login|sign in|authenticate|private|members only|rate-limit|age.restricted|csrf|not authorized|authorized to view/i.test(
+      text,
+    )
+  ) {
+    return true;
+  }
+  // X 常把需登录/年龄限制的内容报成「找不到视频」，应继续尝试 Cookie
+  if (
+    platform === "twitter" &&
+    /No video could be found|no video could be found|TweetTombstone|Unable to download JSON metadata/i.test(
+      text,
+    )
+  ) {
+    return true;
+  }
+  return false;
 }
 
 /** yt-dlp 解析 YouTube / X / Telegram 等社交平台 */
@@ -19,7 +34,7 @@ export async function extractSocial(url, platform) {
     } catch (e) {
       lastError = e;
       const msg = e instanceof Error ? e.message : "";
-      if (!isCookieRelatedError(msg)) {
+      if (!isCookieRelatedError(msg, platform)) {
         throw e;
       }
     }

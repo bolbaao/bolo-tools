@@ -8,9 +8,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const PROJECT_ROOT = path.join(__dirname, "..", "..");
 
 export function resolveYtDlpBin() {
-  const local = path.join(PROJECT_ROOT, ".local", "bin", "yt-dlp");
   if (process.env.YTDLP_BIN) return process.env.YTDLP_BIN;
-  return fs.existsSync(local) ? local : "yt-dlp";
+  const local = path.join(PROJECT_ROOT, ".local", "bin", "yt-dlp");
+  if (fs.existsSync(local)) {
+    // 独立 macOS 二进制优先；pip 版 Python 脚本在 macOS 3.9 + LibreSSL 上常 SSL 失败
+    try {
+      if (!fs.lstatSync(local).isSymbolicLink()) return local;
+    } catch {
+      /* fall through */
+    }
+    return local;
+  }
+  return "yt-dlp";
 }
 
 export function runYtDlpJson(url, platform, extraArgs = []) {

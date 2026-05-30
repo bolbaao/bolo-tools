@@ -32,6 +32,8 @@ const MAX_SESSION_IMAGES = 6;
 type ChatMessage = {
   role: "user" | "ai";
   text: string;
+  /** 仅发给 API 的内部系统消息，不在对话区展示 */
+  hidden?: boolean;
   images?: ClientPhotoItem[];
   plan?: string[];
   actionResults?: ActionResult[];
@@ -272,7 +274,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
             ? { ...m, permissionsHandled: [...(m.permissionsHandled ?? []), ...types] }
             : m,
         ),
-        { role: "user", text: notes.join("\n") },
+        { role: "user", text: notes.join("\n"), hidden: true },
       ];
 
       setMessages(await runChat(history, perms, sessionChatImages));
@@ -320,7 +322,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
             ? { ...m, permissionsHandled: [...(m.permissionsHandled ?? []), type] }
             : m,
         ),
-        { role: "user", text: note },
+        { role: "user", text: note, hidden: true },
       ];
 
       setMessages(await runChat(history, perms, sessionChatImages));
@@ -374,6 +376,8 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.map((msg, i) => {
+            if (msg.hidden) return null;
+
             const pendingPermissions = filterPendingPermissionRequests(
               msg.permissionRequests,
               clientPermissions,

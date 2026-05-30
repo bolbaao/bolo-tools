@@ -1,15 +1,21 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
-import { ApiError, apiUpload, downloadText } from "@/lib/api";
+import { ApiError, apiGet, apiUpload, downloadText } from "@/lib/api";
 import { shiftSrt, srtToVtt } from "@/lib/srt";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Tab = "transcribe" | "extract" | "edit";
 type SubFormat = "srt" | "vtt" | "text";
 
+type TranscribeStatus = {
+  available: boolean;
+  mode?: string | null;
+  hint?: string | null;
+};
+
 const TABS: { id: Tab; label: string; hint: string }[] = [
-  { id: "transcribe", label: "语音转字幕", hint: "本地 Whisper" },
+  { id: "transcribe", label: "语音转文字", hint: "本地 Whisper" },
   { id: "extract", label: "提取内嵌", hint: "从视频取字幕轨" },
   { id: "edit", label: "编辑导出", hint: "平移 / 转 VTT" },
 ];
@@ -23,6 +29,29 @@ export default function SubtitleWorkshopForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [transcribeStatus, setTranscribeStatus] = useState<TranscribeStatus | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await apiGet<TranscribeStatus & { ok?: boolean }>("/api/subtitle/status");
+        if (!cancelled) {
+          setTranscribeStatus({ available: data.available, mode: data.mode, hint: data.hint });
+        }
+      } catch {
+        if (!cancelled) {
+          setTranscribeStatus({
+            available: false,
+            hint: "无法连接本地 API。请用 ./start.sh 启动，或开发时运行 npm run dev:all",
+          });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const downloadContent = (content: string, filename: string) => {
     downloadText(content, filename);
@@ -30,6 +59,10 @@ export default function SubtitleWorkshopForm() {
 
   const handleTranscribe = async () => {
     if (!file) return;
+    if (transcribeStatus && !transcribeStatus.available) {
+      setError(transcribeStatus.hint || "语音转写暂不可用，请先安装依赖并重启服务");
+      return;
+    }
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -117,6 +150,16 @@ export default function SubtitleWorkshopForm() {
           </button>
         ))}
       </div>
+
+      {tab === "transcribe" && transcribeStatus && !transcribeStatus.available && (
+        <p className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90 leading-relaxed">
+          {transcribeStatus.hint || "语音转写暂不可用"}
+        </p>
+      )}
+
+      {tab === "transcribe" && transcribeStatus?.available && transcribeStatus.mode === "local" && (
+        <p className="text-xs text-center text-emerald-400/70">✓ 本地 Whisper 已就绪</p>
+      )}
 
       {tab !== "edit" && (
         <>
@@ -220,14 +263,14 @@ export default function SubtitleWorkshopForm() {
         <ActionButton
           label={tab === "transcribe" ? "开始转写" : "提取字幕"}
           loading={loading}
-          disabled={!file}
+          disabled={!file || (tab === "transcribe" && transcribeStatus !== null && !transcribeStatus.available)}
           onClick={primaryAction}
         />
       )}
 
       <p className="text-center text-xs text-white/25 leading-relaxed">
         {tab === "transcribe"
-          ? "语音转写默认使用本机 faster-whisper（无需 API Key）· 首次运行会下载模型 · 提取/编辑在本地完成"
+          ? "语音转文字使用本机 faster-whisper，导出自动转为简体中文 · 提取/编辑在本地完成"
           : "提取内嵌字幕需视频含字幕轨 · 需 ffmpeg"}
       </p>
     </div>

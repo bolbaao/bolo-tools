@@ -6,16 +6,20 @@ cd "$(dirname "$0")/.."
 echo "🍍 安装本机依赖…"
 mkdir -p .local/bin
 
-# yt-dlp
-if command -v yt-dlp >/dev/null 2>&1; then
+# yt-dlp（优先官方 macOS 独立二进制，避免系统 Python 3.9 + LibreSSL 导致 SSL 握手失败）
+if [ -x ".local/bin/yt-dlp" ] && .local/bin/yt-dlp --version >/dev/null 2>&1; then
+  echo "✓ yt-dlp 已存在: .local/bin/yt-dlp ($(.local/bin/yt-dlp --version 2>/dev/null | tail -1))"
+elif command -v brew >/dev/null 2>&1 && brew list yt-dlp >/dev/null 2>&1; then
   echo "✓ yt-dlp 已存在: $(command -v yt-dlp)"
+elif bash scripts/download-ytdlp.sh; then
+  :
 else
-  echo "→ 安装 yt-dlp (pip)…"
-  python3 -m pip install --user yt-dlp
+  echo "→ 独立版下载失败，尝试 pip 安装 yt-dlp…"
+  python3 -m pip install --user -U yt-dlp
   PY_BIN="$(python3 -m site --user-base 2>/dev/null)/bin"
   if [ -x "$PY_BIN/yt-dlp" ]; then
     ln -sf "$PY_BIN/yt-dlp" .local/bin/yt-dlp
-    echo "✓ yt-dlp → .local/bin/yt-dlp"
+    echo "✓ yt-dlp → .local/bin/yt-dlp (pip)"
   fi
 fi
 
@@ -65,6 +69,14 @@ else
   else
     echo "⚠️  faster-whisper 安装失败，字幕转写需手动: python3 -m pip install --user faster-whisper"
   fi
+fi
+
+# zhconv（繁体转简体，与 Node opencc-js 双保险）
+if python3 -c "import zhconv" 2>/dev/null; then
+  echo "✓ zhconv 已安装"
+else
+  echo "→ 安装 zhconv (pip)…"
+  python3 -m pip install --user zhconv 2>/dev/null || true
 fi
 
 echo ""

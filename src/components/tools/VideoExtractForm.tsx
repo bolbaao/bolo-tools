@@ -64,7 +64,7 @@ function detectClientPlatform(text: string): string | null {
   if (u.includes("douyin") || u.includes("iesdouyin")) return "douyin";
   if (u.includes("bilibili") || u.includes("b23.tv") || /bv1[0-9a-z]{9}/i.test(text)) return "bilibili";
   if (u.includes("youtube") || u.includes("youtu.be")) return "youtube";
-  if (u.includes("twitter.com") || u.includes("x.com") || u.includes("t.co/")) return "twitter";
+  if (u.includes("twitter.com") || u.includes("x.com") || u.includes("t.co/") || u.includes("fxtwitter") || u.includes("vxtwitter")) return "twitter";
   if (u.includes("t.me/") || u.includes("telegram") || u.includes("telesco.pe")) return "telegram";
   if (u.includes("instagram") || u.includes("instagr.am")) return "instagram";
   if (u.includes("tiktok")) return "tiktok";
@@ -160,7 +160,7 @@ export default function VideoExtractForm() {
         </div>
         <p className="text-[11px] text-white/30 leading-relaxed">
           粘贴分享链接或整段文案即可。抖音 / B 站 / YouTube / X / Telegram / Instagram 等均支持多清晰度与本页直接下载。
-          部分平台登录后可获得更高画质（配置 Cookie 见 .env.example）。
+          X 视频多数需登录 Cookie，失败时请运行 <code className="text-white/45">./scripts/setup-x-cookies.sh</code>（见 .env.example）。
         </p>
       </div>
 

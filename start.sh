@@ -23,7 +23,29 @@ fi
 if [ -z "${LIBREOFFICE_PATH:-}" ] && [ -x "$LOCAL_SOFFICE" ]; then
   export LIBREOFFICE_PATH="$LOCAL_SOFFICE"
 fi
-export PATH="${HOME}/Library/Python/3.9/bin:${HOME}/Library/Python/3.10/bin:${HOME}/Library/Python/3.11/bin:${HOME}/Library/Python/3.12/bin:$PATH"
+export PATH="${HOME}/Library/Python/3.9/bin:${HOME}/Library/Python/3.10/bin:${HOME}/Library/Python/3.11/bin:${HOME}/Library/Python/3.12/bin:${HOME}/Library/Python/3.13/bin:$PATH"
+for _py_site in \
+  "${HOME}/Library/Python/3.9/lib/python/site-packages" \
+  "${HOME}/Library/Python/3.10/lib/python/site-packages" \
+  "${HOME}/Library/Python/3.11/lib/python/site-packages" \
+  "${HOME}/Library/Python/3.12/lib/python/site-packages" \
+  "${HOME}/Library/Python/3.13/lib/python/site-packages"; do
+  if [ -d "$_py_site" ]; then
+    export PYTHONPATH="${_py_site}${PYTHONPATH:+:$PYTHONPATH}"
+  fi
+done
+
+# 字幕工坊 · 本地语音转写（faster-whisper + 模型）
+if command -v python3 >/dev/null 2>&1; then
+  if ! python3 -c "import faster_whisper" 2>/dev/null; then
+    echo "→ 安装 faster-whisper（语音转文字）…"
+    python3 -m pip install --user faster-whisper 2>/dev/null || true
+  fi
+  if [ ! -f ".local/whisper/base/model.bin" ] && [ -f "scripts/download-whisper-model.sh" ]; then
+    echo "→ 下载 Whisper base 模型（约 150MB，仅首次）…"
+    bash scripts/download-whisper-model.sh 2>/dev/null || echo "⚠️  模型下载失败，可稍后运行: ./scripts/download-whisper-model.sh"
+  fi
+fi
 
 if ! command -v node >/dev/null 2>&1; then
   echo "❌ 未找到 Node.js，请先安装：https://nodejs.org"
@@ -55,6 +77,10 @@ if [ -f "cookies/douyin.txt" ] && command -v python3 >/dev/null 2>&1; then
   fi
 elif [ ! -f "cookies/douyin.txt" ]; then
   echo "💡 抖音解析建议运行一次: ./scripts/setup-douyin-cookies.sh"
+fi
+
+if [ ! -f "cookies/x.txt" ]; then
+  echo "💡 X 视频解析建议运行一次: ./scripts/setup-x-cookies.sh"
 fi
 
 echo "🔨 正在构建静态网站…"

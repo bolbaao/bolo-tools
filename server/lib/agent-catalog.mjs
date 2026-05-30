@@ -41,6 +41,13 @@ export const AGENT_TOOLS = [
     fields: { mode: "compress|sharpen|cutout|generate", prompt: "生图描述" },
   },
   {
+    id: "ai-search",
+    title: "AI 全网搜索",
+    href: "/tools/ai-search",
+    description: "全网检索并由 AI 生成带引用的答案",
+    fields: { query: "搜索问题或关键词" },
+  },
+  {
     id: "hot-trends",
     title: "热点中心",
     href: "/tools/hot-trends",

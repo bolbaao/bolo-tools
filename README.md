@@ -38,7 +38,9 @@ cp .env.example .env
 
 | 变量 | 用途 | 是否必需 |
 |------|------|----------|
-| `DEEPSEEK_API_KEY` | AI 对话 | 使用该功能时必需 |
+| `DEEPSEEK_API_KEY` | AI 对话、AI 全网搜索摘要 | 使用该功能时必需 |
+| `TAVILY_API_KEY` | AI 全网搜索（推荐） | 搜索时二选一 |
+| `SERPER_API_KEY` | AI 全网搜索（Google 结果） | 搜索时二选一 |
 | `DEEPSEEK_BASE_URL` | DeepSeek API（默认 `https://api.deepseek.com/v1`） | 可选 |
 | `DEEPSEEK_MODEL` | 模型（默认 `deepseek-chat`） | 可选 |
 | `TMDB_API_KEY` | 影视搜索 | 使用该功能时必需 |
@@ -47,9 +49,13 @@ cp .env.example .env
 | `OPENAI_API_KEY` | 字幕工坊 · 云端转写（本地不可用时的备选） | 可选 |
 | `ASSETS_PASSWORD` | 素材库访问密码 | 使用素材库时必需 |
 
-### AI 对话（DeepSeek）
+### AI 对话
 
-在 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 获取 API Key，写入 `.env`：
+默认优先 **DeepSeek**（大陆可直接用）。也支持 **ChatGPT（OpenAI 兼容 API）** 与火山方舟。
+
+**DeepSeek（推荐，国内免代理）**
+
+在 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 获取 API Key：
 
 ```bash
 DEEPSEEK_API_KEY=你的密钥
@@ -57,9 +63,30 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
 DEEPSEEK_MODEL=deepseek-chat
 ```
 
+**ChatGPT（大陆需代理或中转）**
+
+1. 在 `.env` 中指定使用 OpenAI，并填入 Key（若已配置 DeepSeek，需注释掉 `DEEPSEEK_API_KEY` 或设置 `CHAT_PROVIDER=openai`）：
+
+```bash
+CHAT_PROVIDER=openai
+OPENAI_API_KEY=sk-你的密钥
+OPENAI_MODEL=gpt-4o-mini
+```
+
+2. 任选一种联网方式：
+
+- **本机 VPN / Clash**：在 `.env` 增加（端口按客户端实际修改）  
+  `HTTPS_PROXY=http://127.0.0.1:7890`  
+  保持 `OPENAI_BASE_URL=https://api.openai.com/v1`
+- **OpenAI 兼容中转**：将 `OPENAI_BASE_URL` 改为你购买的中转服务提供的 `https://xxx/v1` 地址（无需代理）
+
+修改后重启 `./start.sh`。
+
 **主打**轻松闲聊；**次要**在用户明确要求时充当智能助手（跳转工具、预填链接等）。
 
-示例：「今天好累啊」→ 纯对话；「帮我把这个抖音链接提取出来」→ 打开视频提取并预填。
+### AI 全网搜索
+
+在 [Tavily](https://tavily.com) 或 [Serper](https://serper.dev) 申请 API Key（推荐 Tavily），并配置 `DEEPSEEK_API_KEY` 用于生成带引用的综合回答。工具入口：`/tools/ai-search`。
 
 ## 运行方式
 

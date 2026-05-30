@@ -47,6 +47,38 @@ export function normalizeVideoInput(raw) {
   return text.trim();
 }
 
+/** X/Twitter：从各类分享链接提取标准 status URL */
+export function normalizeTwitterInput(raw) {
+  const text = String(raw ?? "").trim();
+  if (!text) return "";
+
+  let url = normalizeVideoInput(text);
+  if (!url) return "";
+
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    const isX =
+      /^(www\.)?(twitter|x)\.com$/i.test(host) ||
+      /^mobile\.twitter\.com$/i.test(host) ||
+      /^(www\.)?(fx|vx)twitter\.com$/i.test(host);
+
+    if (!isX) return url;
+
+    // /i/web/status/123 或 /i/status/123
+    const idFromPath =
+      parsed.pathname.match(/\/status(?:es)?\/(\d+)/i)?.[1] ||
+      parsed.pathname.match(/\/i\/(?:web\/)?status\/(\d+)/i)?.[1];
+
+    if (idFromPath) {
+      return `https://x.com/i/status/${idFromPath}`;
+    }
+    return url.split("#")[0].split("?")[0];
+  } catch {
+    return url;
+  }
+}
+
 /** B 站：从 BV 号 / av 号规范化 */
 export function normalizeBilibiliInput(raw) {
   const text = String(raw ?? "").trim();
@@ -70,10 +102,16 @@ export function parseVideoUrl(raw) {
   const text = String(raw ?? "").trim();
   const isBilibiliHint =
     /bilibili|b23\.tv|bili2233|BV1[0-9A-Za-z]{9}|\bav\d{6,}\b/i.test(text);
+  const isTwitterHint = /twitter\.com|x\.com|t\.co\/|fxtwitter|vxtwitter/i.test(text);
 
-  const normalized = isBilibiliHint
-    ? normalizeBilibiliInput(text)
-    : normalizeVideoInput(text);
+  let normalized;
+  if (isBilibiliHint) {
+    normalized = normalizeBilibiliInput(text);
+  } else if (isTwitterHint) {
+    normalized = normalizeTwitterInput(text);
+  } else {
+    normalized = normalizeVideoInput(text);
+  }
 
   if (!normalized) {
     throw new Error("请输入视频链接");

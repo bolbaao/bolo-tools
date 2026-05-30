@@ -105,6 +105,18 @@ function ToolkitIcon({ gradId }: IconProps) {
   );
 }
 
+function AiSearchIcon({ gradId }: IconProps) {
+  const g = `url(#${gradId})`;
+  return (
+    <>
+      <circle cx="11" cy="11" r="7" {...stroke} stroke={g} />
+      <path d="M16 16l4.5 4.5" {...stroke} stroke={g} />
+      <path d="M8 11h6M11 8v6" {...stroke} stroke={g} strokeWidth={1.25} />
+      <path d="M14.5 7.5l1.5-1.5M14.5 7.5l1 2" {...stroke} stroke={g} strokeWidth={1.1} />
+    </>
+  );
+}
+
 function AiChatIcon({ gradId }: IconProps) {
   const g = `url(#${gradId})`;
   return (
@@ -205,6 +217,7 @@ const ICONS: Record<string, (props: IconProps) => ReactNode> = {
   "hot-trends": HotTrendsIcon,
   toolkit: ToolkitIcon,
   "ai-chat": AiChatIcon,
+  "ai-search": AiSearchIcon,
   "media-search": MediaSearchIcon,
   "media-download": MediaDownloadIcon,
   "spider-builder": SpiderBuilderIcon,

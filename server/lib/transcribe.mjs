@@ -1,7 +1,13 @@
 import fs from "fs";
 import OpenAI, { toFile } from "openai";
 import { env } from "./env.mjs";
-import { isLocalWhisperAvailable, transcribeWithLocalWhisper } from "./whisper-local.mjs";
+import {
+  getLocalWhisperHint,
+  getWhisperModel,
+  getWhisperModelPath,
+  isLocalWhisperAvailable,
+  transcribeWithLocalWhisper,
+} from "./whisper-local.mjs";
 
 export function resolveTranscribeConfig() {
   const apiKey = env("OPENAI_API_KEY") || env("ARK_API_KEY") || env("VOLC_API_KEY");
@@ -26,6 +32,18 @@ export function getTranscribeMode() {
   if (isLocalWhisperAvailable()) return "local";
   if (resolveTranscribeConfig()) return "api";
   return null;
+}
+
+export function getTranscribeStatus() {
+  const mode = getTranscribeMode();
+  const localHint = getLocalWhisperHint();
+  return {
+    available: Boolean(mode),
+    mode,
+    model: getWhisperModel(),
+    modelPath: getWhisperModelPath(),
+    hint: mode ? null : localHint || "可在 .env 配置 OPENAI_API_KEY 使用云端转写",
+  };
 }
 
 async function transcribeWithApi(audioPath, format = "srt") {

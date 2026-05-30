@@ -2,7 +2,7 @@
 
 @theme {
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", var(--font-outfit),
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI",
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --color-surface: #06080f;
   --color-surface-elevated: #0a0e1a;

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const PLANNED = [
   { title: "AI 对话", status: "available" as const, href: "/tools/ai-chat/" },
+  { title: "AI 全网搜索", status: "available" as const, href: "/tools/ai-search/" },
   { title: "AI 生图", status: "available" as const, href: "/tools/image-studio/?tab=generate" },
   { title: "AI 写作助手", status: "soon" as const },
   { title: "AI 工作流", status: "soon" as const },

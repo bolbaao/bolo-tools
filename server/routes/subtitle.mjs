@@ -5,7 +5,12 @@ import path from "path";
 import os from "os";
 import { HttpError, sendError } from "../lib/http-error.mjs";
 import { runFfmpeg, runFfprobe } from "../lib/ffmpeg-run.mjs";
-import { transcribeAudioFile, isTranscribeAvailable } from "../lib/transcribe.mjs";
+import {
+  getTranscribeStatus,
+  isTranscribeAvailable,
+  transcribeAudioFile,
+} from "../lib/transcribe.mjs";
+import { toSimplifiedChinese } from "../lib/zh-simplify.mjs";
 
 const router = Router();
 const upload = multer({
@@ -41,6 +46,11 @@ async function withTmpDir(fn) {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 }
+
+/** 语音转写能力检测（前端展示是否可用） */
+router.get("/status", (_req, res) => {
+  res.json({ ok: true, ...getTranscribeStatus() });
+});
 
 /** 提取内嵌字幕轨 */
 router.post("/extract", upload.single("file"), async (req, res) => {
@@ -124,8 +134,15 @@ router.post("/transcribe", upload.single("file"), async (req, res) => {
       ]);
 
       const content = await transcribeAudioFile(wavPath, format);
+      const trimmed = String(content ?? "").trim();
+      if (!trimmed) {
+        throw new HttpError(
+          422,
+          "未识别到语音内容。请确认文件含清晰人声，或尝试更短的片段与其它格式（mp3/m4a/wav）",
+        );
+      }
       return {
-        content,
+        content: toSimplifiedChinese(trimmed),
         truncated: Boolean(duration && duration > MAX_TRANSCRIBE_SEC),
         durationSec: duration,
       };

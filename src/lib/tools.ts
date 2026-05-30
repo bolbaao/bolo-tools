@@ -58,6 +58,16 @@ export const tools: Tool[] = [
     homeFeatured: true,
   },
   {
+    id: "ai-search",
+    title: "AI 全网搜索",
+    description: "检索全网信息，AI 综合多来源生成带引用的精准答案。",
+    href: "/tools/ai-search",
+    gradient: "from-indigo-500/20 via-violet-500/15 to-blue-500/10",
+    tag: "AI",
+    bento: "wide",
+    demoHint: "提问 → 全网检索 → AI 摘要与来源",
+  },
+  {
     id: "hot-trends",
     title: "热点中心",
     description: "聚合抖音、小红书实时热点与爆款话题，助你快速跟上流量趋势。",
@@ -110,7 +120,7 @@ export const tools: Tool[] = [
   {
     id: "subtitle-workshop",
     title: "字幕工坊",
-    description: "语音转字幕、提取内嵌字幕轨、SRT 时间平移与 VTT 导出。",
+    description: "语音转文字（字幕）、提取内嵌字幕轨、SRT 时间平移与 VTT 导出。",
     href: "/tools/subtitle-workshop",
     gradient: "from-cyan-500/20 to-teal-500/10",
     tag: "视频",

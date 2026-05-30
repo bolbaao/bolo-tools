@@ -3,24 +3,27 @@ import { pdf } from "pdf-to-img";
 import JSZip from "jszip";
 import { HttpError } from "./http-error.mjs";
 import { convertViaConvertApi, isOnlineDocConvertAvailable } from "./doc-convert-online.mjs";
+import { isLibreOfficeAvailable, libreConvert } from "./document-convert-local.mjs";
 
 export const DOC_MODES = {
-  "pdf-to-word": { input: [".pdf"], outputExt: "docx", needsCloud: true },
-  "word-to-pdf": { input: [".doc", ".docx"], outputExt: "pdf", needsCloud: true },
-  "pdf-to-images": { input: [".pdf"], outputExt: "zip", needsCloud: false },
-  "images-to-pdf": { input: [".png", ".jpg", ".jpeg"], outputExt: "pdf", needsCloud: false },
+  "pdf-to-word": { input: [".pdf"], outputExt: "docx", needsOffice: true },
+  "word-to-pdf": { input: [".doc", ".docx"], outputExt: "pdf", needsOffice: true },
+  "pdf-to-images": { input: [".pdf"], outputExt: "zip", needsOffice: false },
+  "images-to-pdf": { input: [".png", ".jpg", ".jpeg"], outputExt: "pdf", needsOffice: false },
 };
 
 export function getDocumentCapabilities() {
   const online = isOnlineDocConvertAvailable();
+  const libre = isLibreOfficeAvailable();
   return {
     onlineConvert: online,
+    libreOffice: libre,
     modes: Object.fromEntries(
       Object.entries(DOC_MODES).map(([mode, cfg]) => [
         mode,
         {
-          available: !cfg.needsCloud || online,
-          needsCloud: cfg.needsCloud,
+          available: !cfg.needsOffice || online || libre,
+          needsOffice: cfg.needsOffice,
         },
       ]),
     ),
@@ -37,16 +40,57 @@ function baseName(name) {
   return i >= 0 ? name.slice(0, i) : name;
 }
 
+function isCloudUnreachable(err) {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    err instanceof HttpError &&
+    (err.status === 502 ||
+      err.status === 504 ||
+      /fetch failed|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|network|无法连接云端/i.test(msg))
+  );
+}
+
 function assertMode(mode) {
   const cfg = DOC_MODES[mode];
   if (!cfg) throw new HttpError(400, "不支持的转换类型");
-  if (cfg.needsCloud && !isOnlineDocConvertAvailable()) {
+  if (cfg.needsOffice && !isOnlineDocConvertAvailable() && !isLibreOfficeAvailable()) {
     throw new HttpError(
       503,
-      "未配置云端转换。请在 .env 设置 CONVERTAPI_SECRET（免费注册 https://www.convertapi.com）",
+      "PDF ↔ Word 需要云端 API（CONVERTAPI_SECRET）或本地 LibreOffice（./scripts/download-libreoffice.sh）",
     );
   }
   return cfg;
+}
+
+/** 云端优先，国内网络不可达时自动改用本地 LibreOffice */
+async function convertOfficeFile(buffer, fromExt, toExt, originalName) {
+  const from = fromExt.startsWith(".") ? fromExt : `.${fromExt}`;
+  const to = toExt.startsWith(".") ? toExt : `.${toExt}`;
+
+  if (isOnlineDocConvertAvailable()) {
+    try {
+      return await convertViaConvertApi(buffer, from, to, originalName);
+    } catch (e) {
+      if (!isCloudUnreachable(e) || !isLibreOfficeAvailable()) throw e;
+    }
+  }
+
+  if (!isLibreOfficeAvailable()) {
+    throw new HttpError(
+      502,
+      "无法连接云端转换（国内常需代理）。请在 .env 配置 HTTPS_PROXY，或运行 ./scripts/download-libreoffice.sh 使用本地转换",
+    );
+  }
+
+  if (from === ".pdf" && to === ".docx") {
+    return libreConvert(buffer, "docx", ".pdf", {
+      sofficeAdditionalArgs: ["--infilter=writer_pdf_import"],
+    });
+  }
+  if (to === ".pdf") {
+    return libreConvert(buffer, "pdf", from);
+  }
+  throw new HttpError(400, "不支持的转换组合");
 }
 
 async function pdfToImages(buffer, { scale = 2, format = "png" } = {}) {
@@ -87,14 +131,14 @@ async function imagesToPdf(files) {
  * @param {{ scale?: number, imageFormat?: string }} opts
  */
 export async function convertDocuments(mode, files, opts = {}) {
-  const cfg = assertMode(mode);
+  assertMode(mode);
 
   if (!files?.length) throw new HttpError(400, "请上传文件");
 
   if (mode === "images-to-pdf") {
     for (const f of files) {
       const ext = extOf(f.originalname);
-      if (!cfg.input.includes(ext)) {
+      if (!DOC_MODES["images-to-pdf"].input.includes(ext)) {
         throw new HttpError(400, "请上传 PNG 或 JPG 图片");
       }
     }
@@ -105,6 +149,7 @@ export async function convertDocuments(mode, files, opts = {}) {
 
   const file = files[0];
   const ext = extOf(file.originalname);
+  const cfg = DOC_MODES[mode];
   if (!cfg.input.includes(ext)) {
     throw new HttpError(400, `请上传 ${cfg.input.join("、")} 格式的文件`);
   }
@@ -112,7 +157,7 @@ export async function convertDocuments(mode, files, opts = {}) {
   const stem = baseName(file.originalname);
 
   if (mode === "pdf-to-word") {
-    const out = await convertViaConvertApi(file.buffer, ".pdf", ".docx", file.originalname);
+    const out = await convertOfficeFile(file.buffer, ".pdf", ".docx", file.originalname);
     return {
       buffer: out,
       filename: `${stem}.docx`,
@@ -121,7 +166,7 @@ export async function convertDocuments(mode, files, opts = {}) {
   }
 
   if (mode === "word-to-pdf") {
-    const out = await convertViaConvertApi(file.buffer, ext, ".pdf", file.originalname);
+    const out = await convertOfficeFile(file.buffer, ext, ".pdf", file.originalname);
     return {
       buffer: out,
       filename: `${stem}.pdf`,

@@ -10,25 +10,25 @@ export type DocConvertModeMeta = {
   hint: string;
   accept: string;
   multiple: boolean;
-  needsCloud: boolean;
+  needsOffice: boolean;
 };
 
 export const DOC_CONVERT_MODES: DocConvertModeMeta[] = [
   {
     id: "pdf-to-word",
     label: "PDF 转 Word",
-    hint: "上传 PDF，经云端转换为可编辑的 .docx",
+    hint: "上传 PDF，自动转换（云端不可达时用本地引擎）",
     accept: ".pdf,application/pdf",
     multiple: false,
-    needsCloud: true,
+    needsOffice: true,
   },
   {
     id: "word-to-pdf",
     label: "Word 转 PDF",
-    hint: "上传 .doc / .docx，经云端转换为 PDF",
+    hint: "上传 .doc / .docx，自动转换",
     accept: ".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     multiple: false,
-    needsCloud: true,
+    needsOffice: true,
   },
   {
     id: "pdf-to-images",
@@ -36,7 +36,7 @@ export const DOC_CONVERT_MODES: DocConvertModeMeta[] = [
     hint: "每一页导出为 PNG，打包为 ZIP 下载",
     accept: ".pdf,application/pdf",
     multiple: false,
-    needsCloud: false,
+    needsOffice: false,
   },
   {
     id: "images-to-pdf",
@@ -44,11 +44,12 @@ export const DOC_CONVERT_MODES: DocConvertModeMeta[] = [
     hint: "支持多张 PNG / JPG，按顺序合并为一个 PDF",
     accept: ".png,.jpg,.jpeg,image/png,image/jpeg",
     multiple: true,
-    needsCloud: false,
+    needsOffice: false,
   },
 ];
 
 export type DocCapabilities = {
   onlineConvert: boolean;
-  modes: Record<string, { available: boolean; needsCloud: boolean }>;
+  libreOffice: boolean;
+  modes: Record<string, { available: boolean; needsOffice: boolean }>;
 };

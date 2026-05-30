@@ -31,7 +31,7 @@ def format_vtt_ts(seconds: float) -> str:
 def segments_to_srt(segments) -> str:
     blocks = []
     for i, seg in enumerate(segments, 1):
-        text = seg.text.strip()
+        text = normalize_segment_text(seg.text)
         if not text:
             continue
         blocks.append(
@@ -43,7 +43,7 @@ def segments_to_srt(segments) -> str:
 def segments_to_vtt(segments) -> str:
     lines = ["WEBVTT", ""]
     for i, seg in enumerate(segments, 1):
-        text = seg.text.strip()
+        text = normalize_segment_text(seg.text)
         if not text:
             continue
         lines.append(str(i))
@@ -54,7 +54,24 @@ def segments_to_vtt(segments) -> str:
 
 
 def segments_to_text(segments) -> str:
-    return "\n".join(seg.text.strip() for seg in segments if seg.text.strip())
+    return "\n".join(
+        normalize_segment_text(seg.text) for seg in segments if seg.text.strip()
+    )
+
+
+def to_simplified(text: str) -> str:
+    if not text or not any("\u4e00" <= c <= "\u9fff" for c in text):
+        return text
+    try:
+        import zhconv
+
+        return zhconv.convert(text, "zh-cn")
+    except ImportError:
+        return text
+
+
+def normalize_segment_text(text: str) -> str:
+    return to_simplified(text.strip())
 
 
 def main() -> int:
@@ -94,14 +111,15 @@ def main() -> int:
 
     lang = None if args.language in ("auto", "") else args.language
     model_ref = args.model_path.strip() if args.model_path.strip() else args.model
+    transcribe_kw: dict = {"vad_filter": True}
+    if lang:
+        transcribe_kw["language"] = lang
+        if lang in ("zh", "yue"):
+            transcribe_kw["initial_prompt"] = "以下是简体中文内容。"
 
     try:
         model = WhisperModel(model_ref, device="auto", compute_type="default")
-        segments, _info = model.transcribe(
-            args.audio,
-            language=lang,
-            vad_filter=True,
-        )
+        segments, _info = model.transcribe(args.audio, **transcribe_kw)
         collected = list(segments)
     except Exception as exc:  # noqa: BLE001
         print(f"转写失败: {exc}", file=sys.stderr)

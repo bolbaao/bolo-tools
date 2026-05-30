@@ -58,7 +58,7 @@ export default function DocumentConvertForm() {
       return;
     }
     if (!modeAvailable) {
-      setError("请先在 .env 配置 CONVERTAPI_SECRET 以使用 PDF / Word 互转");
+      setError("请配置 CONVERTAPI_SECRET 或安装本地 LibreOffice（./scripts/download-libreoffice.sh）");
       return;
     }
 
@@ -126,8 +126,8 @@ export default function DocumentConvertForm() {
               } ${!available ? "opacity-60" : ""}`}
             >
               <span className="font-medium">{m.label}</span>
-              {m.needsCloud && (
-                <span className="mt-1 block text-[10px] text-cyan-200/70">云端</span>
+              {m.needsOffice && (
+                <span className="mt-1 block text-[10px] text-cyan-200/70">本地/云端</span>
               )}
             </button>
           );
@@ -136,19 +136,16 @@ export default function DocumentConvertForm() {
 
       <p className="text-sm text-white/45 leading-relaxed">{meta.hint}</p>
 
-      {meta.needsCloud && !caps?.onlineConvert && (
+      {meta.needsOffice && caps?.libreOffice && (
+        <p className="rounded-xl border border-emerald-500/15 bg-emerald-500/5 px-4 py-3 text-xs leading-relaxed text-emerald-100/80">
+          已检测到本地 LibreOffice。云端 ConvertAPI 在国内常无法直连时会<strong className="font-medium">自动改用本地转换</strong>，无需代理即可使用 PDF ↔ Word。
+        </p>
+      )}
+
+      {meta.needsOffice && caps?.onlineConvert && !caps?.libreOffice && (
         <p className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-xs leading-relaxed text-cyan-100/85">
-          PDF ↔ Word 使用云端转换。请在 <code className="text-white/60">.env</code> 配置{" "}
-          <code className="text-white/60">CONVERTAPI_SECRET</code>（免费注册{" "}
-          <a
-            href="https://www.convertapi.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-cyan-300/90 underline underline-offset-2"
-          >
-            convertapi.com
-          </a>
-          ，约 250 次/月免费），配置后重启服务。
+          若出现「无法连接云端」，请在 .env 配置 <code className="text-white/60">HTTPS_PROXY</code>，或运行{" "}
+          <code className="text-white/50">./scripts/download-libreoffice.sh</code> 启用本地回退。
         </p>
       )}
 
@@ -225,14 +222,14 @@ export default function DocumentConvertForm() {
 
       <ActionButton
         label="开始转换并下载"
-        loadingLabel="云端转换中，大文件可能需要 1～3 分钟…"
+        loadingLabel="转换中，请稍候…"
         onClick={convert}
         loading={loading}
         disabled={!files.length || !modeAvailable}
       />
 
       <p className="text-center text-xs text-white/25 leading-relaxed">
-        PDF ↔ Word 经 ConvertAPI 云端处理 · PDF 转图片 / 图片转 PDF 在服务器本地完成
+        PDF ↔ Word：优先云端，不可达时自动本地 LibreOffice · 图片类转换在本地完成
       </p>
     </div>
   );

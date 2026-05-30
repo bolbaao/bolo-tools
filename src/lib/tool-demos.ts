@@ -32,6 +32,12 @@ export const TOOL_DEMO_VIDEOS: Record<string, ToolDemoSource> = {
     remoteUrl: "https://cdn.coverr.co/videos/coverr-woman-texting-and-smiling-3838/1080p.mp4",
     poster: "https://cdn.coverr.co/videos/coverr-woman-texting-and-smiling-3838/thumbnail?width=640",
   },
+  "ai-search": {
+    localPath: "/demos/ai-search.mp4",
+    remoteUrl: "https://cdn.coverr.co/videos/coverr-scrolling-through-coronavirus-news-6170/1080p.mp4",
+    poster:
+      "https://cdn.coverr.co/videos/coverr-scrolling-through-coronavirus-news-6170/thumbnail?width=640",
+  },
   "hot-trends": {
     localPath: "/demos/hot-trends.mp4",
     remoteUrl: "https://cdn.coverr.co/videos/coverr-scrolling-through-coronavirus-news-6170/1080p.mp4",

@@ -1,14 +1,7 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-outfit",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "春雨集",
@@ -22,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" className={inter.variable}>
+    <html lang="zh-CN">
       <body className="flex min-h-screen flex-col antialiased">
         <div className="fixed inset-0 bg-aurora pointer-events-none" />
         <div className="fixed inset-0 bg-grid pointer-events-none" />
