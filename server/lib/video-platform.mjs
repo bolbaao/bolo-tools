@@ -271,7 +271,7 @@ export function formatYtDlpError(stderr, platform) {
     return "Instagram 通常需要登录 Cookie。请在浏览器登录 instagram.com 后配置 SOCIAL_COOKIES";
   }
   if (platform === "weixin-channels") {
-    return "微信视频号解析失败。请配置 TIKHUB_API_KEY，或粘贴含 oid 的完整分享链接并配置元宝 Cookie";
+    return "微信视频号解析失败。请粘贴含 oid 的完整分享链接，并运行 ./scripts/setup-yuanbao-cookies.sh（Safari 登录元宝）";
   }
   if (/Unsupported URL|invalid url|no video/i.test(text)) {
     const label = PLATFORM_LABELS[platform] || platform;

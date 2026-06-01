@@ -1,0 +1,12 @@
+---
+description: 聊天窗口输入 1 时执行 ./start.sh（Hook 未生效时的备用）
+alwaysApply: true
+---
+
+# 快捷启动：输入 1
+
+当用户在本 Agent 聊天窗口**仅**发送 `1`（可含首尾空白，无其他文字）时：
+
+1. 在项目根目录后台执行 `./start.sh`（`block_until_ms: 0`，`required_permissions: ["full_network"]`）
+2. 用一两句中文回复：已启动，打开 http://127.0.0.1:3000
+3. 不要展开无关操作；若 Hook 已启动服务，避免重复执行

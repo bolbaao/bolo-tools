@@ -34,6 +34,7 @@
 /cookies/cron.log
 
 # misc
+logs/start-on-1.log
 .DS_Store
 *.pem
 

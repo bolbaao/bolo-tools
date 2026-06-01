@@ -47,24 +47,11 @@ YTDLP_COOKIES_FROM_BROWSER=chrome
 
 ---
 
-# 微信视频号解析
-
-## 方式 A：TikHub API（推荐 · 无需本地登录）
-
-1. 打开 [tikhub.io](https://tikhub.io) 注册  
-2. **用户中心 → API 令牌** 创建 Token  
-3. 充值（视频详情约 **$0.01/次**）  
-4. `.env` 写入 `TIKHUB_API_KEY=你的Token`
-
-链接需含 `oid=`（微信「复制链接」即可）。
-
----
-
-## 方式 B：腾讯元宝 Cookie（免费 · Safari）
+# 微信视频号 Cookie（腾讯元宝 · Safari）
 
 依赖 [腾讯元宝](https://yuanbao.tencent.com)，需 Safari 登录后导出 Cookie。
 
-### 一键配置
+## 一键配置
 
 ```bash
 chmod +x scripts/setup-yuanbao-cookies.sh

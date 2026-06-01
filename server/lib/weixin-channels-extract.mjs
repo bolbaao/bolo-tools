@@ -424,47 +424,6 @@ function isYuanbaoCookieError(message) {
   return /元宝|yuanbao|Cookie|cookie|登录|未知错误|20000/i.test(message || "");
 }
 
-/** TikHub 第三方解析（无需本地浏览器登录） */
-async function extractViaTikHub(params) {
-  const apiKey = env("TIKHUB_API_KEY");
-  if (!apiKey) return null;
-
-  const base = (env("TIKHUB_API_BASE") || "https://api.tikhub.io").replace(/\/$/, "");
-  const query = new URLSearchParams();
-  if (params.oid) query.set("id", params.oid);
-  const exportId = params.eid || params.exportKey;
-  if (exportId) query.set("exportId", exportId);
-  if (!query.toString()) {
-    throw new Error("链接中缺少视频 ID（oid），无法调用 TikHub");
-  }
-
-  const res = await fetch(`${base}/api/v1/wechat_channels/fetch_video_detail?${query}`, {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      Accept: "application/json",
-    },
-    signal: AbortSignal.timeout(30000),
-  });
-
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok || (json.code !== undefined && json.code !== 200)) {
-    throw new Error(
-      json.message_zh || json.message || json.detail || `TikHub 请求失败 (${res.status})`,
-    );
-  }
-
-  const payload = json.data ?? json;
-  if (!payload?.object_desc && !payload?.objectDesc) {
-    throw new Error("TikHub 未返回视频详情");
-  }
-
-  const info = mapObjectDescToYtDlp(payload, params.shareUrl);
-  if (!info.formats.length) {
-    throw new Error("TikHub 未返回可下载的视频流");
-  }
-  return info;
-}
-
 async function attemptExtract(params, cookie) {
   const errors = [];
 
@@ -544,7 +503,7 @@ async function attemptExtract(params, cookie) {
 
 /**
  * 提取微信视频号视频
- * 策略：TikHub API → 元宝 → get_feed_info → 分享页；失败时自动刷新 Cookie 重试
+ * 策略：元宝 → get_feed_info → 分享页；失败时自动刷新 Cookie 重试
  */
 export async function extractWeixinChannels(rawUrl) {
   const params = parseWeixinChannelsInput(rawUrl);
@@ -554,17 +513,6 @@ export async function extractWeixinChannels(rawUrl) {
 
   const errors = [];
 
-  if (env("TIKHUB_API_KEY")) {
-    try {
-      const info = await extractViaTikHub(params);
-      if (info) {
-        return { info, cookieSource: "tikhub" };
-      }
-    } catch (e) {
-      errors.push(e instanceof Error ? e.message : String(e));
-    }
-  }
-
   let cookie = loadYuanbaoCookie();
   let result = await attemptExtract(params, cookie);
   if (result.info) {
@@ -573,10 +521,9 @@ export async function extractWeixinChannels(rawUrl) {
   errors.push(...result.errors);
 
   const shouldRefresh =
-    !env("TIKHUB_API_KEY") &&
-    (!cookie ||
-      result.errors.some((msg) => isYuanbaoCookieError(msg)) ||
-      result.errors.length > 0);
+    !cookie ||
+    result.errors.some((msg) => isYuanbaoCookieError(msg)) ||
+    result.errors.length > 0;
 
   if (shouldRefresh) {
     const refreshed = await refreshYuanbaoCookies();
@@ -594,12 +541,9 @@ export async function extractWeixinChannels(rawUrl) {
   }
 
   const hints = [];
-  if (!env("TIKHUB_API_KEY")) {
-    hints.push("或在 .env 配置 TIKHUB_API_KEY（https://tikhub.io 注册获取，约 $0.01/次）");
-  }
-  if (!cookie && !env("TIKHUB_API_KEY")) {
-    hints.push("或运行 ./scripts/setup-yuanbao-cookies.sh --install-cron（Safari 登录元宝）");
-  } else if (!env("TIKHUB_API_KEY")) {
+  if (!cookie) {
+    hints.push("请运行 ./scripts/setup-yuanbao-cookies.sh --install-cron（Safari 登录元宝）");
+  } else {
     hints.push("请确认 Safari 已登录 yuanbao.tencent.com");
   }
   throw new Error(
