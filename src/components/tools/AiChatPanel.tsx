@@ -21,13 +21,31 @@ import type {
 } from "@/lib/agent-types";
 import { ApiError, apiPost } from "@/lib/api";
 import {
+  fetchChatModels,
+  formatChatModelLabel,
+  pickInitialChatProvider,
+  writeStoredChatProvider,
+  type ChatModelOption,
+} from "@/lib/chat";
+import {
   imageNeedsVisionApi,
   mergeChatImageVision,
   prepareChatImagesForApi,
 } from "@/lib/chat-image-vision";
 import { filesToChatImages } from "@/lib/image-compress";
+import { addMemory, extractMemoriesAuto } from "@/lib/memory";
+import {
+  createChatSession,
+  getActiveChatSession,
+  listChatSessions,
+  loadChatSession,
+  saveChatSession,
+  type ChatSessionSummary,
+} from "@/lib/chat-history";
+import { useAuth } from "@/contexts/AuthContext";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const welcomeMessage =
   "嗨～想聊什么都可以，也可以直接告我你想要什么。";
@@ -78,7 +96,12 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
   const isHero = variant === "hero";
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuth();
   const [input, setInput] = useState("");
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
+  const [historyReady, setHistoryReady] = useState(false);
+  const [autoMemoryNotice, setAutoMemoryNotice] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: "ai", text: welcomeMessage },
   ]);
@@ -89,7 +112,113 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
   const [pendingImages, setPendingImages] = useState<ClientPhotoItem[]>([]);
   const [sessionChatImages, setSessionChatImages] = useState<ClientPhotoItem[]>([]);
   const [imageBusy, setImageBusy] = useState(false);
+  const [memoryBusy, setMemoryBusy] = useState<number | null>(null);
+  const [memorySaved, setMemorySaved] = useState<number | null>(null);
+  const [chatModels, setChatModels] = useState<ChatModelOption[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetchChatModels()
+      .then((data) => {
+        setChatModels(data.models);
+        setSelectedProvider((prev) => {
+          if (prev && data.models.some((m) => m.id === prev)) return prev;
+          return pickInitialChatProvider(data.models, data.defaultProvider);
+        });
+      })
+      .catch(() => {
+        setChatModels([]);
+        setSelectedProvider(null);
+      });
+  }, []);
+
+  const persistableMessages = useCallback((history: ChatMessage[]) => {
+    return history
+      .filter(
+        (m) =>
+          !m.hidden &&
+          !(m.role === "ai" && m.text === welcomeMessage) &&
+          !m.text.startsWith("（出错了）"),
+      )
+      .map((m) => ({ role: m.role, text: m.text }));
+  }, []);
+
+  const maybeExtractMemories = useCallback(
+    async (history: ChatMessage[]) => {
+      if (!user?.emailVerified) return;
+      const visible = history.filter((m) => !m.hidden);
+      const lastUser = [...visible].reverse().find((m) => m.role === "user");
+      const lastAi = [...visible].reverse().find((m) => m.role === "ai");
+      if (!lastUser?.text.trim() || !lastAi?.text.trim()) return;
+      try {
+        const added = await extractMemoriesAuto(lastUser.text, lastAi.text);
+        if (added.length > 0) {
+          setAutoMemoryNotice(`已自动提取 ${added.length} 条记忆到记忆库`);
+          setTimeout(() => setAutoMemoryNotice(null), 4000);
+        }
+      } catch {
+        /* 静默失败，不影响对话 */
+      }
+    },
+    [user?.emailVerified],
+  );
+
+  useEffect(() => {
+    if (!user?.emailVerified) {
+      setSessionId(null);
+      setSessions([]);
+      setHistoryReady(true);
+      return;
+    }
+
+    let cancelled = false;
+    setHistoryReady(false);
+
+    (async () => {
+      try {
+        let session = await getActiveChatSession();
+        if (!session) {
+          session = await createChatSession();
+        }
+        if (cancelled) return;
+
+        setSessionId(session.id);
+        if (session.messages.length > 0) {
+          setMessages([
+            { role: "ai", text: welcomeMessage },
+            ...session.messages.map((m) => ({
+              role: m.role,
+              text: m.text,
+            })),
+          ]);
+        }
+
+        const listed = await listChatSessions();
+        if (!cancelled) setSessions(listed.sessions);
+      } catch {
+        /* 忽略加载失败 */
+      } finally {
+        if (!cancelled) setHistoryReady(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.emailVerified]);
+
+  useEffect(() => {
+    if (!user?.emailVerified || !sessionId || !historyReady) return;
+    const payload = persistableMessages(messages);
+    if (payload.length === 0) return;
+
+    const timer = setTimeout(() => {
+      void saveChatSession(sessionId, payload).catch(() => {});
+    }, 900);
+
+    return () => clearTimeout(timer);
+  }, [messages, sessionId, user?.emailVerified, historyReady, persistableMessages]);
 
   const getPageContext = useCallback(
     (perms: ClientPermissions = clientPermissions, images: ClientPhotoItem[] = sessionChatImages): AgentPageContext => {
@@ -196,6 +325,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
       history: ChatMessage[],
       perms: ClientPermissions,
       chatImages: ClientPhotoItem[],
+      provider: string | null = selectedProvider,
     ) => {
       const apiMessages = buildApiMessages(history);
       if (!apiMessages.some((m) => m.role === "user")) {
@@ -209,9 +339,15 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
         {
           messages: apiMessages,
           pageContext: getPageContext(perms, apiImages),
+          ...(provider ? { provider } : {}),
         },
-        { timeoutMs: needsVision ? 120000 : 65000 },
+        { timeoutMs: needsVision ? 120000 : 65000, credentials: "include" },
       );
+
+      if (data.provider && data.provider !== provider) {
+        setSelectedProvider(data.provider);
+        writeStoredChatProvider(data.provider);
+      }
 
       if (data.chatImageVision?.length) {
         const cached = mergeChatImageVision(chatImages, data.chatImageVision);
@@ -220,8 +356,13 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
 
       return appendAiFromResponse(data, history);
     },
-    [appendAiFromResponse, buildApiMessages, getPageContext],
+    [appendAiFromResponse, buildApiMessages, getPageContext, selectedProvider],
   );
+
+  const handleProviderChange = (provider: string) => {
+    setSelectedProvider(provider);
+    writeStoredChatProvider(provider);
+  };
 
   const send = async () => {
     const text = input.trim();
@@ -247,7 +388,9 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
     setError(null);
 
     try {
-      setMessages(await runChat(nextMessages, clientPermissions, mergedSession));
+      const updated = await runChat(nextMessages, clientPermissions, mergedSession);
+      setMessages(updated);
+      void maybeExtractMemories(updated);
     } catch (e) {
       const msg =
         e instanceof ApiError ? e.message : e instanceof Error ? e.message : "发送失败";
@@ -289,7 +432,9 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
         { role: "user", text: notes.join("\n"), hidden: true },
       ];
 
-      setMessages(await runChat(history, perms, sessionChatImages));
+      const updated = await runChat(history, perms, sessionChatImages);
+      setMessages(updated);
+      void maybeExtractMemories(updated);
     } catch (e) {
       const msg =
         e instanceof ApiError ? e.message : e instanceof Error ? e.message : "权限处理失败";
@@ -337,7 +482,9 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
         { role: "user", text: note, hidden: true },
       ];
 
-      setMessages(await runChat(history, perms, sessionChatImages));
+      const updated = await runChat(history, perms, sessionChatImages);
+      setMessages(updated);
+      void maybeExtractMemories(updated);
     } catch (e) {
       const msg =
         e instanceof ApiError ? e.message : e instanceof Error ? e.message : "权限处理失败";
@@ -349,13 +496,71 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
     }
   };
 
-  const clearChat = () => {
+  const resetChatState = () => {
     setMessages([{ role: "ai", text: welcomeMessage }]);
     setInput("");
     setError(null);
     setClientPermissions({});
     setPendingImages([]);
     setSessionChatImages([]);
+    setMemorySaved(null);
+    setAutoMemoryNotice(null);
+  };
+
+  const startNewChat = async () => {
+    if (user?.emailVerified) {
+      try {
+        const session = await createChatSession();
+        setSessionId(session.id);
+        const listed = await listChatSessions();
+        setSessions(listed.sessions);
+      } catch (e) {
+        setError(e instanceof ApiError ? e.message : "创建对话失败");
+      }
+    }
+    resetChatState();
+  };
+
+  const switchSession = async (id: string) => {
+    if (!user?.emailVerified || id === sessionId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const session = await loadChatSession(id);
+      setSessionId(session.id);
+      setMessages([
+        { role: "ai", text: welcomeMessage },
+        ...session.messages.map((m) => ({ role: m.role, text: m.text })),
+      ]);
+      setClientPermissions({});
+      setPendingImages([]);
+      setSessionChatImages([]);
+      setMemorySaved(null);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "加载对话失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearChat = () => {
+    void startNewChat();
+  };
+
+  const saveToMemory = async (messageIndex: number, text: string) => {
+    const content = text.trim();
+    if (!user?.emailVerified || !content || memoryBusy !== null) return;
+    setMemoryBusy(messageIndex);
+    setError(null);
+    try {
+      await addMemory(content);
+      setMemorySaved(messageIndex);
+      setTimeout(() => setMemorySaved((v) => (v === messageIndex ? null : v)), 2000);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "保存记忆失败");
+    } finally {
+      setMemoryBusy(null);
+    }
   };
 
   return (
@@ -363,6 +568,25 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
       {!isHero && (
         <p className="text-sm text-white/45 leading-relaxed">
           支持上传/粘贴图片识别（火山方舟 ARK_API_KEY + ARK_VISION_MODEL；同一会话内已识别图片不会重复调用）；也可申请定位、相册等权限。
+          {user?.emailVerified ? (
+            <>
+              {" "}
+              已启用记忆库、对话历史同步与自动记忆提取。
+            </>
+          ) : user ? (
+            <>
+              {" "}
+              验证邮箱后可同步对话历史并使用记忆库。
+            </>
+          ) : (
+            <>
+              {" "}
+              <Link href="/tools/memory" className="text-emerald-400/80 hover:text-emerald-300">
+                登录
+              </Link>
+              后可使用记忆库与对话历史。
+            </>
+          )}
         </p>
       )}
 
@@ -371,20 +595,88 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
           isHero ? "h-[320px] sm:h-[380px]" : "h-[360px] sm:h-[420px]"
         }`}
       >
-        <div
-          className={`flex items-center border-b border-white/8 px-4 py-2.5 ${
-            isHero ? "justify-end" : "justify-between"
-          }`}
-        >
-          {!isHero && <span className="text-xs text-white/40">AI 对话</span>}
-          <button
-            type="button"
-            onClick={clearChat}
-            className="text-xs text-white/35 hover:text-white/60 transition-colors"
-          >
-            清空对话
-          </button>
+        <div className="flex items-center gap-2 border-b border-white/8 px-4 py-2.5 justify-between">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {!isHero && (
+              <div className="flex shrink-0 items-center gap-3">
+                <span className="text-xs text-white/40">AI 对话</span>
+                {user?.emailVerified && (
+                  <Link
+                    href="/tools/memory"
+                    className="text-xs text-emerald-400/70 hover:text-emerald-300 transition-colors"
+                  >
+                    记忆库
+                  </Link>
+                )}
+              </div>
+            )}
+            {isHero && user?.emailVerified && (
+              <Link
+                href="/tools/memory"
+                className="shrink-0 text-xs text-emerald-400/70 hover:text-emerald-300 transition-colors"
+              >
+                记忆库
+              </Link>
+            )}
+            {chatModels.length > 0 ? (
+              <select
+                value={selectedProvider ?? chatModels[0].id}
+                onChange={(e) => handleProviderChange(e.target.value)}
+                disabled={loading || permissionBusy || chatModels.length <= 1}
+                title="切换对话模型"
+                className="max-w-[min(100%,240px)] truncate rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs text-white/70 focus:border-violet-500/40 focus:outline-none disabled:opacity-60"
+              >
+                {chatModels.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {formatChatModelLabel(m)}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-xs text-white/30">未配置模型</span>
+            )}
+            {user?.emailVerified && sessions.length > 0 && (
+              <select
+                value={sessionId ?? ""}
+                onChange={(e) => void switchSession(e.target.value)}
+                disabled={loading || permissionBusy}
+                title="历史对话"
+                className="max-w-[min(100%,180px)] truncate rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs text-white/70 focus:border-emerald-500/40 focus:outline-none disabled:opacity-60"
+              >
+                {sessions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.title}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            {user?.emailVerified && (
+              <button
+                type="button"
+                onClick={() => void startNewChat()}
+                disabled={loading || permissionBusy}
+                className="text-xs text-emerald-400/60 hover:text-emerald-300 disabled:opacity-40"
+              >
+                新对话
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={clearChat}
+              className="text-xs text-white/35 hover:text-white/60 transition-colors"
+            >
+              清空对话
+            </button>
+          </div>
         </div>
+
+        {autoMemoryNotice && (
+          <p className="border-b border-white/8 px-4 py-2 text-xs text-violet-300/80">
+            {autoMemoryNotice}
+          </p>
+        )}
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.map((msg, i) => {
@@ -444,6 +736,20 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
                   >
                     {msg.text}
                   </div>
+                )}
+                {user?.emailVerified && msg.role === "user" && msg.text.trim() && (
+                  <button
+                    type="button"
+                    disabled={memoryBusy === i}
+                    onClick={() => void saveToMemory(i, msg.text)}
+                    className="text-[10px] text-emerald-400/60 hover:text-emerald-300 disabled:opacity-40 transition-colors"
+                  >
+                    {memorySaved === i
+                      ? "已存入记忆库"
+                      : memoryBusy === i
+                        ? "保存中…"
+                        : "存入记忆库"}
+                  </button>
                 )}
                 {msg.role === "ai" && pendingPermissions.length > 0 && (
                   <AgentPermissionPrompt

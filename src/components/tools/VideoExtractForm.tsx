@@ -25,6 +25,7 @@ type ExtractResult = {
 };
 
 const SUPPORTED_PLATFORMS = [
+  { id: "weixin-channels", label: "视频号" },
   { id: "douyin", label: "抖音" },
   { id: "bilibili", label: "哔哩哔哩" },
   { id: "youtube", label: "YouTube" },
@@ -41,6 +42,7 @@ const SUPPORTED_PLATFORMS = [
 ] as const;
 
 const platformLabel: Record<string, string> = {
+  "weixin-channels": "微信视频号",
   douyin: "抖音",
   bilibili: "哔哩哔哩",
   youtube: "YouTube",
@@ -61,6 +63,9 @@ const platformLabel: Record<string, string> = {
 
 function detectClientPlatform(text: string): string | null {
   const u = text.toLowerCase();
+  if (u.includes("channels.weixin.qq.com") || u.includes("finder.video.qq.com")) {
+    return "weixin-channels";
+  }
   if (u.includes("douyin") || u.includes("iesdouyin")) return "douyin";
   if (u.includes("bilibili") || u.includes("b23.tv") || /bv1[0-9a-z]{9}/i.test(text)) return "bilibili";
   if (u.includes("youtube") || u.includes("youtu.be")) return "youtube";
@@ -159,7 +164,8 @@ export default function VideoExtractForm() {
           ))}
         </div>
         <p className="text-[11px] text-white/30 leading-relaxed">
-          粘贴分享链接或整段文案即可。抖音 / B 站 / YouTube / X / Telegram / Instagram 等均支持多清晰度与本页直接下载。
+          粘贴分享链接或整段文案即可。抖音 / B 站 / YouTube / X / 微信视频号 / Telegram / Instagram 等均支持多清晰度与本页直接下载。
+          微信视频号：推荐在 .env 配置 <code className="text-white/45">TIKHUB_API_KEY</code>（<a href="https://tikhub.io" target="_blank" rel="noopener noreferrer" className="text-blue-300/80 underline">tikhub.io</a> 注册，约 $0.01/次，无需本地登录）；或运行 <code className="text-white/45">./scripts/setup-yuanbao-cookies.sh --install-cron</code>（Safari 登录元宝）。
           X 视频多数需登录 Cookie，失败时请运行 <code className="text-white/45">./scripts/setup-x-cookies.sh</code>（见 .env.example）。
         </p>
       </div>
@@ -173,7 +179,7 @@ export default function VideoExtractForm() {
           type="text"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="YouTube / X / Telegram / 抖音 / B 站 等分享链接…"
+          placeholder="YouTube / 视频号 / X / 抖音 / B 站 等分享链接…"
           className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/30"
         />
         {detected && (
@@ -264,7 +270,7 @@ export default function VideoExtractForm() {
         onClick={handleExtract}
       />
       <p className="text-center text-xs text-white/25 leading-relaxed">
-        基于 yt-dlp · 视频经本机 API 代理下载 · 请遵守各平台条款与版权规定
+        基于 yt-dlp / 视频号专用解析 · 视频经本机 API 代理下载 · 请遵守各平台条款与版权规定
       </p>
     </div>
   );

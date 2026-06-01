@@ -59,6 +59,31 @@ export function resolveChatConfig() {
   return deepseekConfig() || resolveArkConfig() || openaiConfig();
 }
 
+/** @returns {{ id: string, label: string, model: string }[]} */
+export function listAvailableChatModels() {
+  const models = [];
+  for (const fn of Object.values(PROVIDERS)) {
+    const cfg = fn();
+    if (!cfg) continue;
+    models.push({
+      id: cfg.provider,
+      label: getChatProviderLabel(cfg.provider),
+      model: cfg.model,
+    });
+  }
+  return models;
+}
+
+/** @returns {{ provider: string, apiKey: string, baseURL: string, model: string } | null} */
+export function resolveChatConfigByProvider(provider) {
+  const id = String(provider ?? "").trim().toLowerCase();
+  if (id && PROVIDERS[id]) {
+    const cfg = PROVIDERS[id]();
+    if (cfg) return cfg;
+  }
+  return resolveChatConfig();
+}
+
 export function getChatProviderLabel(provider) {
   if (provider === "openai") return "OpenAI / ChatGPT";
   if (provider === "ark") return "火山方舟";

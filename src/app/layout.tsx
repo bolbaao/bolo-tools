@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import EmailVerifyBanner from "@/components/EmailVerifyBanner";
+import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -23,9 +25,12 @@ export default function RootLayout({
         <div className="glow-orb glow-orb-b bottom-[-10%] right-[5%] h-96 w-96 bg-violet-600/20" />
         <div className="glow-orb glow-orb-a top-[50%] left-[-10%] h-72 w-72 bg-indigo-500/15" />
         <div className="relative flex min-h-screen flex-col">
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <AuthProvider>
+            <Header />
+            <EmailVerifyBanner />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </AuthProvider>
         </div>
       </body>
     </html>

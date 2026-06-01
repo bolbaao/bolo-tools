@@ -7,6 +7,11 @@ const MOBILE_UA =
 
 /** 允许代理下载的 CDN 域名（防 SSRF） */
 const ALLOWED_HOST_SUFFIXES = [
+  "finder.video.qq.com",
+  "wxapp.tc.qq.com",
+  "video.qq.com",
+  "qpic.cn",
+  "wxqlogo.cn",
   "douyinvod.com",
   "douyinstatic.com",
   "snssdk.com",
@@ -66,6 +71,9 @@ export function buildProxyHeaders(platform, sourceUrl) {
   if (platform === "douyin") {
     headers["User-Agent"] = MOBILE_UA;
     headers.Referer = "https://www.douyin.com/";
+  } else if (platform === "weixin-channels") {
+    headers["User-Agent"] = MOBILE_UA;
+    headers.Referer = "https://channels.weixin.qq.com/";
   } else if (PLATFORM_REFERERS[platform]) {
     headers.Referer = PLATFORM_REFERERS[platform];
   } else {

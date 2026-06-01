@@ -19,7 +19,7 @@ const TABS: { id: Tab; label: string; hint: string }[] = [
   { id: "compress", label: "压缩", hint: "本地压缩体积" },
   { id: "sharpen", label: "变清晰", hint: "本地锐化增强" },
   { id: "cutout", label: "抠图", hint: "本地 AI 去背景" },
-  { id: "generate", label: "AI 生图", hint: "xAI Grok Imagine" },
+  { id: "generate", label: "AI 生图", hint: "火山方舟 Seedream" },
 ];
 
 const genStyles = ["写实", "电影感", "动漫", "水彩", "赛博朋克", "国风"];
@@ -156,7 +156,7 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
         mimeType?: string;
         message?: string;
       }>(
-        "/api/xai-image/generate",
+        "/api/ark-image/generate",
         {
           prompt: prompt.trim(),
           style: genStyle,
@@ -184,7 +184,7 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     try {
       const res = await fetch(genImageUrl);
       const blob = await res.blob();
-      downloadBlob(blob, `xai-${Date.now()}.png`);
+      downloadBlob(blob, `seedream-${Date.now()}.png`);
     } catch {
       window.open(genImageUrl, "_blank", "noopener,noreferrer");
     }
@@ -225,7 +225,7 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     compress: `压缩并下载 ${format}`,
     sharpen: "变清晰并下载",
     cutout: "开始智能抠图",
-    generate: "xAI 生成图片",
+    generate: "生成图片",
   }[tab];
 
   const primaryDisabled = tab === "generate" ? !prompt.trim() : !file;
@@ -336,7 +336,7 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
               />
             ) : (
               <span className="text-white/25 text-sm">
-                {loading ? "xAI 生成中，约需数秒…" : "输入描述后点击生成"}
+                {loading ? "生成中，约需数秒…" : "输入描述后点击生成"}
               </span>
             )}
           </div>
@@ -499,7 +499,7 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
 
       <p className="text-center text-xs text-white/25 leading-relaxed">
         {tab === "generate"
-          ? "AI 生图由 xAI Grok Imagine 提供 · 需在 .env 配置 XAI_API_KEY"
+          ? "AI 生图由火山方舟 Seedream 提供 · 需在 .env 配置 ARK_API_KEY"
           : "压缩、变清晰、抠图为浏览器本地处理"}
       </p>
     </div>

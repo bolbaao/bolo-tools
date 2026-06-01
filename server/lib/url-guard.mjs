@@ -8,6 +8,7 @@ const BLOCKED_HOSTS = new Set([
 ]);
 
 const DOMAIN_PREFIX_RULES = [
+  /channels\.weixin\.qq\.com|finder\.video\.qq\.com/i,
   /[\w.-]*douyin\.com|iesdouyin\.com|v\.douyin\.com/i,
   /bilibili\.com|b23\.tv|bili2233\.cn/i,
   /youtube\.com|youtu\.be/i,

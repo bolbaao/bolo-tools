@@ -5,6 +5,8 @@ import { parseVideoUrl } from "../lib/url-guard.mjs";
 import { extractDouyin } from "../lib/douyin-extract.mjs";
 import { extractBilibili } from "../lib/bilibili-extract.mjs";
 import { extractSocial } from "../lib/social-extract.mjs";
+import { extractWeixinChannels } from "../lib/weixin-channels-extract.mjs";
+import { decryptWeixinVideo } from "../lib/weixin-channels-decrypt.mjs";
 import {
   detectPlatform,
   isSupportedPlatform,
@@ -54,6 +56,7 @@ function mapFormats(info, platform) {
     resolution: formatResolution(f),
     filesize: f.filesize || f.filesize_approx,
     url: f.url,
+    decodeKey: f._decodeKey || undefined,
   }));
 
   if (formats.length) return formats;
@@ -75,8 +78,10 @@ router.post("/extract", async (req, res) => {
       throw new HttpError(400, "暂不支持该链接来源");
     }
 
-    safeUrl = await resolveFinalUrl(safeUrl, platform);
-    platform = detectPlatform(safeUrl);
+    if (platform !== "weixin-channels") {
+      safeUrl = await resolveFinalUrl(safeUrl, platform);
+      platform = detectPlatform(safeUrl);
+    }
 
     let info;
     let cookieSource;
@@ -86,6 +91,10 @@ router.post("/extract", async (req, res) => {
       cookieSource = result.cookieSource;
     } else if (platform === "bilibili") {
       const result = await extractBilibili(safeUrl);
+      info = result.info;
+      cookieSource = result.cookieSource;
+    } else if (platform === "weixin-channels") {
+      const result = await extractWeixinChannels(safeUrl);
       info = result.info;
       cookieSource = result.cookieSource;
     } else if (platform === "generic") {
@@ -112,7 +121,13 @@ router.post("/extract", async (req, res) => {
       webpageUrl: info.webpage_url || info.webpageUrl || safeUrl,
       formats: formats.map((f) => ({
         ...f,
-        downloadUrl: buildDownloadPath(f.url, platform, info.title || "video", f.ext),
+        downloadUrl: buildDownloadPath(
+          f.url,
+          platform,
+          info.title || "video",
+          f.ext,
+          f.decodeKey,
+        ),
       })),
     });
   } catch (err) {
@@ -120,12 +135,13 @@ router.post("/extract", async (req, res) => {
   }
 });
 
-function buildDownloadPath(mediaUrl, platform, title, ext) {
+function buildDownloadPath(mediaUrl, platform, title, ext, decodeKey) {
   const params = new URLSearchParams({
     url: mediaUrl,
     platform: platform || "generic",
     name: safeFilename(title, ext || "mp4"),
   });
+  if (decodeKey) params.set("decodeKey", String(decodeKey));
   return `/api/video/download?${params.toString()}`;
 }
 
@@ -134,6 +150,7 @@ router.get("/download", async (req, res) => {
     const rawUrl = String(req.query.url || "");
     const platform = String(req.query.platform || "generic");
     const name = String(req.query.name || "video.mp4");
+    const decodeKey = String(req.query.decodeKey || "").trim();
 
     if (!rawUrl) throw new HttpError(400, "缺少 url 参数");
     const safeUrl = parseVideoUrl(rawUrl);
@@ -162,6 +179,16 @@ router.get("/download", async (req, res) => {
     );
     const len = upstream.headers.get("content-length");
     if (len) res.setHeader("Content-Length", len);
+
+    if (decodeKey && platform === "weixin-channels") {
+      const buf = Buffer.from(await upstream.arrayBuffer());
+      decryptWeixinVideo(buf, decodeKey);
+      if (!res.headersSent) {
+        res.setHeader("Content-Length", String(buf.length));
+      }
+      res.end(buf);
+      return;
+    }
 
     if (upstream.body) {
       await pipeline(upstream.body, res);

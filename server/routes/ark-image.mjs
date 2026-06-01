@@ -1,19 +1,19 @@
 import { Router } from "express";
+import { arkImageConfigured, generateArkImage } from "../lib/ark-image.mjs";
 import { HttpError, sendError } from "../lib/http-error.mjs";
-import { generateXaiImage, xaiConfigured } from "../lib/xai-image.mjs";
 
 const router = Router();
 
 router.post("/generate", async (req, res) => {
   try {
-    if (!xaiConfigured()) {
-      throw new HttpError(503, "未配置 XAI_API_KEY。请在 .env 中填入 xAI API Key。");
+    if (!arkImageConfigured()) {
+      throw new HttpError(503, "未配置 ARK_API_KEY。请在 .env 中填入火山方舟 API Key。");
     }
 
     const { prompt, style, aspectRatio, resolution } = req.body ?? {};
     if (!prompt?.trim()) throw new HttpError(400, "请填写画面描述");
 
-    const result = await generateXaiImage({
+    const result = await generateArkImage({
       prompt: prompt.trim(),
       style: style?.trim(),
       aspectRatio: aspectRatio || "1:1",
@@ -36,17 +36,17 @@ router.post("/generate", async (req, res) => {
       message: "图片已生成",
     });
   } catch (err) {
-    if (err.message === "XAI_KEYS_MISSING") {
-      sendError(res, new HttpError(503, "未配置 XAI_API_KEY"));
+    if (err.message === "ARK_KEYS_MISSING") {
+      sendError(res, new HttpError(503, "未配置 ARK_API_KEY"));
       return;
     }
     const msg = err?.message || String(err);
     if (/401|invalid.*key|authentication/i.test(msg)) {
-      sendError(res, new HttpError(401, "xAI API Key 无效或已过期"));
+      sendError(res, new HttpError(401, "火山方舟 API Key 无效或已过期"));
       return;
     }
     if (/429|rate limit/i.test(msg)) {
-      sendError(res, new HttpError(429, "xAI 请求过于频繁，请稍后再试"));
+      sendError(res, new HttpError(429, "火山方舟请求过于频繁，请稍后再试"));
       return;
     }
     sendError(res, err);

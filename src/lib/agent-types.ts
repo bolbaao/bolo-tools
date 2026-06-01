@@ -73,6 +73,9 @@ export type AgentResponse = {
   permissionRequests?: AgentPermissionRequest[];
   /** 本轮对话图片识别结果，供客户端缓存 */
   chatImageVision?: ChatImageVisionItem[];
+  provider?: string;
+  model?: string;
+  providerLabel?: string;
 };
 
 /** 无需授权即可上报的环境信息 */

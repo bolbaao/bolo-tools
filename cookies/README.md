@@ -44,3 +44,61 @@ YTDLP_COOKIES=./cookies/douyin.txt
 # 或
 YTDLP_COOKIES_FROM_BROWSER=chrome
 ```
+
+---
+
+# 微信视频号解析
+
+## 方式 A：TikHub API（推荐 · 无需本地登录）
+
+1. 打开 [tikhub.io](https://tikhub.io) 注册  
+2. **用户中心 → API 令牌** 创建 Token  
+3. 充值（视频详情约 **$0.01/次**）  
+4. `.env` 写入 `TIKHUB_API_KEY=你的Token`
+
+链接需含 `oid=`（微信「复制链接」即可）。
+
+---
+
+## 方式 B：腾讯元宝 Cookie（免费 · Safari）
+
+依赖 [腾讯元宝](https://yuanbao.tencent.com)，需 Safari 登录后导出 Cookie。
+
+### 一键配置
+
+```bash
+chmod +x scripts/setup-yuanbao-cookies.sh
+./scripts/setup-yuanbao-cookies.sh --install-cron
+```
+
+脚本会：
+
+1. 从 **Safari** 导出 Cookie 到 `cookies/yuanbao.txt`
+2. 在 `.env` 写入 `YUANBAO_SPH_COOKIES` 与 `YUANBAO_COOKIES_FROM_BROWSER=safari`
+3. 安装 **每天 8:05 自动刷新** 的 macOS 计划任务
+
+**前提**：Safari 已打开并登录 https://yuanbao.tencent.com
+
+### 自动维护策略
+
+| 时机 | 行为 |
+|------|------|
+| `./start.sh` 启动时 | 从浏览器重新导出 `cookies/yuanbao.txt` |
+| 每天 8:05 | launchd 计划任务自动刷新 |
+| 视频号解析失败时 | 服务端自动从浏览器重试导出并重试解析 |
+
+## 日常注意
+
+| 做法 | 说明 |
+|------|------|
+| Safari 保持登录元宝 | 自动刷新才有有效 Cookie |
+| 偶尔仍失败 | 再运行 `./scripts/setup-yuanbao-cookies.sh` |
+| 终端需磁盘权限 | 系统设置 → 隐私 → 完全磁盘访问 → 勾选终端/Cursor |
+
+## 手动复制
+
+1. Safari 打开 https://yuanbao.tencent.com 并登录  
+2. 开发 → 显示 Web 检查器 → Network → 刷新  
+3. 点任意 `yuanbao.tencent.com` 请求 → Headers → 复制 **Cookie**  
+4. 写入 `.env`：`YUANBAO_SPH_COOKIE=粘贴内容`  
+   或保存到 `cookies/yuanbao.txt` 并设置 `YUANBAO_SPH_COOKIES=./cookies/yuanbao.txt`

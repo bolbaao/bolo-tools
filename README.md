@@ -6,7 +6,7 @@
 
 | 工具 | 路径 | 实现方式 |
 |------|------|----------|
-| 图像工坊 | `/tools/image-studio` | 压缩 / 变清晰 / 抠图（本地）· xAI 文生图 |
+| 图像工坊 | `/tools/image-studio` | 压缩 / 变清晰 / 抠图（本地）· 火山方舟 Seedream 文生图 |
 | AI 对话 | `/tools/ai-chat` | DeepSeek · 闲聊为主，可操控工具 |
 | 热点中心 | `/tools/hot-trends` | 抖音官方热搜 · 小红书探索页热门笔记 |
 | 影视搜索 | `/tools/media-search` | 豆瓣+TMDB 并行检索 · 资源链接包 |
@@ -44,7 +44,7 @@ cp .env.example .env
 | `DEEPSEEK_BASE_URL` | DeepSeek API（默认 `https://api.deepseek.com/v1`） | 可选 |
 | `DEEPSEEK_MODEL` | 模型（默认 `deepseek-chat`） | 可选 |
 | `TMDB_API_KEY` | 影视搜索 | 使用该功能时必需 |
-| `XAI_API_KEY` | 图像工坊 · AI 生图 | 使用生图时必需 |
+| `ARK_API_KEY` | AI 对话（可选）、图片识别、图像工坊 · AI 生图 | 使用对应功能时必需 |
 | `WHISPER_MODEL` | 字幕工坊 · 本地转写模型（默认 `base`） | 可选 |
 | `OPENAI_API_KEY` | 字幕工坊 · 云端转写（本地不可用时的备选） | 可选 |
 | `ASSETS_PASSWORD` | 素材库访问密码 | 使用素材库时必需 |

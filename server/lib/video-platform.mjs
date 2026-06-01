@@ -14,6 +14,10 @@ export const MOBILE_UA =
 
 /** 平台检测规则（顺序优先） */
 const PLATFORM_RULES = [
+  {
+    id: "weixin-channels",
+    pattern: /channels\.weixin\.qq\.com|finder\.video\.qq\.com|wxapp\.tc\.qq\.com/i,
+  },
   { id: "douyin", pattern: /douyin\.com|iesdouyin\.com|douyinvod\.com|v\.douyin\.com/i },
   { id: "bilibili", pattern: /bilibili\.com|b23\.tv|bili2233\.cn|bilivideo\.com/i },
   { id: "youtube", pattern: /youtube\.com|youtu\.be|youtube-nocookie\.com/i },
@@ -32,6 +36,7 @@ const PLATFORM_RULES = [
 ];
 
 export const PLATFORM_REFERERS = {
+  "weixin-channels": "https://channels.weixin.qq.com/",
   douyin: "https://www.douyin.com/",
   bilibili: "https://www.bilibili.com/",
   youtube: "https://www.youtube.com/",
@@ -50,6 +55,7 @@ export const PLATFORM_REFERERS = {
 };
 
 export const PLATFORM_LABELS = {
+  "weixin-channels": "微信视频号",
   douyin: "抖音",
   bilibili: "哔哩哔哩",
   youtube: "YouTube",
@@ -100,9 +106,19 @@ export function usesYtDlp(platform) {
 }
 
 export function sortFormatsByQuality(platform) {
-  return ["bilibili", "youtube", "twitter", "instagram", "tiktok", "facebook", "reddit", "vimeo", "twitch", "telegram"].includes(
-    platform,
-  );
+  return [
+    "weixin-channels",
+    "bilibili",
+    "youtube",
+    "twitter",
+    "instagram",
+    "tiktok",
+    "facebook",
+    "reddit",
+    "vimeo",
+    "twitch",
+    "telegram",
+  ].includes(platform);
 }
 
 export async function resolveFinalUrl(url, platform) {
@@ -253,6 +269,9 @@ export function formatYtDlpError(stderr, platform) {
   }
   if (platform === "instagram" && /login|cookie|rate-limit/i.test(text)) {
     return "Instagram 通常需要登录 Cookie。请在浏览器登录 instagram.com 后配置 SOCIAL_COOKIES";
+  }
+  if (platform === "weixin-channels") {
+    return "微信视频号解析失败。请配置 TIKHUB_API_KEY，或粘贴含 oid 的完整分享链接并配置元宝 Cookie";
   }
   if (/Unsupported URL|invalid url|no video/i.test(text)) {
     const label = PLATFORM_LABELS[platform] || platform;

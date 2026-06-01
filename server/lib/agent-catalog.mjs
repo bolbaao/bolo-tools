@@ -9,7 +9,7 @@ export const AGENT_TOOLS = [
     id: "video-extract",
     title: "视频链接提取",
     href: "/tools/video-extract",
-    description: "解析抖音、B站、YouTube 等链接并下载",
+    description: "解析抖音、B站、YouTube、微信视频号等链接并下载",
     fields: { url: "视频页面链接" },
   },
   {

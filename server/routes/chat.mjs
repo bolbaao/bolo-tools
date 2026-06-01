@@ -2,7 +2,12 @@ import { Router } from "express";
 import OpenAI from "openai";
 import { AGENT_PERMISSION_TYPES } from "../lib/agent-permissions-catalog.mjs";
 import { buildAgentSystemPrompt } from "../lib/agent-catalog.mjs";
-import { getChatProviderLabel, resolveChatConfig } from "../lib/chat-config.mjs";
+import {
+  getChatProviderLabel,
+  listAvailableChatModels,
+  resolveChatConfig,
+  resolveChatConfigByProvider,
+} from "../lib/chat-config.mjs";
 import { env } from "../lib/env.mjs";
 import { HttpError, sendError } from "../lib/http-error.mjs";
 import {
@@ -13,6 +18,8 @@ import {
 } from "../lib/photo-vision.mjs";
 import { pageContextNeedsVisionApi } from "../../shared/chat-image-vision.mjs";
 import { formatWeatherForPrompt, resolveWeatherSnapshot } from "../lib/weather.mjs";
+import { getAuthUserFromRequest } from "../lib/user-auth.mjs";
+import { formatMemoriesForPrompt } from "../lib/user-memory.mjs";
 
 const router = Router();
 
@@ -99,15 +106,25 @@ function sanitizePermissionRequests(requests) {
     }));
 }
 
+router.get("/models", (_req, res) => {
+  const models = listAvailableChatModels();
+  const defaultCfg = resolveChatConfig();
+  res.json({
+    ok: true,
+    models,
+    defaultProvider: defaultCfg?.provider ?? null,
+  });
+});
+
 router.post("/", async (req, res) => {
   let chatConfig = null;
   try {
-    const { messages, pageContext } = req.body ?? {};
+    const { messages, pageContext, provider } = req.body ?? {};
     if (!Array.isArray(messages) || messages.length === 0) {
       throw new HttpError(400, "messages 不能为空");
     }
 
-    chatConfig = resolveChatConfig();
+    chatConfig = resolveChatConfigByProvider(provider);
     if (!chatConfig) {
       throw new HttpError(
         503,
@@ -141,17 +158,27 @@ router.post("/", async (req, res) => {
     const { chatSnap, albumSnap } = await resolveAllImageContext(pageContext, {
       userContext: lastUserText,
     });
+    const authUser = getAuthUserFromRequest(req);
+    const userMemorySnapshot =
+      authUser?.emailVerified ? formatMemoriesForPrompt(authUser.id) : "";
+
     const enrichedContext = {
       ...(pageContext && typeof pageContext === "object" ? pageContext : {}),
       weatherSnapshot: formatWeatherForPrompt(weatherResult),
       photoSnapshot: formatPhotoSnapshotForPrompt(albumSnap),
       chatImagesSnapshot: formatChatImagesForPrompt(chatSnap),
+      userMemorySnapshot,
     };
+
+    let systemPrompt = buildAgentSystemPrompt(enrichedContext);
+    if (userMemorySnapshot) {
+      systemPrompt = `${systemPrompt}\n\n${userMemorySnapshot}`;
+    }
 
     const chatMessages = [
       {
         role: "system",
-        content: buildAgentSystemPrompt(enrichedContext),
+        content: systemPrompt,
       },
       ...normalizedMessages,
     ];
@@ -200,6 +227,9 @@ router.post("/", async (req, res) => {
         actions: [],
         permissionRequests: [],
         chatImageVision: chatImageVisionPayload(chatSnap),
+        provider: chatConfig.provider,
+        model: chatConfig.model,
+        providerLabel: getChatProviderLabel(chatConfig.provider),
       });
       return;
     }
@@ -220,6 +250,9 @@ router.post("/", async (req, res) => {
       actions,
       permissionRequests,
       chatImageVision: chatImageVisionPayload(chatSnap),
+      provider: chatConfig.provider,
+      model: chatConfig.model,
+      providerLabel: getChatProviderLabel(chatConfig.provider),
     });
   } catch (err) {
     if (!(err instanceof HttpError)) {

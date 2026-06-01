@@ -83,6 +83,14 @@ if [ ! -f "cookies/x.txt" ]; then
   echo "💡 X 视频解析建议运行一次: ./scripts/setup-x-cookies.sh"
 fi
 
+if [ -f "cookies/yuanbao.txt" ] && command -v python3 >/dev/null 2>&1; then
+  if python3 -c "import browser_cookie3" 2>/dev/null; then
+    python3 scripts/export-yuanbao-cookies.py >/dev/null 2>&1 && echo "✓ 已刷新元宝 Cookie" || true
+  fi
+elif [ ! -f "cookies/yuanbao.txt" ]; then
+  echo "💡 微信视频号解析建议运行: ./scripts/setup-yuanbao-cookies.sh --install-cron"
+fi
+
 echo "🔨 正在构建静态网站…"
 rm -rf .next out
 npm run build || exit 1

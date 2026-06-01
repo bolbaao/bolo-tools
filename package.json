@@ -10,7 +10,9 @@
     "start": "node server/index.mjs",
     "clean": "rm -rf .next out",
     "preview": "npm run clean && npm run build && npm run start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:weixin-channels": "node scripts/test-weixin-channels.mjs",
+    "test:video-platforms": "node scripts/test-video-platforms.mjs"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
@@ -24,6 +26,7 @@
     "libreoffice-convert": "^1.8.1",
     "multer": "^1.4.5-lts.1",
     "next": "^15.3.3",
+    "nodemailer": "^8.0.10",
     "openai": "^4.77.0",
     "opencc-js": "^1.0.5",
     "pdf-lib": "^1.17.1",

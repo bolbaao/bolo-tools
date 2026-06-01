@@ -8,6 +8,7 @@ const TIMEOUT_MS = 120_000;
 
 /** 各平台公开测试链接 */
 const SAMPLES = [
+  { id: "weixin-channels", url: process.env.WEIXIN_CHANNELS_TEST_URL || "", optional: true },
   { id: "douyin", url: "https://v.douyin.com/iRNBho6U/" },
   { id: "bilibili", url: "https://www.bilibili.com/video/BV1GJ411x7h7" },
   { id: "youtube", url: "https://www.youtube.com/watch?v=jNQXAC9IVRw" },
@@ -35,7 +36,13 @@ async function extractViaApi(url) {
   return data;
 }
 
-async function testOne({ id, url }) {
+async function testOne({ id, url, optional }) {
+  if (!url?.trim()) {
+    if (optional) {
+      return { id, ok: true, skipped: true, ms: 0 };
+    }
+    return { id, ok: false, error: "missing test url", ms: 0 };
+  }
   const start = Date.now();
   try {
     const data = await extractViaApi(url);
@@ -65,14 +72,17 @@ async function main() {
     process.stdout.write(`  ${sample.id.padEnd(12)} … `);
     const r = await testOne(sample);
     results.push(r);
-    if (r.ok) {
+    if (r.skipped) {
+      console.log(`  ${sample.id.padEnd(12)} … ⊘ skipped (no test URL)`);
+    } else if (r.ok) {
       console.log(`✓ ${r.formats} formats · ${r.title || "(no title)"} (${r.ms}ms)`);
     } else {
       console.log(`✗ ${r.error} (${r.ms}ms)`);
     }
   }
   const failed = results.filter((r) => !r.ok);
-  console.log(`\n${results.length - failed.length}/${results.length} passed`);
+  const ran = results.filter((r) => !r.skipped);
+  console.log(`\n${ran.length - failed.length}/${ran.length} passed (${results.length - ran.length} skipped)`);
   if (failed.length) {
     console.log("\nFailed:");
     for (const f of failed) console.log(`  - ${f.id}: ${f.error}`);

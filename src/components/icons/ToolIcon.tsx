@@ -213,6 +213,20 @@ function TextToolboxIcon({ gradId }: IconProps) {
   );
 }
 
+function MemoryIcon({ gradId }: IconProps) {
+  const g = `url(#${gradId})`;
+  return (
+    <>
+      <path
+        d="M12 4.5c-2.5 0-4.5 1.8-4.5 4 0 1.2.5 2.3 1.3 3.1-.8.6-1.3 1.5-1.3 2.6v1.3c0 .8.7 1.5 1.5 1.5h6c.8 0 1.5-.7 1.5-1.5v-1.3c0-1.1-.5-2-1.3-2.6.8-.8 1.3-1.9 1.3-3.1 0-2.2-2-4-4.5-4z"
+        {...stroke}
+        stroke={g}
+      />
+      <path d="M9.5 18.5h5" {...stroke} stroke={g} strokeWidth={1.25} />
+    </>
+  );
+}
+
 function DefaultIcon({ gradId }: IconProps) {
   const g = `url(#${gradId})`;
   return (
@@ -231,6 +245,7 @@ const ICONS: Record<string, (props: IconProps) => ReactNode> = {
   "hot-trends": HotTrendsIcon,
   toolkit: ToolkitIcon,
   "ai-chat": AiChatIcon,
+  memory: MemoryIcon,
   "ai-search": AiSearchIcon,
   "media-search": MediaSearchIcon,
   "media-download": MediaDownloadIcon,

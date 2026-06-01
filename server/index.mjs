@@ -13,9 +13,13 @@ import assetsRouter from "./routes/assets.mjs";
 import documentsRouter from "./routes/documents.mjs";
 import subtitleRouter from "./routes/subtitle.mjs";
 import gifRouter from "./routes/gif.mjs";
-import xaiImageRouter from "./routes/xai-image.mjs";
+import arkImageRouter from "./routes/ark-image.mjs";
 import aiSearchRouter from "./routes/ai-search.mjs";
 import feedbackRouter from "./routes/feedback.mjs";
+import authRouter from "./routes/auth.mjs";
+import memoryRouter from "./routes/memory.mjs";
+import chatHistoryRouter from "./routes/chat-history.mjs";
+import adminRouter from "./routes/admin.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, "..", "out");
@@ -60,7 +64,15 @@ const app = express();
 app.use(express.json({ limit: "2mb" }));
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "pineapple-toolbox-api", mode: API_ONLY || !hasOut ? "api-only" : "full" });
+  res.json({
+    ok: true,
+    service: "pineapple-toolbox-api",
+    mode: API_ONLY || !hasOut ? "api-only" : "full",
+    features: {
+      auth: true,
+      memory: true,
+    },
+  });
 });
 
 app.use("/api/chat", chatRouter);
@@ -73,9 +85,13 @@ app.use("/api/assets", assetsRouter);
 app.use("/api/documents", documentsRouter);
 app.use("/api/subtitle", subtitleRouter);
 app.use("/api/gif", gifRouter);
-app.use("/api/xai-image", xaiImageRouter);
+app.use("/api/ark-image", arkImageRouter);
 app.use("/api/ai-search", aiSearchRouter);
 app.use("/api/feedback", feedbackRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/memory", memoryRouter);
+app.use("/api/chat-history", chatHistoryRouter);
+app.use("/api/admin", adminRouter);
 
 if (hasOut && !API_ONLY) {
   app.use((req, res) => {
