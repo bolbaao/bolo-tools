@@ -123,3 +123,53 @@ export async function sharpenImage(file: File, level: SharpenLevel): Promise<Blo
 export function previewUrlFromFile(file: File): string {
   return URL.createObjectURL(file);
 }
+
+/** 修图 API 上传上限（base64 字符数近似） */
+const MAX_EDIT_DATA_URL_CHARS = 8_000_000;
+
+/** 将图片转为 Seedream 修图 API 可接受的 JPEG Data URL */
+export async function prepareImageForEdit(
+  file: File,
+  resolution: "1k" | "2k" = "2k",
+): Promise<string> {
+  if (!file.type.startsWith("image/")) throw new Error("仅支持图片文件");
+
+  const bitmap = await createImageBitmap(file);
+  let width = bitmap.width;
+  let height = bitmap.height;
+
+  const maxDim = resolution === "1k" ? 1024 : 2048;
+  if (Math.max(width, height) > maxDim) {
+    const scale = maxDim / Math.max(width, height);
+    width = Math.round(width * scale);
+    height = Math.round(height * scale);
+  }
+
+  const ratio = width / height;
+  if (ratio < 1 / 3 || ratio > 3) {
+    bitmap.close?.();
+    throw new Error("图片宽高比需在 1:3 至 3:1 之间");
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close?.();
+    throw new Error("无法处理图片");
+  }
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close?.();
+
+  let quality = 0.88;
+  let dataUrl = canvas.toDataURL("image/jpeg", quality);
+  while (dataUrl.length > MAX_EDIT_DATA_URL_CHARS && quality > 0.5) {
+    quality -= 0.08;
+    dataUrl = canvas.toDataURL("image/jpeg", quality);
+  }
+  if (dataUrl.length > MAX_EDIT_DATA_URL_CHARS) {
+    throw new Error("图片过大，请换一张较小的图片");
+  }
+  return dataUrl;
+}

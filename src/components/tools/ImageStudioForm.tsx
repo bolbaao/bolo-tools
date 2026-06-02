@@ -7,18 +7,21 @@ import {
   compressImage,
   formatBytes,
   outputFilename,
+  prepareImageForEdit,
   previewUrlFromFile,
   sharpenImage,
   type OutputFormat,
 } from "@/lib/image-processing";
 import { useCallback, useEffect, useState } from "react";
 
-type Tab = "compress" | "sharpen" | "cutout" | "generate";
+type Tab = "compress" | "sharpen" | "cutout" | "beautify" | "edit" | "generate";
 
 const TABS: { id: Tab; label: string; hint: string }[] = [
   { id: "compress", label: "压缩", hint: "减小体积" },
   { id: "sharpen", label: "变清晰", hint: "锐化增强" },
   { id: "cutout", label: "抠图", hint: "智能去背景" },
+  { id: "beautify", label: "人像美化", hint: "一键变美" },
+  { id: "edit", label: "修图", hint: "AI 改图" },
   { id: "generate", label: "AI 生图", hint: "文字描述成图" },
 ];
 
@@ -39,11 +42,27 @@ const sharpenLevels = [
 
 const formats: OutputFormat[] = ["JPG", "PNG", "WebP"];
 
+const editPresets = [
+  "换成日系动漫风格",
+  "增强色彩，让画面更鲜艳",
+  "去除背景中的路人",
+  "把天空改成晚霞",
+  "修复老照片，提高清晰度",
+];
+
+const beautifyLevels = [
+  { id: "natural" as const, label: "自然", desc: "轻度磨皮，保留真实感" },
+  { id: "standard" as const, label: "标准", desc: "智能美颜，精神好看" },
+  { id: "pro" as const, label: "精修", desc: "精致上镜，气质提升" },
+];
+
 function tabFromParam(value: string | null): Tab {
   if (
     value === "compress" ||
     value === "sharpen" ||
     value === "cutout" ||
+    value === "beautify" ||
+    value === "edit" ||
     value === "generate"
   ) {
     return value;
@@ -55,6 +74,8 @@ const activeTabClass: Record<Tab, string> = {
   compress: "bg-lime-600/25 text-lime-100 border border-lime-500/30",
   sharpen: "bg-sky-600/25 text-sky-100 border border-sky-500/30",
   cutout: "bg-emerald-600/25 text-emerald-100 border border-emerald-500/30",
+  beautify: "bg-rose-600/25 text-rose-100 border border-rose-500/30",
+  edit: "bg-amber-600/25 text-amber-100 border border-amber-500/30",
   generate: "bg-violet-600/25 text-violet-100 border border-violet-500/30",
 };
 
@@ -78,12 +99,21 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
   const [resolution, setResolution] = useState<"1k" | "2k">("1k");
   const [genImageUrl, setGenImageUrl] = useState<string | null>(null);
   const [genMessage, setGenMessage] = useState<string | null>(null);
+  const [editPrompt, setEditPrompt] = useState("");
+  const [editResolution, setEditResolution] = useState<"1k" | "2k">("2k");
+  const [editMessage, setEditMessage] = useState<string | null>(null);
+  const [beautifyLevel, setBeautifyLevel] = useState<"natural" | "standard" | "pro">("standard");
+  const [beautifyResolution, setBeautifyResolution] = useState<"1k" | "2k">("2k");
+  const [beautifyMessage, setBeautifyMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const applyPrefill = useCallback((fields: Record<string, string>) => {
     if (fields.mode) setTab(tabFromParam(fields.mode));
-    if (fields.prompt) setPrompt(fields.prompt);
+    if (fields.prompt) {
+      setPrompt(fields.prompt);
+      setEditPrompt(fields.prompt);
+    }
   }, []);
   useAgentPrefill("image-studio", applyPrefill);
 
@@ -106,6 +136,8 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     setBeforeUrl(f ? previewUrlFromFile(f) : null);
     setAfterUrl(null);
     setResultSize(null);
+    setEditMessage(null);
+    setBeautifyMessage(null);
     setError(null);
   };
 
@@ -214,9 +246,101 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     }
   };
 
+  const handleEdit = async () => {
+    if (!file || !editPrompt.trim()) return;
+    setLoading(true);
+    setError(null);
+    setEditMessage(null);
+    if (afterUrl?.startsWith("blob:")) URL.revokeObjectURL(afterUrl);
+    setAfterUrl(null);
+    try {
+      const imageDataUrl = await prepareImageForEdit(file, editResolution);
+      const data = await apiPost<{
+        ok: boolean;
+        imageUrl?: string;
+        imageBase64?: string;
+        mimeType?: string;
+        message?: string;
+      }>(
+        "/api/ark-image/edit",
+        {
+          prompt: editPrompt.trim(),
+          imageDataUrl,
+          resolution: editResolution,
+        },
+        { timeoutMs: 180000 },
+      );
+      if (data.imageBase64) {
+        const mime = data.mimeType || "image/png";
+        setAfterUrl(`data:${mime};base64,${data.imageBase64}`);
+      } else if (data.imageUrl) {
+        setAfterUrl(data.imageUrl);
+      }
+      setEditMessage(data.message || "修图完成");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "修图失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBeautify = async () => {
+    if (!file) return;
+    setLoading(true);
+    setError(null);
+    setBeautifyMessage(null);
+    if (afterUrl?.startsWith("blob:")) URL.revokeObjectURL(afterUrl);
+    setAfterUrl(null);
+    try {
+      const imageDataUrl = await prepareImageForEdit(file, beautifyResolution);
+      const data = await apiPost<{
+        ok: boolean;
+        imageUrl?: string;
+        imageBase64?: string;
+        mimeType?: string;
+        message?: string;
+      }>(
+        "/api/ark-image/beautify",
+        {
+          imageDataUrl,
+          level: beautifyLevel,
+          resolution: beautifyResolution,
+        },
+        { timeoutMs: 180000 },
+      );
+      if (data.imageBase64) {
+        const mime = data.mimeType || "image/png";
+        setAfterUrl(`data:${mime};base64,${data.imageBase64}`);
+      } else if (data.imageUrl) {
+        setAfterUrl(data.imageUrl);
+      }
+      setBeautifyMessage(data.message || "人像美化完成");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "人像美化失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadResult = async (suffix: string) => {
+    if (!afterUrl || !file) return;
+    try {
+      const res = await fetch(afterUrl);
+      const blob = await res.blob();
+      downloadBlob(blob, `${file.name.replace(/\.[^.]+$/, "")}-${suffix}.png`);
+    } catch {
+      window.open(afterUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const handleDownloadEdit = () => handleDownloadResult("edited");
+  const handleDownloadBeautify = () => handleDownloadResult("beautified");
+
   const primaryAction = () => {
     if (tab === "compress") return handleCompress();
     if (tab === "sharpen") return handleSharpen();
+    if (tab === "beautify") return handleBeautify();
+    if (tab === "edit") return handleEdit();
     if (tab === "generate") return handleGenerate();
     return handleCutout();
   };
@@ -225,10 +349,12 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     compress: `压缩并下载 ${format}`,
     sharpen: "变清晰并下载",
     cutout: "开始智能抠图",
+    beautify: "一键人像美化",
+    edit: "开始 AI 修图",
     generate: "生成图片",
   }[tab];
 
-  const primaryDisabled = tab === "generate" ? !prompt.trim() : !file;
+  const primaryDisabled = tab === "generate" ? !prompt.trim() : tab === "edit" ? !file || !editPrompt.trim() : !file;
 
   return (
     <div className="space-y-6">
@@ -348,6 +474,206 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
               className="w-full rounded-xl border border-white/15 py-2.5 text-sm text-white/70 hover:text-white"
             >
               下载图片
+            </button>
+          )}
+        </div>
+      ) : tab === "beautify" ? (
+        <div className="space-y-5">
+          <label className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-8 cursor-pointer hover:border-white/25 hover:bg-white/[0.04] transition-all">
+            {beforeUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={beforeUrl} alt="预览" className="max-h-40 rounded-lg object-contain" />
+            ) : (
+              <span className="text-3xl opacity-60">✧</span>
+            )}
+            <span className="text-sm text-white/50">{file?.name ?? "上传人像照片"}</span>
+            <span className="text-xs text-white/25">自拍、证件照、写真均可 · 自动智能美颜</span>
+            <input type="file" accept="image/*" className="hidden" onChange={onFile} />
+          </label>
+
+          <div>
+            <label className="block text-sm text-white/60 mb-2">美颜强度</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {beautifyLevels.map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => setBeautifyLevel(l.id)}
+                  className={`rounded-xl px-3 py-3 text-left transition-all ${
+                    beautifyLevel === l.id
+                      ? "bg-rose-600/25 text-rose-100 border border-rose-500/35"
+                      : "bg-white/5 text-white/50 border border-white/8 hover:bg-white/10"
+                  }`}
+                >
+                  <span className="block text-sm font-medium">{l.label}</span>
+                  <span className="block text-[11px] opacity-70 mt-0.5">{l.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-white/60 mb-2">输出清晰度</label>
+            <div className="flex gap-2">
+              {(["1k", "2k"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setBeautifyResolution(r)}
+                  className={`rounded-lg px-3 py-1.5 text-sm ${
+                    beautifyResolution === r
+                      ? "bg-rose-600/25 text-rose-200 border border-rose-500/35"
+                      : "bg-white/5 text-white/50 border border-white/8"
+                  }`}
+                >
+                  {r.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-xl border border-white/8 p-3">
+              <p className="text-xs text-white/40 mb-2">原图</p>
+              <div className="aspect-square rounded-lg bg-white/5 overflow-hidden flex items-center justify-center">
+                {beforeUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={beforeUrl} alt="原图" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-white/25 text-xs">—</span>
+                )}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/8 p-3">
+              <p className="text-xs text-white/40 mb-2">美化后</p>
+              <div className="aspect-square rounded-lg bg-white/5 overflow-hidden flex items-center justify-center">
+                {afterUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={afterUrl} alt="美化结果" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-white/25 text-xs bg-white/5 w-full h-full flex items-center justify-center rounded-lg">
+                    {loading ? "美化中…" : "—"}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {beautifyMessage && <p className="text-sm text-emerald-400/90 text-center">{beautifyMessage}</p>}
+          {afterUrl && (
+            <button
+              type="button"
+              onClick={handleDownloadBeautify}
+              className="w-full rounded-xl border border-white/15 py-2.5 text-sm text-white/70 hover:text-white"
+            >
+              下载美化结果
+            </button>
+          )}
+        </div>
+      ) : tab === "edit" ? (
+        <div className="space-y-5">
+          <label className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-8 cursor-pointer hover:border-white/25 hover:bg-white/[0.04] transition-all">
+            {beforeUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={beforeUrl} alt="预览" className="max-h-40 rounded-lg object-contain" />
+            ) : (
+              <span className="text-3xl opacity-60">✎</span>
+            )}
+            <span className="text-sm text-white/50">{file?.name ?? "上传待修图片"}</span>
+            <span className="text-xs text-white/25">支持 JPG / PNG，宽高比 1:3 至 3:1</span>
+            <input type="file" accept="image/*" className="hidden" onChange={onFile} />
+          </label>
+
+          <div>
+            <label htmlFor="edit-prompt" className="block text-sm text-white/60 mb-2">
+              修图指令
+            </label>
+            <textarea
+              id="edit-prompt"
+              value={editPrompt}
+              onChange={(e) => setEditPrompt(e.target.value.slice(0, 500))}
+              rows={3}
+              placeholder="描述你想如何修改这张图片，例如：把背景换成海边日落"
+              className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-amber-500/50 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
+            />
+            <p className="mt-1 text-right text-xs text-white/25">{editPrompt.length} / 500</p>
+          </div>
+
+          <div>
+            <label className="block text-sm text-white/60 mb-2">快捷指令</label>
+            <div className="flex flex-wrap gap-2">
+              {editPresets.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setEditPrompt(preset)}
+                  className={`rounded-lg px-3 py-1.5 text-sm ${
+                    editPrompt === preset
+                      ? "bg-amber-600/25 text-amber-200 border border-amber-500/35"
+                      : "bg-white/5 text-white/50 border border-white/8"
+                  }`}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-white/60 mb-2">输出清晰度</label>
+            <div className="flex gap-2">
+              {(["1k", "2k"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setEditResolution(r)}
+                  className={`rounded-lg px-3 py-1.5 text-sm ${
+                    editResolution === r
+                      ? "bg-amber-600/25 text-amber-200 border border-amber-500/35"
+                      : "bg-white/5 text-white/50 border border-white/8"
+                  }`}
+                >
+                  {r.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-xl border border-white/8 p-3">
+              <p className="text-xs text-white/40 mb-2">原图</p>
+              <div className="aspect-square rounded-lg bg-white/5 overflow-hidden flex items-center justify-center">
+                {beforeUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={beforeUrl} alt="原图" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-white/25 text-xs">—</span>
+                )}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/8 p-3">
+              <p className="text-xs text-white/40 mb-2">修图结果</p>
+              <div className="aspect-square rounded-lg bg-white/5 overflow-hidden flex items-center justify-center">
+                {afterUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={afterUrl} alt="修图结果" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-white/25 text-xs bg-white/5 w-full h-full flex items-center justify-center rounded-lg">
+                    {loading ? "修图中…" : "—"}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {editMessage && <p className="text-sm text-emerald-400/90 text-center">{editMessage}</p>}
+          {afterUrl && (
+            <button
+              type="button"
+              onClick={handleDownloadEdit}
+              className="w-full rounded-xl border border-white/15 py-2.5 text-sm text-white/70 hover:text-white"
+            >
+              下载修图结果
             </button>
           )}
         </div>
@@ -484,7 +810,7 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
         </>
       )}
 
-      {loadProgress && tab !== "generate" && (
+      {loadProgress && tab !== "generate" && tab !== "edit" && tab !== "beautify" && (
         <p className="text-center text-xs text-violet-300/80 animate-pulse">{loadProgress}</p>
       )}
       {error && <p className="text-sm text-red-400/90 text-center leading-relaxed">{error}</p>}
@@ -492,7 +818,15 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
       <ActionButton
         label={primaryLabel}
         loading={loading}
-        loadingLabel={tab === "cutout" && loadProgress ? loadProgress : undefined}
+        loadingLabel={
+          tab === "cutout" && loadProgress
+            ? loadProgress
+            : tab === "edit" && loading
+              ? "AI 修图中，约需数秒…"
+              : tab === "beautify" && loading
+                ? "AI 人像美化中，约需数秒…"
+                : undefined
+        }
         disabled={primaryDisabled}
         onClick={primaryAction}
       />
@@ -500,7 +834,11 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
       <p className="text-center text-xs text-white/25 leading-relaxed">
         {tab === "generate"
           ? "AI 生图：输入画面描述，一键生成并下载"
-          : "压缩、变清晰、抠图：上传图片即可处理并下载"}
+          : tab === "beautify"
+            ? "人像美化：上传人像照片，一键智能美颜，需配置 ARK_API_KEY"
+            : tab === "edit"
+              ? "AI 修图：上传图片并描述修改需求，需配置 ARK_API_KEY"
+              : "压缩、变清晰、抠图：上传图片即可处理并下载"}
       </p>
     </div>
   );

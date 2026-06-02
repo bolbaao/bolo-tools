@@ -44,8 +44,8 @@ export const tools: Tool[] = [
   {
     id: "image-studio",
     title: "图像工坊",
-    description: "图片压缩、清晰增强、智能抠图与 AI 文生图，高效完成日常图像处理。",
-    usageGuide: "选择功能（压缩/清晰/抠图/生图）→ 上传图片或输入描述 → 处理并下载",
+    description: "图片压缩、清晰增强、智能抠图、人像美化、AI 修图与文生图",
+    usageGuide: "选择功能（压缩/清晰/抠图/人像美化/修图/生图）→ 上传图片或输入描述 → 处理并下载",
     href: "/tools/image-studio",
     gradient: "from-sky-500/20 via-violet-500/15 to-emerald-500/10",
     tag: "图像",
@@ -184,6 +184,17 @@ export const tools: Tool[] = [
     tag: "视频",
     bento: "default",
     demoHint: "转写 · 提取 · 编辑导出",
+  },
+  {
+    id: "ai-video-edit",
+    title: "AI 视频剪辑",
+    description: "用自然语言描述剪辑需求，AI 生成方案并由 ffmpeg 本地渲染导出。",
+    usageGuide: "上传视频 → 描述剪辑（裁剪、画幅、变速、淡入淡出等）→ 预览方案 → 渲染下载",
+    href: "/tools/ai-video-edit",
+    gradient: "from-fuchsia-500/20 via-violet-500/15 to-cyan-500/10",
+    tag: "视频",
+    bento: "wide",
+    demoHint: "描述需求 · 预览方案 · 下载成片",
   },
   {
     id: "gif-maker",

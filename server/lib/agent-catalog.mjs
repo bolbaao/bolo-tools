@@ -37,8 +37,8 @@ export const AGENT_TOOLS = [
     id: "image-studio",
     title: "图像工坊",
     href: "/tools/image-studio",
-    description: "图片压缩、清晰增强、智能抠图与 AI 文生图",
-    fields: { mode: "compress|sharpen|cutout|generate", prompt: "生图描述" },
+    description: "图片压缩、清晰增强、智能抠图、人像美化、AI 修图与文生图",
+    fields: { mode: "compress|sharpen|cutout|beautify|edit|generate", prompt: "生图或修图描述" },
   },
   {
     id: "ai-search",
@@ -102,6 +102,13 @@ export const AGENT_TOOLS = [
     href: "/tools/gif-maker",
     description: "视频片段转 GIF",
     fields: {},
+  },
+  {
+    id: "ai-video-edit",
+    title: "AI 视频剪辑",
+    href: "/tools/ai-video-edit",
+    description: "自然语言描述剪辑需求，AI 生成方案并 ffmpeg 渲染",
+    fields: { instruction: "剪辑描述，如去掉前5秒、裁成9:16竖屏" },
   },
   {
     id: "text-toolbox",

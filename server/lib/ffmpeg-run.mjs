@@ -1,13 +1,7 @@
 import { spawn } from "child_process";
-import path from "path";
-import { getFfmpegPath } from "./ffmpeg-bin.mjs";
+import { getFfmpegPath, getFfprobePath } from "./ffmpeg-bin.mjs";
 
-export function getFfprobePath() {
-  const ffmpeg = getFfmpegPath();
-  const dir = path.dirname(ffmpeg);
-  const base = path.basename(ffmpeg).replace(/^ffmpeg/, "ffprobe");
-  return path.join(dir, base === ffmpeg ? "ffprobe" : base);
-}
+export { getFfprobePath };
 
 export function runFfmpeg(args) {
   return runBin(getFfmpegPath(), args);

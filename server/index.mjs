@@ -23,6 +23,7 @@ import adminRouter from "./routes/admin.mjs";
 import appBuilderRouter from "./routes/app-builder.mjs";
 import aiWriterRouter from "./routes/ai-writer.mjs";
 import aiWorkflowRouter from "./routes/ai-workflow.mjs";
+import aiVideoEditRouter from "./routes/ai-video-edit.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, "..", "out");
@@ -98,6 +99,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api/app-builder", appBuilderRouter);
 app.use("/api/ai-writer", aiWriterRouter);
 app.use("/api/ai-workflow", aiWorkflowRouter);
+app.use("/api/ai-video-edit", aiVideoEditRouter);
 
 if (hasOut && !API_ONLY) {
   app.use((req, res) => {

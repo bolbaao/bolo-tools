@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
     "@imgly/background-removal": "^1.5.7",
     "axios": "^1.7.9",
     "cheerio": "^1.0.0",

@@ -35,10 +35,10 @@ else
   echo "→ brew install ffmpeg…"
   "$BREW" install ffmpeg
   else
-    echo "→ 通过 npm 安装 ffmpeg 二进制 (@ffmpeg-installer/ffmpeg)…"
+    echo "→ 通过 npm 安装 ffmpeg/ffprobe 二进制…"
     export PATH="$(pwd)/.node-portable/bin:$PATH"
-    npm install @ffmpeg-installer/ffmpeg --save
-    echo "✓ ffmpeg 已随项目 npm 依赖安装，启动时自动使用"
+    npm install @ffmpeg-installer/ffmpeg @ffprobe-installer/ffprobe --save
+    echo "✓ ffmpeg/ffprobe 已随项目 npm 依赖安装，启动时自动使用"
   fi
 fi
 
