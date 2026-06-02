@@ -1,6 +1,19 @@
-import type { AgentResponse, ClientPhotoItem } from "@/lib/agent-types";
+import type { AgentResponse, ChatImageVisionItem, ClientPhotoItem } from "@/lib/agent-types";
+import { IMAGE_VISION_UNAVAILABLE, toUserFacingErrorMessage } from "@/lib/service-message";
 
 export { imageNeedsVisionApi } from "../../shared/chat-image-vision.mjs";
+
+/** 本轮识图全部失败时，返回可展示给用户的提示 */
+export function summarizeChatImageVisionErrors(
+  vision: ChatImageVisionItem[] | undefined,
+  neededVision: boolean,
+): string | null {
+  if (!neededVision || !vision?.length) return null;
+  const failed = vision.filter((v) => !v.description);
+  if (!failed.length) return null;
+  const first = failed.find((v) => v.error)?.error;
+  return first ? toUserFacingErrorMessage(first) : IMAGE_VISION_UNAVAILABLE;
+}
 
 export function photoItemKey(p: Pick<ClientPhotoItem, "name" | "lastModified" | "size">) {
   return `${p.name}:${p.lastModified}:${p.size}`;

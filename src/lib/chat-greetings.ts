@@ -1,34 +1,24 @@
-import type { ChatMode } from "@/lib/chat";
-
-const chatGreetings = [
-  "嗨～想聊什么都可以，也可以直接告我你想要什么。",
+const greetings = [
+  "嗨～想聊什么都可以，也可以直接告诉我你想做什么。",
+  "在呢～随便聊聊，或者说个目标，我帮你找工具搞定。",
   "你好呀，今天想聊点什么呢？",
-  "在呢在呢～有什么想聊的或想做的？",
-  "哈喽～随便聊聊，或者直接说你想搞定什么事。",
-  "来啦！想聊天、问问题、找工具都行～",
+  "哈喽～想聊天、问问题、找工具都行～",
+  "来啦！说说看，想聊什么或想搞定什么事？",
   "你好～今天过得怎么样？",
   "嘿，有什么我可以帮你的？",
-  "欢迎回来～想聊点什么？",
-  "又见面啦～想聊八卦、问问题、还是找工具？",
-  "在的～随便说，我听着呢。",
+  "欢迎回来～想聊点什么，或直接说任务？",
+  "又见面啦～想聊八卦、问问题，还是让我帮你操作工具？",
+  "在的～随便说，我听着呢；有具体任务也可以直接交代。",
+  "准备好了～描述一下想做的事，我来帮你找工具、填内容。",
+  "说说看，想让我帮你搞定什么？",
 ];
 
-const agentGreetings = [
-  "Agent 模式已开启～告诉我你想做什么，我会帮你找工具并自动操作。",
-  "Agent 就绪～描述一下任务，我来帮你找工具、填内容。",
-  "切到 Agent 了～说目标就行，工具我来安排。",
-  "Agent 模式开着呢～想自动化做什么？",
-  "准备好了～告诉我想完成的任务，我帮你操作。",
-  "Agent 在线～说说看，想让我帮你搞定什么？",
-];
+const greetingSet = new Set(greetings);
 
-const allGreetings = new Set([...chatGreetings, ...agentGreetings]);
-
-export function pickRandomGreeting(mode: ChatMode): string {
-  const pool = mode === "agent" ? agentGreetings : chatGreetings;
-  return pool[Math.floor(Math.random() * pool.length)];
+export function pickRandomGreeting(): string {
+  return greetings[Math.floor(Math.random() * greetings.length)];
 }
 
 export function isGreetingMessage(text: string): boolean {
-  return allGreetings.has(text);
+  return greetingSet.has(text);
 }

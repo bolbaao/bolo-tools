@@ -67,7 +67,14 @@ if (!hasOut && !API_ONLY) {
 }
 
 const app = express();
-app.use(express.json({ limit: "2mb" }));
+const jsonDefault = express.json({ limit: "2mb" });
+const jsonChat = express.json({ limit: "15mb" });
+app.use((req, res, next) => {
+  if (req.method === "POST" && req.path.startsWith("/api/chat")) {
+    return jsonChat(req, res, next);
+  }
+  return jsonDefault(req, res, next);
+});
 
 app.get("/api/health", (_req, res) => {
   res.json({

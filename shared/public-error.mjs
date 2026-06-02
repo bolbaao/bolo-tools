@@ -6,6 +6,9 @@ export const AI_SERVICE_UNAVAILABLE =
 export const FEATURE_UNAVAILABLE =
   "该功能暂时不可用，请稍后再试。如需开通请联系客服。";
 
+export const IMAGE_VISION_UNAVAILABLE =
+  "图片识别暂不可用，请稍后再试。如需开通请联系客服。";
+
 const DEV_HINT =
   /(?:\.env(?:\.example)?|start\.sh|环境变量|API[_\s]?Key|ARK_API_KEY|DEEPSEEK_API_KEY|TAVILY_API_KEY|SERPER_API_KEY|CONVERTAPI|HTTPS?_PROXY|NODE_ENV|pip install|faster-whisper|LIBREOFFICE|未配置|请运行:|cookies\/|YTDLP|yt-dlp)/i;
 

@@ -6,7 +6,7 @@ import { AGENT_CATEGORIES, AGENT_TOOLS } from "../../shared/agent-tools.mjs";
 
 export { AGENT_CATEGORIES, AGENT_TOOLS };
 
-export function buildAgentSystemPrompt(pageContext, mode = "chat") {
+export function buildAgentSystemPrompt(pageContext, mode = "agent") {
   const isAgentMode = mode === "agent";
   const toolLines = AGENT_TOOLS.map(
     (t) =>

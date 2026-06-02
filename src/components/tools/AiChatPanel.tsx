@@ -25,10 +25,7 @@ import {
   fetchChatModels,
   formatChatModelLabel,
   pickInitialChatProvider,
-  readStoredChatMode,
-  writeStoredChatMode,
   writeStoredChatProvider,
-  type ChatMode,
   type ChatModelOption,
 } from "@/lib/chat";
 import { isGreetingMessage, pickRandomGreeting } from "@/lib/chat-greetings";
@@ -36,7 +33,9 @@ import {
   imageNeedsVisionApi,
   mergeChatImageVision,
   prepareChatImagesForApi,
+  summarizeChatImageVisionErrors,
 } from "@/lib/chat-image-vision";
+import { IMAGE_VISION_UNAVAILABLE } from "@/lib/service-message";
 import { filesToChatImages } from "@/lib/image-compress";
 import {
   formatTextFilesForMessage,
@@ -60,10 +59,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const inputPlaceholders: Record<ChatMode, string> = {
-  chat: "输入文字，或上传/粘贴图片、PDF、Word、文本文件…",
-  agent: "描述任务，可附带图片、PDF、Word 或文本文件…",
-};
+const inputPlaceholder = "描述任务或随便聊聊，可附带图片、PDF、Word 或文本文件…";
 
 const MAX_IMAGES_PER_SEND = 4;
 const MAX_SESSION_IMAGES = 6;
@@ -83,8 +79,6 @@ type ChatMessage = {
 
 type AiChatPanelProps = {
   variant?: "default" | "hero" | "dock";
-  chatMode?: ChatMode;
-  onChatModeChange?: (mode: ChatMode) => void;
   /** 主页折叠栏等传入的待处理文件，挂载后自动加入附件区 */
   incomingFiles?: File[] | null;
   onIncomingFilesConsumed?: () => void;
@@ -117,8 +111,6 @@ function filterPendingPermissionRequests(
 
 export default function AiChatPanel({
   variant = "default",
-  chatMode: chatModeProp,
-  onChatModeChange,
   incomingFiles,
   onIncomingFilesConsumed,
   initialWelcome,
@@ -138,7 +130,7 @@ export default function AiChatPanel({
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       role: "ai",
-      text: initialWelcome ?? pickRandomGreeting(readStoredChatMode()),
+      text: initialWelcome ?? pickRandomGreeting(),
     },
   ]);
   const [loading, setLoading] = useState(false);
@@ -154,9 +146,8 @@ export default function AiChatPanel({
   const [memoryBusy, setMemoryBusy] = useState<number | null>(null);
   const [memorySaved, setMemorySaved] = useState<number | null>(null);
   const [chatModels, setChatModels] = useState<ChatModelOption[]>([]);
+  const [imageVisionAvailable, setImageVisionAvailable] = useState<boolean | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
-  const [internalChatMode, setInternalChatMode] = useState<ChatMode>(() => readStoredChatMode());
-  const chatMode = chatModeProp ?? internalChatMode;
 
   const addChatFiles = useCallback(async (files: File[]) => {
     if (!files.length) return;
@@ -172,6 +163,10 @@ export default function AiChatPanel({
     }
 
     if (imageFiles.length) {
+      if (imageVisionAvailable === false) {
+        setError(IMAGE_VISION_UNAVAILABLE);
+        return;
+      }
       setImageBusy(true);
       try {
         const remain = MAX_IMAGES_PER_SEND - pendingImages.length;
@@ -213,7 +208,7 @@ export default function AiChatPanel({
         setFileBusy(false);
       }
     }
-  }, [pendingImages.length, pendingTextFiles.length]);
+  }, [imageVisionAvailable, pendingImages.length, pendingTextFiles.length]);
 
   useEffect(() => {
     if (!incomingFiles?.length) return;
@@ -221,13 +216,14 @@ export default function AiChatPanel({
   }, [incomingFiles, addChatFiles, onIncomingFilesConsumed]);
 
   useEffect(() => {
-    if (autoPickProvider) {
-      setChatModels([]);
-      setSelectedProvider(null);
-      return;
-    }
     fetchChatModels()
       .then((data) => {
+        setImageVisionAvailable(Boolean(data.imageVision));
+        if (autoPickProvider) {
+          setChatModels([]);
+          setSelectedProvider(null);
+          return;
+        }
         setChatModels(data.models);
         setSelectedProvider((prev) => {
           if (prev && data.models.some((m) => m.id === prev)) return prev;
@@ -235,8 +231,11 @@ export default function AiChatPanel({
         });
       })
       .catch(() => {
-        setChatModels([]);
-        setSelectedProvider(null);
+        setImageVisionAvailable(null);
+        if (!autoPickProvider) {
+          setChatModels([]);
+          setSelectedProvider(null);
+        }
       });
   }, [autoPickProvider]);
 
@@ -293,7 +292,7 @@ export default function AiChatPanel({
         setSessionId(session.id);
         if (session.messages.length > 0) {
           setMessages([
-            { role: "ai", text: pickRandomGreeting(chatMode) },
+            { role: "ai", text: pickRandomGreeting() },
             ...session.messages.map((m) => ({
               role: m.role,
               text: m.text,
@@ -416,7 +415,6 @@ export default function AiChatPanel({
       chatImages: ClientPhotoItem[],
       rawFilesForTools: File[] = [],
       provider: string | null = autoPickProvider ? null : selectedProvider,
-      mode: ChatMode = chatMode,
     ) => {
       const apiMessages = buildApiMessages(history);
       if (!apiMessages.some((m) => m.role === "user")) {
@@ -431,7 +429,7 @@ export default function AiChatPanel({
           messages: apiMessages,
           pageContext: getPageContext(perms, apiImages),
           ...(!autoPickProvider && provider ? { provider } : {}),
-          mode,
+          mode: "agent",
         },
         { timeoutMs: needsVision ? 120000 : 65000, credentials: "include" },
       );
@@ -446,27 +444,13 @@ export default function AiChatPanel({
         setSessionChatImages(cached);
       }
 
+      const visionErr = summarizeChatImageVisionErrors(data.chatImageVision, needsVision);
+      if (visionErr) setError(visionErr);
+
       return appendAiFromResponse(data, history, rawFilesForTools);
     },
-    [appendAiFromResponse, autoPickProvider, buildApiMessages, chatMode, getPageContext, selectedProvider],
+    [appendAiFromResponse, autoPickProvider, buildApiMessages, getPageContext, selectedProvider],
   );
-
-  const handleModeChange = (mode: ChatMode) => {
-    if (onChatModeChange) {
-      onChatModeChange(mode);
-    } else {
-      setInternalChatMode(mode);
-      writeStoredChatMode(mode);
-    }
-    setMessages((prev) => {
-      const onlyWelcome =
-        prev.length === 1 && prev[0].role === "ai" && isGreetingMessage(prev[0].text);
-      if (onlyWelcome) {
-        return [{ role: "ai", text: pickRandomGreeting(mode) }];
-      }
-      return prev;
-    });
-  };
 
   const handleProviderChange = (provider: string) => {
     setSelectedProvider(provider);
@@ -617,7 +601,7 @@ export default function AiChatPanel({
   };
 
   const resetChatState = () => {
-    setMessages([{ role: "ai", text: pickRandomGreeting(chatMode) }]);
+    setMessages([{ role: "ai", text: pickRandomGreeting() }]);
     setInput("");
     setError(null);
     setClientPermissions({});
@@ -650,7 +634,7 @@ export default function AiChatPanel({
       const session = await loadChatSession(id);
       setSessionId(session.id);
       setMessages([
-        { role: "ai", text: pickRandomGreeting(chatMode) },
+        { role: "ai", text: pickRandomGreeting() },
         ...session.messages.map((m) => ({ role: m.role, text: m.text })),
       ]);
       setClientPermissions({});
@@ -690,7 +674,7 @@ export default function AiChatPanel({
       {!isHero && !isDock && (
         <p className="text-sm text-white/45 leading-relaxed">
           可发文字、图片和常见文档；上传图片能让 AI 看懂画面，授权定位或相册后，也方便回答「这边」「当地」一类问题。
-          开启 Agent 模式后，还会帮你打开对应工具并填好内容。
+          有具体任务时，会帮你打开对应工具并填好内容。
           {user?.emailVerified ? (
             <>
               {" "}
@@ -722,7 +706,7 @@ export default function AiChatPanel({
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {!isHero && !isDock && (
               <div className="flex shrink-0 items-center gap-3">
-                <span className="text-xs text-white/40">AI 对话</span>
+                <span className="text-xs text-white/40">Agent</span>
                 {user?.emailVerified && (
                   <Link
                     href="/tools/memory"
@@ -732,37 +716,6 @@ export default function AiChatPanel({
                   </Link>
                 )}
               </div>
-            )}
-            {!isDock && (
-            <div
-              className="flex shrink-0 rounded-lg border border-white/10 bg-black/30 p-0.5"
-              title="切换对话 / Agent 模式"
-            >
-              <button
-                type="button"
-                onClick={() => handleModeChange("chat")}
-                disabled={loading || permissionBusy}
-                className={`rounded-md px-2 py-1 text-[11px] transition-colors ${
-                  chatMode === "chat"
-                    ? "bg-violet-500/25 text-white"
-                    : "text-white/45 hover:text-white/70"
-                }`}
-              >
-                对话
-              </button>
-              <button
-                type="button"
-                onClick={() => handleModeChange("agent")}
-                disabled={loading || permissionBusy}
-                className={`rounded-md px-2 py-1 text-[11px] transition-colors ${
-                  chatMode === "agent"
-                    ? "bg-violet-500/25 text-white"
-                    : "text-white/45 hover:text-white/70"
-                }`}
-              >
-                Agent
-              </button>
-            </div>
             )}
             {isHero && user?.emailVerified && (
               <Link
@@ -941,13 +894,9 @@ export default function AiChatPanel({
           })}
           {loading && (
             <p className="text-xs text-white/30 animate-pulse">
-              {chatMode === "agent"
-                ? pendingImages.length > 0 || sessionChatImages.some(imageNeedsVisionApi)
-                  ? "Agent 正在识别图片并规划操作…"
-                  : "Agent 正在规划并执行…"
-                : pendingImages.length > 0 || sessionChatImages.some(imageNeedsVisionApi)
-                  ? "正在识别图片并回复…"
-                  : "正在回复…"}
+              {pendingImages.length > 0 || sessionChatImages.some(imageNeedsVisionApi)
+                ? "Agent 正在识别图片并规划操作…"
+                : "Agent 正在规划并执行…"}
             </p>
           )}
         </div>
@@ -1028,7 +977,7 @@ export default function AiChatPanel({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void send()}
-              placeholder={inputPlaceholders[chatMode]}
+              placeholder={inputPlaceholder}
               disabled={loading || permissionBusy || imageBusy || fileBusy}
               className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-violet-500/50 disabled:opacity-50"
             />

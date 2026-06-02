@@ -1,7 +1,6 @@
 "use client";
 
 import AiChatPanel from "@/components/tools/AiChatPanel";
-import { readStoredChatMode, writeStoredChatMode, type ChatMode } from "@/lib/chat";
 import { useEffect, useState } from "react";
 
 const HIDDEN_TOOL_IDS = new Set(["ai-chat"]);
@@ -12,7 +11,6 @@ type ToolAgentDockProps = {
 
 export default function ToolAgentDock({ toolId }: ToolAgentDockProps) {
   const [open, setOpen] = useState(false);
-  const [chatMode, setChatMode] = useState<ChatMode>(() => readStoredChatMode());
 
   useEffect(() => {
     if (!open) return;
@@ -24,11 +22,6 @@ export default function ToolAgentDock({ toolId }: ToolAgentDockProps) {
   }, [open]);
 
   if (HIDDEN_TOOL_IDS.has(toolId)) return null;
-
-  const handleModeChange = (mode: ChatMode) => {
-    setChatMode(mode);
-    writeStoredChatMode(mode);
-  };
 
   return (
     <>
@@ -43,44 +36,13 @@ export default function ToolAgentDock({ toolId }: ToolAgentDockProps) {
             ✦
           </span>
           Agent
-          {chatMode === "agent" && (
-            <span className="rounded-full bg-violet-500/30 px-1.5 py-0.5 text-[10px] text-violet-200">
-              已开启
-            </span>
-          )}
         </button>
       )}
 
       {open && (
         <div className="fixed bottom-6 right-6 z-40 w-[min(calc(100vw-2rem),420px)] overflow-hidden rounded-2xl border border-white/10 bg-[#0a0b14]/95 shadow-2xl shadow-black/50 backdrop-blur-md">
           <div className="flex items-center justify-between border-b border-white/8 px-4 py-2.5">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-white/50">Agent 助手</span>
-              <div className="flex rounded-lg border border-white/10 bg-black/30 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => handleModeChange("chat")}
-                  className={`rounded-md px-2 py-0.5 text-[10px] transition-colors ${
-                    chatMode === "chat"
-                      ? "bg-violet-500/25 text-white"
-                      : "text-white/45 hover:text-white/70"
-                  }`}
-                >
-                  对话
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleModeChange("agent")}
-                  className={`rounded-md px-2 py-0.5 text-[10px] transition-colors ${
-                    chatMode === "agent"
-                      ? "bg-violet-500/25 text-white"
-                      : "text-white/45 hover:text-white/70"
-                  }`}
-                >
-                  Agent
-                </button>
-              </div>
-            </div>
+            <span className="text-xs font-medium text-white/50">Agent 助手</span>
             <div className="flex items-center gap-2">
               <a
                 href="/tools/ai-chat"
@@ -99,7 +61,7 @@ export default function ToolAgentDock({ toolId }: ToolAgentDockProps) {
             </div>
           </div>
           <div className="p-3">
-            <AiChatPanel variant="dock" chatMode={chatMode} onChatModeChange={handleModeChange} />
+            <AiChatPanel variant="dock" />
           </div>
         </div>
       )}

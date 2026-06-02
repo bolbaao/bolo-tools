@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 export default function HeroAiChat() {
   const [expanded, setExpanded] = useState(false);
-  const [greeting, setGreeting] = useState(() => pickRandomGreeting("chat"));
+  const [greeting, setGreeting] = useState(() => pickRandomGreeting());
   const [incomingFiles, setIncomingFiles] = useState<File[] | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -15,7 +15,7 @@ export default function HeroAiChat() {
 
   const collapseChat = () => {
     setExpanded(false);
-    setGreeting(pickRandomGreeting("chat"));
+    setGreeting(pickRandomGreeting());
   };
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export default function HeroAiChat() {
             onClick={expandChat}
             className="group flex min-w-0 flex-1 items-center gap-3 text-left transition-all duration-300 hover:opacity-90 active:scale-[0.995]"
             aria-expanded={false}
-            aria-label="展开 AI 对话"
+            aria-label="展开 Agent"
           >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-sm text-white/70 ring-1 ring-white/[0.08] transition-colors group-hover:ring-violet-400/20">
               ✦
@@ -74,7 +74,7 @@ export default function HeroAiChat() {
     >
       <div className="hero-ai-panel">
         <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3 sm:px-5">
-          <span className="text-xs font-medium tracking-wide text-white/40">AI 对话</span>
+          <span className="text-xs font-medium tracking-wide text-white/40">Agent</span>
           <div className="flex items-center gap-3">
             <a
               href="/tools/ai-chat"
@@ -86,7 +86,7 @@ export default function HeroAiChat() {
               type="button"
               onClick={collapseChat}
               className="rounded-lg px-2.5 py-1 text-xs text-white/35 transition-colors hover:bg-white/[0.05] hover:text-white/60"
-              aria-label="收起对话"
+              aria-label="收起 Agent"
             >
               收起
             </button>

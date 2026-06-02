@@ -29,7 +29,7 @@ function messageHasImageTag(text) {
 /** @returns {"deepseek"|"ark"|null} */
 export function pickChatProviderForRequest({
   requestedProvider,
-  mode = "chat",
+  mode = "agent",
   messages,
   pageContext,
 } = {}) {

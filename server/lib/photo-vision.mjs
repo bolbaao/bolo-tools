@@ -1,3 +1,4 @@
+import { IMAGE_VISION_UNAVAILABLE } from "../../shared/public-error.mjs";
 import { resolveArkConfig } from "./chat-config.mjs";
 import { env } from "./env.mjs";
 
@@ -101,7 +102,7 @@ export async function describePhotoDataUrl(dataUrl, userContext) {
 }
 
 function visionMissingHint() {
-  return "（请配置 ARK_API_KEY、ARK_BASE_URL，以及视觉模型 ARK_VISION_MODEL，见火山方舟控制台）";
+  return `（${IMAGE_VISION_UNAVAILABLE}）`;
 }
 
 export function formatPhotoSnapshotForPrompt(snapshot) {
@@ -146,16 +147,20 @@ async function describeOneImage(img, userContext) {
   let error = null;
   let visionProvider = null;
 
-  if (photoVisionConfigured() && img.previewDataUrl) {
-    try {
-      const result = await describePhotoDataUrl(img.previewDataUrl, userContext);
-      description = result?.description ?? null;
-      visionProvider = result?.providerLabel ?? VISION_PROVIDER_LABEL;
-      if (!description) {
-        error = "模型未返回描述";
+  if (img.previewDataUrl) {
+    if (!photoVisionConfigured()) {
+      error = IMAGE_VISION_UNAVAILABLE;
+    } else {
+      try {
+        const result = await describePhotoDataUrl(img.previewDataUrl, userContext);
+        description = result?.description ?? null;
+        visionProvider = result?.providerLabel ?? VISION_PROVIDER_LABEL;
+        if (!description) {
+          error = "模型未返回描述";
+        }
+      } catch (e) {
+        error = e.message;
       }
-    } catch (e) {
-      error = e.message;
     }
   }
 

@@ -16,6 +16,7 @@ import {
   chatImageVisionPayload,
   formatChatImagesForPrompt,
   formatPhotoSnapshotForPrompt,
+  photoVisionConfigured,
   resolveAllImageContext,
 } from "../lib/photo-vision.mjs";
 import { pageContextNeedsVisionApi } from "../../shared/chat-image-vision.mjs";
@@ -126,6 +127,7 @@ router.get("/models", (_req, res) => {
     ok: true,
     models,
     defaultProvider: defaultCfg?.provider ?? null,
+    imageVision: photoVisionConfigured(),
   });
 });
 
@@ -133,7 +135,7 @@ router.post("/", async (req, res) => {
   let chatConfig = null;
   try {
     const { messages, pageContext, provider, mode: rawMode } = req.body ?? {};
-    const chatMode = rawMode === "agent" ? "agent" : "chat";
+    const chatMode = rawMode === "chat" ? "chat" : "agent";
     if (!Array.isArray(messages) || messages.length === 0) {
       throw new HttpError(400, "messages 不能为空");
     }

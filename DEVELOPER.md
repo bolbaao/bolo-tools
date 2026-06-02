@@ -55,6 +55,8 @@ cp .env.example .env
 
 默认优先 **DeepSeek**（大陆可直接用），也支持 **火山方舟**（`.env` 中 `CHAT_PROVIDER=ark`）。
 
+首页与 AI 对话的**图片识别**单独依赖火山方舟视觉 API，云端 `.env` 需配置 `ARK_API_KEY`（可与对话共用；仅配 `DEEPSEEK_API_KEY` 时文字对话可用，但识图不可用）。部署须运行 `server/`（`./start.sh` 或 `npm run start`），不能只上传静态 `out/`。
+
 ### Cookie 与视频解析
 
 详见 [cookies/README.md](cookies/README.md)。

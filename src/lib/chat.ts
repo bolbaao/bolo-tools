@@ -37,13 +37,7 @@ export function writeStoredChatProvider(provider: string) {
 }
 
 export function readStoredChatMode(): ChatMode {
-  if (typeof window === "undefined") return "chat";
-  try {
-    const value = localStorage.getItem(CHAT_MODE_STORAGE_KEY);
-    return value === "agent" ? "agent" : "chat";
-  } catch {
-    return "chat";
-  }
+  return "agent";
 }
 
 export function writeStoredChatMode(mode: ChatMode) {
