@@ -104,7 +104,7 @@ elif [ ! -f "cookies/yuanbao.txt" ]; then
 fi
 
 echo "🔨 正在构建静态网站…"
-rm -rf .next out
+rm -rf out
 npm run build || exit 1
 
 echo ""

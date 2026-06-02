@@ -16,8 +16,8 @@ const BLOCKED_KEYWORDS = [
   "性爱",
 ];
 
+/** 2厅、3厅、3&4厅、5厅并行检索（网盘链接，不含综合大厅 sortWeb） */
 const SOURCE_DEFS = [
-  { id: "hall", label: "综合大厅", path: "/api/sortWeb", kind: "sortWeb" },
   { id: "dyfx", label: "2厅", path: "/api/getDyfx", kind: "simple" },
   { id: "juzi", label: "3&4厅", path: "/api/getJuzi", kind: "simple" },
   { id: "ttzjb", label: "3厅", path: "/api/getTTZJB", kind: "simple" },

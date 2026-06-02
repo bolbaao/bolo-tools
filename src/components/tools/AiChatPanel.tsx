@@ -31,6 +31,7 @@ import {
   type ChatMode,
   type ChatModelOption,
 } from "@/lib/chat";
+import { isGreetingMessage, pickRandomGreeting } from "@/lib/chat-greetings";
 import {
   imageNeedsVisionApi,
   mergeChatImageVision,
@@ -58,11 +59,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-
-const welcomeMessages: Record<ChatMode, string> = {
-  chat: "嗨～想聊什么都可以，也可以直接告我你想要什么。",
-  agent: "Agent 模式已开启～告诉我你想做什么，我会帮你找工具并自动操作。",
-};
 
 const inputPlaceholders: Record<ChatMode, string> = {
   chat: "输入文字，或上传/粘贴图片、PDF、Word、文本文件…",
@@ -92,6 +88,8 @@ type AiChatPanelProps = {
   /** 主页折叠栏等传入的待处理文件，挂载后自动加入附件区 */
   incomingFiles?: File[] | null;
   onIncomingFilesConsumed?: () => void;
+  /** 主页传入的初始问候语，与折叠栏展示保持一致 */
+  initialWelcome?: string;
 };
 
 function filterPendingPermissionRequests(
@@ -123,6 +121,7 @@ export default function AiChatPanel({
   onChatModeChange,
   incomingFiles,
   onIncomingFilesConsumed,
+  initialWelcome,
 }: AiChatPanelProps) {
   const isHero = variant === "hero";
   const isDock = variant === "dock";
@@ -134,8 +133,11 @@ export default function AiChatPanel({
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [historyReady, setHistoryReady] = useState(false);
   const [autoMemoryNotice, setAutoMemoryNotice] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "ai", text: welcomeMessages[readStoredChatMode()] },
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [
+    {
+      role: "ai",
+      text: initialWelcome ?? pickRandomGreeting(readStoredChatMode()),
+    },
   ]);
   const [loading, setLoading] = useState(false);
   const [permissionBusy, setPermissionBusy] = useState(false);
@@ -236,7 +238,7 @@ export default function AiChatPanel({
       .filter(
         (m) =>
           !m.hidden &&
-          !(m.role === "ai" && Object.values(welcomeMessages).includes(m.text)) &&
+          !(m.role === "ai" && isGreetingMessage(m.text)) &&
           !m.text.startsWith("（出错了）"),
       )
       .map((m) => ({ role: m.role, text: m.text }));
@@ -284,7 +286,7 @@ export default function AiChatPanel({
         setSessionId(session.id);
         if (session.messages.length > 0) {
           setMessages([
-            { role: "ai", text: welcomeMessages[chatMode] },
+            { role: "ai", text: pickRandomGreeting(chatMode) },
             ...session.messages.map((m) => ({
               role: m.role,
               text: m.text,
@@ -350,7 +352,7 @@ export default function AiChatPanel({
       .filter(
         (m) =>
           m.role === "user" ||
-          (m.role === "ai" && !Object.values(welcomeMessages).includes(m.text) && !m.text.startsWith("（出错了）")),
+          (m.role === "ai" && !isGreetingMessage(m.text) && !m.text.startsWith("（出错了）")),
       )
       .slice(-12)
       .map((m) => {
@@ -451,11 +453,9 @@ export default function AiChatPanel({
     }
     setMessages((prev) => {
       const onlyWelcome =
-        prev.length === 1 &&
-        prev[0].role === "ai" &&
-        Object.values(welcomeMessages).includes(prev[0].text);
+        prev.length === 1 && prev[0].role === "ai" && isGreetingMessage(prev[0].text);
       if (onlyWelcome) {
-        return [{ role: "ai", text: welcomeMessages[mode] }];
+        return [{ role: "ai", text: pickRandomGreeting(mode) }];
       }
       return prev;
     });
@@ -610,7 +610,7 @@ export default function AiChatPanel({
   };
 
   const resetChatState = () => {
-    setMessages([{ role: "ai", text: welcomeMessages[chatMode] }]);
+    setMessages([{ role: "ai", text: pickRandomGreeting(chatMode) }]);
     setInput("");
     setError(null);
     setClientPermissions({});
@@ -643,7 +643,7 @@ export default function AiChatPanel({
       const session = await loadChatSession(id);
       setSessionId(session.id);
       setMessages([
-        { role: "ai", text: welcomeMessages[chatMode] },
+        { role: "ai", text: pickRandomGreeting(chatMode) },
         ...session.messages.map((m) => ({ role: m.role, text: m.text })),
       ]);
       setClientPermissions({});

@@ -2,17 +2,26 @@
 
 import AiChatPanel from "@/components/tools/AiChatPanel";
 import ChatAttachButton from "@/components/chat/ChatAttachButton";
+import { pickRandomGreeting } from "@/lib/chat-greetings";
 import { useEffect, useRef, useState } from "react";
 
 export default function HeroAiChat() {
   const [expanded, setExpanded] = useState(false);
+  const [greeting, setGreeting] = useState(() => pickRandomGreeting("chat"));
   const [incomingFiles, setIncomingFiles] = useState<File[] | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  const expandChat = () => setExpanded(true);
+
+  const collapseChat = () => {
+    setExpanded(false);
+    setGreeting(pickRandomGreeting("chat"));
+  };
 
   useEffect(() => {
     if (!expanded) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setExpanded(false);
+      if (e.key === "Escape") collapseChat();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -21,7 +30,7 @@ export default function HeroAiChat() {
   const openWithFiles = (files: File[]) => {
     if (!files.length) return;
     setIncomingFiles(files);
-    setExpanded(true);
+    expandChat();
   };
 
   if (!expanded) {
@@ -30,7 +39,7 @@ export default function HeroAiChat() {
         <div className="hero-ai-bar flex w-full items-center gap-2 px-3 py-2.5 sm:px-4">
           <button
             type="button"
-            onClick={() => setExpanded(true)}
+            onClick={expandChat}
             className="group flex min-w-0 flex-1 items-center gap-3 text-left transition-all duration-300 hover:opacity-90 active:scale-[0.995]"
             aria-expanded={false}
             aria-label="展开 AI 对话"
@@ -38,8 +47,8 @@ export default function HeroAiChat() {
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-sm text-white/70 ring-1 ring-white/[0.08] transition-colors group-hover:ring-violet-400/20">
               ✦
             </span>
-            <span className="flex-1 text-sm text-white/35 transition-colors group-hover:text-white/45">
-              随便聊点什么，或上传图片 / PDF / Word…
+            <span className="flex-1 truncate text-sm text-white/35 transition-colors group-hover:text-white/45">
+              {greeting}
             </span>
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/40 ring-1 ring-white/[0.08] transition-all group-hover:bg-white/[0.09] group-hover:text-white/60">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -75,7 +84,7 @@ export default function HeroAiChat() {
             </a>
             <button
               type="button"
-              onClick={() => setExpanded(false)}
+              onClick={collapseChat}
               className="rounded-lg px-2.5 py-1 text-xs text-white/35 transition-colors hover:bg-white/[0.05] hover:text-white/60"
               aria-label="收起对话"
             >
@@ -86,6 +95,7 @@ export default function HeroAiChat() {
         <div className="p-4 sm:p-5">
           <AiChatPanel
             variant="hero"
+            initialWelcome={greeting}
             incomingFiles={incomingFiles}
             onIncomingFilesConsumed={() => setIncomingFiles(null)}
           />

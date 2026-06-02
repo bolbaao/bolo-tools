@@ -120,7 +120,7 @@ export default function MediaDownloadPanel() {
     <div className="space-y-6">
       <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 px-5 py-4">
         <p className="text-sm text-white/65 leading-relaxed">
-          输入片名后，从百度网盘、迅雷、夸克、阿里云盘等多个来源帮你找下载链接，找到即可
+          输入片名后，从 2厅、3厅、3&4厅、5厅 并行检索网盘链接（百度、迅雷、夸克、阿里云盘等），找到即可
           <strong className="text-white/85 font-medium">一键复制</strong>。
         </p>
         <p className="mt-2 text-xs text-white/35">

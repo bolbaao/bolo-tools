@@ -11,14 +11,14 @@ export const AGENT_TOOLS = [
     id: "media-search",
     title: "影视搜索",
     href: "/tools/media-search",
-    description: "输入片名，聚合影视信息与可复制的资源链接包",
+    description: "搜索电影剧集，查看 TMDB 评分、简介与详情",
     fields: { keyword: "片名或关键词" },
   },
   {
     id: "media-download",
     title: "影视资源下载",
     href: "/tools/media-download",
-    description: "按片名检索网盘资源链接，多平台一键复制",
+    description: "按片名检索 2/3/3&4/5 厅网盘资源链接，多平台一键复制",
     fields: { keyword: "片名或关键词" },
   },
   {
