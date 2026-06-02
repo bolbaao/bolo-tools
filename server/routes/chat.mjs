@@ -5,6 +5,7 @@ import { extractDocumentText } from "../lib/chat-document-extract.mjs";
 import { AGENT_PERMISSION_TYPES } from "../lib/agent-permissions-catalog.mjs";
 import { buildAgentSystemPrompt } from "../lib/agent-catalog.mjs";
 import {
+  describeAiStack,
   getChatProviderLabel,
   listAvailableChatModels,
   resolveChatConfig,
@@ -16,7 +17,6 @@ import {
   chatImageVisionPayload,
   formatChatImagesForPrompt,
   formatPhotoSnapshotForPrompt,
-  photoVisionConfigured,
   resolveAllImageContext,
 } from "../lib/photo-vision.mjs";
 import { pageContextNeedsVisionApi } from "../../shared/chat-image-vision.mjs";
@@ -123,11 +123,13 @@ router.post("/extract-document", documentUpload.single("file"), async (req, res)
 router.get("/models", (_req, res) => {
   const models = listAvailableChatModels();
   const defaultCfg = resolveChatConfig();
+  const aiStack = describeAiStack();
   res.json({
     ok: true,
     models,
     defaultProvider: defaultCfg?.provider ?? null,
-    imageVision: photoVisionConfigured(),
+    imageVision: aiStack.vision.configured,
+    aiStack,
   });
 });
 
@@ -157,7 +159,7 @@ router.post("/", async (req, res) => {
     if (!chatConfig) {
       throw new HttpError(
         503,
-        "未配置 AI 对话 Key。请在 .env 填入 DEEPSEEK_API_KEY 或 ARK_API_KEY，详见 .env.example",
+        "未配置 AI 对话 Key。请在 .env 填入 DEEPSEEK_API_KEY（推荐）；识图需单独配置 ARK_VISION_API_KEY，详见 .env.example",
       );
     }
 

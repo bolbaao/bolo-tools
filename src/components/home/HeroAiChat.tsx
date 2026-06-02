@@ -2,15 +2,25 @@
 
 import AiChatPanel from "@/components/tools/AiChatPanel";
 import ChatAttachButton from "@/components/chat/ChatAttachButton";
+import { fetchChatModels } from "@/lib/chat";
 import { pickRandomGreeting } from "@/lib/chat-greetings";
-import { heroCollapsedModelHint } from "@/lib/hero-ai";
+import { formatAiStackHint, HERO_CHAT_MODEL, HERO_VISION_MODEL } from "@/lib/hero-ai";
 import { useEffect, useRef, useState } from "react";
+
+const defaultStackHint = `对话 ${HERO_CHAT_MODEL} · 识图 ${HERO_VISION_MODEL}`;
 
 export default function HeroAiChat() {
   const [expanded, setExpanded] = useState(false);
   const [greeting, setGreeting] = useState(() => pickRandomGreeting());
   const [incomingFiles, setIncomingFiles] = useState<File[] | null>(null);
+  const [stackHint, setStackHint] = useState(defaultStackHint);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetchChatModels()
+      .then((data) => setStackHint(formatAiStackHint(data.aiStack)))
+      .catch(() => setStackHint(defaultStackHint));
+  }, []);
 
   const expandChat = () => setExpanded(true);
 
@@ -53,7 +63,7 @@ export default function HeroAiChat() {
                 {greeting}
               </span>
               <span className="mt-0.5 block text-[10px] text-white/25">
-                {heroCollapsedModelHint}
+                {stackHint}
               </span>
             </span>
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/40 ring-1 ring-white/[0.08] transition-all group-hover:bg-white/[0.09] group-hover:text-white/60">

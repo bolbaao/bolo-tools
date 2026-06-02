@@ -54,7 +54,7 @@ async function testModuleLayer() {
   console.log("\n[1] 模块层（photo-vision.mjs）");
 
   if (!photoVisionConfigured()) {
-    skip("describePhotoDataUrl", "未配置 ARK_API_KEY");
+    skip("describePhotoDataUrl", "未配置 ARK_VISION_API_KEY 或 ARK_API_KEY");
     return { configured: false };
   }
 
@@ -299,7 +299,7 @@ async function main() {
   await testCacheOnly();
   const mod = await testModuleLayer();
   if (!mod?.liveVision) {
-    console.log("\n  提示: 实时识别需有效 ARK_API_KEY 与 ARK_VISION_MODEL；缓存与 /api/chat 结构仍可验证。");
+    console.log("\n  提示: 实时识别需有效 ARK_VISION_API_KEY（或 ARK_API_KEY）与 ARK_VISION_MODEL；缓存与 /api/chat 结构仍可验证。");
   }
   await testChatApi();
 

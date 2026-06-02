@@ -36,9 +36,10 @@ import {
   summarizeChatImageVisionErrors,
 } from "@/lib/chat-image-vision";
 import {
-  HERO_CHAT_MODEL,
   HERO_INPUT_PLACEHOLDER,
-  HERO_VISION_MODEL,
+  heroChatLabel,
+  heroVisionLabel,
+  type AiStack,
 } from "@/lib/hero-ai";
 import { IMAGE_VISION_UNAVAILABLE } from "@/lib/service-message";
 import { filesToChatImages } from "@/lib/image-compress";
@@ -151,6 +152,7 @@ export default function AiChatPanel({
   const [memoryBusy, setMemoryBusy] = useState<number | null>(null);
   const [memorySaved, setMemorySaved] = useState<number | null>(null);
   const [chatModels, setChatModels] = useState<ChatModelOption[]>([]);
+  const [aiStack, setAiStack] = useState<AiStack | null>(null);
   const [imageVisionAvailable, setImageVisionAvailable] = useState<boolean | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
 
@@ -223,7 +225,8 @@ export default function AiChatPanel({
   useEffect(() => {
     fetchChatModels()
       .then((data) => {
-        setImageVisionAvailable(Boolean(data.imageVision));
+        setAiStack(data.aiStack ?? null);
+        setImageVisionAvailable(Boolean(data.aiStack?.vision.configured ?? data.imageVision));
         if (autoPickProvider) {
           setChatModels([]);
           setSelectedProvider(null);
@@ -236,6 +239,7 @@ export default function AiChatPanel({
         });
       })
       .catch(() => {
+        setAiStack(null);
         setImageVisionAvailable(null);
         if (!autoPickProvider) {
           setChatModels([]);
@@ -714,7 +718,7 @@ export default function AiChatPanel({
             {isHero && (
               <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                 <span className="rounded-full border border-violet-400/25 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-200/80">
-                  对话 · {HERO_CHAT_MODEL}
+                  对话 · {heroChatLabel(aiStack)}
                 </span>
                 <span
                   className={`rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-200/80 ${
@@ -726,7 +730,7 @@ export default function AiChatPanel({
                       : "上传图片时由火山方舟视觉模型识别"
                   }
                 >
-                  识图 · {HERO_VISION_MODEL}
+                  识图 · {heroVisionLabel(aiStack)}
                   {imageVisionAvailable === false ? " · 未配置" : ""}
                 </span>
               </div>

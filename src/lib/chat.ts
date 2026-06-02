@@ -1,4 +1,5 @@
 import { apiGet } from "@/lib/api";
+import type { AiStack } from "@/lib/hero-ai";
 
 export type ChatModelOption = {
   id: string;
@@ -11,6 +12,7 @@ export type ChatModelsResponse = {
   models: ChatModelOption[];
   defaultProvider: string | null;
   imageVision?: boolean;
+  aiStack?: AiStack;
 };
 
 export type ChatMode = "chat" | "agent";

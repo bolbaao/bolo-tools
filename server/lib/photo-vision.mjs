@@ -1,9 +1,8 @@
 import { IMAGE_VISION_UNAVAILABLE, sanitizeVisionApiError } from "../../shared/public-error.mjs";
-import { resolveArkConfig } from "./chat-config.mjs";
+import { getVisionProviderLabel, resolveArkVisionConfig } from "./chat-config.mjs";
 import { env } from "./env.mjs";
 
-const ARK_VISION_MODEL_DEFAULT = "doubao-1-5-vision-pro-32k-250115";
-const VISION_PROVIDER_LABEL = "火山方舟";
+const VISION_PROVIDER_LABEL = getVisionProviderLabel();
 
 /** 对外展示的识图错误（内部 snapshot 仍保留原始 error） */
 function visionErrorForUser(raw) {
@@ -16,12 +15,12 @@ const DESCRIBE_BASE =
 
 /** @returns {{ apiKey: string; baseURL: string; model: string } | null} */
 function resolveVisionConfig() {
-  const ark = resolveArkConfig();
-  if (!ark) return null;
+  const cfg = resolveArkVisionConfig();
+  if (!cfg) return null;
   return {
-    apiKey: ark.apiKey,
-    baseURL: ark.baseURL,
-    model: env("ARK_VISION_MODEL") || ARK_VISION_MODEL_DEFAULT,
+    apiKey: cfg.apiKey,
+    baseURL: cfg.baseURL,
+    model: cfg.model,
   };
 }
 

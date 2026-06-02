@@ -25,7 +25,7 @@ export function sanitizeVisionApiError(raw) {
 }
 
 const DEV_HINT =
-  /(?:\.env(?:\.example)?|start\.sh|环境变量|API[_\s]?Key|ARK_API_KEY|DEEPSEEK_API_KEY|TAVILY_API_KEY|SERPER_API_KEY|CONVERTAPI|HTTPS?_PROXY|NODE_ENV|pip install|faster-whisper|LIBREOFFICE|未配置|请运行:|cookies\/|YTDLP|yt-dlp)/i;
+  /(?:\.env(?:\.example)?|start\.sh|环境变量|API[_\s]?Key|ARK_VISION_API_KEY|ARK_API_KEY|DEEPSEEK_API_KEY|TAVILY_API_KEY|SERPER_API_KEY|CONVERTAPI|HTTPS?_PROXY|NODE_ENV|pip install|faster-whisper|LIBREOFFICE|未配置|请运行:|cookies\/|YTDLP|yt-dlp)/i;
 
 const AI_HINT =
   /(?:AI|对话|模型|DeepSeek|火山|方舟|OpenAI|chat|转写|生图|修图|写作|工作流)/i;

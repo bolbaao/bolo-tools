@@ -1,5 +1,6 @@
 import "./lib/env.mjs";
 import { env } from "./lib/env.mjs";
+import { describeAiStack } from "./lib/chat-config.mjs";
 import { ensureAdminUser } from "./lib/user-auth.mjs";
 import express from "express";
 import fs from "fs";
@@ -179,10 +180,17 @@ try {
 }
 
 app.listen(PORT, HOST, () => {
+  const stack = describeAiStack();
   if (API_ONLY || !hasOut) {
     console.log(`🍍 API 开发服务: http://${HOST}:${PORT}/api/health`);
   } else {
     console.log(`春雨集 已启动: http://${HOST}:${PORT}`);
     console.log(`   API: http://${HOST}:${PORT}/api/health`);
   }
+  console.log(
+    `   AI 对话: ${stack.chat.configured ? stack.chat.label : "未配置"} (${stack.chat.envKey ?? "—"})`,
+  );
+  console.log(
+    `   AI 识图: ${stack.vision.configured ? stack.vision.label : "未配置"} (${stack.vision.envKey ?? "—"})`,
+  );
 });
