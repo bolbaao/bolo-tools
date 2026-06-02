@@ -25,7 +25,7 @@ export const DOC_CONVERT_MODES: DocConvertModeMeta[] = [
   {
     id: "word-to-pdf",
     label: "Word 转 PDF",
-    hint: "上传 .doc / .docx，自动转换",
+    hint: "上传 Word 文件，自动转成 PDF",
     accept: ".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     multiple: false,
     needsOffice: true,
@@ -33,7 +33,7 @@ export const DOC_CONVERT_MODES: DocConvertModeMeta[] = [
   {
     id: "pdf-to-images",
     label: "PDF 转图片",
-    hint: "每一页导出为 PNG，打包为 ZIP 下载",
+    hint: "每一页变成图片，打包下载",
     accept: ".pdf,application/pdf",
     multiple: false,
     needsOffice: false,
@@ -41,7 +41,7 @@ export const DOC_CONVERT_MODES: DocConvertModeMeta[] = [
   {
     id: "images-to-pdf",
     label: "图片转 PDF",
-    hint: "支持多张 PNG / JPG，按顺序合并为一个 PDF",
+    hint: "多张图片按顺序合成一份 PDF",
     accept: ".png,.jpg,.jpeg,image/png,image/jpeg",
     multiple: true,
     needsOffice: false,

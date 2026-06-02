@@ -24,7 +24,7 @@ type TranscribeStatus = {
 const TABS: { id: Tab; label: string; hint: string }[] = [
   { id: "transcribe", label: "语音转文字", hint: "音视频转字幕" },
   { id: "extract", label: "提取内嵌", hint: "从视频取字幕轨" },
-  { id: "edit", label: "编辑导出", hint: "平移 / 转 VTT" },
+  { id: "edit", label: "编辑导出", hint: "调整时间 / 导出字幕" },
 ];
 
 export default function SubtitleWorkshopForm() {
@@ -358,8 +358,8 @@ export default function SubtitleWorkshopForm() {
 
       <p className="text-center text-xs text-white/25 leading-relaxed">
         {tab === "transcribe"
-          ? "本地转写无需 API Key；云端转写需在服务器配置 ARK_API_KEY。支持 SRT、VTT、纯文本"
-          : "提取内嵌字幕需视频本身带有字幕轨"}
+          ? "本地转写开箱即用；云端转写需站点已开通。可导出字幕文件或纯文本"
+          : "仅当视频本身带有字幕轨时，才能提取内嵌字幕"}
       </p>
     </div>
   );

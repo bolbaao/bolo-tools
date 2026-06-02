@@ -120,8 +120,8 @@ export default function MediaDownloadPanel() {
     <div className="space-y-6">
       <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 px-5 py-4">
         <p className="text-sm text-white/65 leading-relaxed">
-          输入片名后，将<strong className="text-white/85 font-medium">智能检索</strong>
-          网盘资源，聚合百度网盘、迅雷、夸克、阿里云盘等下载链接，支持一键复制。
+          输入片名后，从百度网盘、迅雷、夸克、阿里云盘等多个来源帮你找下载链接，找到即可
+          <strong className="text-white/85 font-medium">一键复制</strong>。
         </p>
         <p className="mt-2 text-xs text-white/35">
           提示：不要带「第几部」「第几期」等无关词；搜不到时可换关键词或刷新重试。

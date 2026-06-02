@@ -66,12 +66,20 @@ export default function Header() {
             {!loading && user ? (
               <div className="hidden sm:flex items-center gap-2">
                 {user.isAdmin && (
-                  <Link
-                    href="/tools/admin"
-                    className="text-xs text-amber-400/70 hover:text-amber-300/90 transition-colors px-2"
-                  >
-                    用户管理
-                  </Link>
+                  <>
+                    <Link
+                      href="/tools/developer"
+                      className="text-xs text-sky-400/70 hover:text-sky-300/90 transition-colors px-2"
+                    >
+                      开发者手册
+                    </Link>
+                    <Link
+                      href="/tools/admin"
+                      className="text-xs text-amber-400/70 hover:text-amber-300/90 transition-colors px-2"
+                    >
+                      用户管理
+                    </Link>
+                  </>
                 )}
                 <span className="text-xs text-white/35 max-w-[80px] truncate" title={user.username}>
                   {user.username}
@@ -133,13 +141,22 @@ export default function Header() {
             {!loading && user ? (
               <>
                 {user.isAdmin && (
-                  <Link
-                    href="/tools/admin"
-                    className="block rounded-xl px-4 py-3 text-sm text-amber-300/80 hover:bg-white/[0.05] hover:text-amber-200"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    用户管理
-                  </Link>
+                  <>
+                    <Link
+                      href="/tools/developer"
+                      className="block rounded-xl px-4 py-3 text-sm text-sky-300/80 hover:bg-white/[0.05] hover:text-sky-200"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      开发者手册
+                    </Link>
+                    <Link
+                      href="/tools/admin"
+                      className="block rounded-xl px-4 py-3 text-sm text-amber-300/80 hover:bg-white/[0.05] hover:text-amber-200"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      用户管理
+                    </Link>
+                  </>
                 )}
                 <span className="block rounded-xl px-4 py-3 text-sm text-white/45">
                   {user.username}

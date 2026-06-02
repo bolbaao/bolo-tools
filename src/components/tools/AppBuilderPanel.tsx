@@ -141,9 +141,10 @@ export default function AppBuilderPanel() {
     <div className="space-y-6">
       <div className="rounded-2xl border border-cyan-500/15 bg-cyan-500/5 px-5 py-4 space-y-2">
         <p className="text-sm text-white/65 leading-relaxed">
-          用自然语言或<strong className="font-normal text-cyan-200/90">内置需求模板</strong>
-          描述功能，AI 生成可独立运行的单页 Web 应用。做<strong className="font-normal text-cyan-200/90">快捷指令</strong>
-          请选「快捷指令配套」类型——生成的是可被快捷指令 URL 调用的网页，不是 .shortcut 文件。
+          用平常话或<strong className="font-normal text-cyan-200/90">内置模板</strong>
+          描述你想做的小工具或页面，AI 会生成可直接使用的单页应用。若要配合 iPhone
+          <strong className="font-normal text-cyan-200/90">快捷指令</strong>
+          ，请选「快捷指令配套」——生成的是网页，不是快捷指令安装文件。
         </p>
       </div>
 

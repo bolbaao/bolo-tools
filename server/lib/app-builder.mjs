@@ -11,7 +11,7 @@ export const APP_TYPES = {
   },
   shortcuts: {
     label: "快捷指令配套",
-    hint: "可被 iOS/macOS 快捷指令通过 URL 调用的 Web 页（非 .shortcut 文件）",
+    hint: "生成可供 iPhone 快捷指令打开和调用的网页小工具",
   },
   landing: {
     label: "产品落地页",
@@ -22,8 +22,8 @@ export const APP_TYPES = {
     hint: "图表、统计面板、管理后台风格",
   },
   api: {
-    label: "API / Webhook 模拟",
-    hint: "供快捷指令或脚本 GET/POST 调用的参数化接口页",
+    label: "接口模拟页",
+    hint: "生成可供快捷指令测试的模拟接口页面",
   },
   form: {
     label: "表单问卷",
@@ -101,13 +101,14 @@ const TYPE_PROMPTS = {
 - 触控/键盘均可，有胜负或完成反馈`,
 };
 
-/** @type {{ id: string, appType: string, appName: string, title: string, description: string }[]} */
+/** @type {{ id: string, appType: string, appName: string, title: string, userSummary: string, description: string }[]} */
 export const APP_PRESETS = [
   {
     id: "shortcuts-text-toolkit",
     appType: "shortcuts",
     appName: "文本工具箱·快捷指令版",
     title: "快捷指令 · 文本工具",
+    userSummary: "在 iPhone 快捷指令里用的文本编解码、统计等小工具页",
     description: `做一个供 iOS 快捷指令调用的文本工具 Web 页。
 
 功能（UI + URL API 双模式）：
@@ -126,6 +127,7 @@ URL 示例：?action=base64_encode&text=hello&format=json 返回 {"ok":true,"res
     appType: "shortcuts",
     appName: "剪贴板桥接页",
     title: "快捷指令 · 剪贴板桥接",
+    userSummary: "帮快捷指令暂存、读取剪贴板内容的桥接页面",
     description: `快捷指令配套页：在「获取 URL 内容」与手动操作间桥接。
 
 功能：
@@ -141,7 +143,8 @@ URL 示例：?action=base64_encode&text=hello&format=json 返回 {"ok":true,"res
     id: "shortcuts-webhook-mock",
     appType: "api",
     appName: "Webhook 模拟器",
-    title: "API · Webhook 模拟",
+    title: "接口 · 模拟测试",
+    userSummary: "模拟常见接口返回，方便在快捷指令里调试流程",
     description: `模拟 Webhook/API 供快捷指令测试。
 
 端点（query 模拟）：
@@ -158,6 +161,7 @@ URL 示例：?action=base64_encode&text=hello&format=json 返回 {"ok":true,"res
     appType: "tool",
     appName: "番茄待办",
     title: "番茄钟 + 待办",
+    userSummary: "25 分钟专注计时，搭配待办清单，记录今天完成了几次",
     description: `番茄钟 + 待办清单合一，深色主题。
 - 25/5 分钟番茄计时，可暂停重置
 - 待办增删改、完成勾选，localStorage 持久化
@@ -169,6 +173,7 @@ URL 示例：?action=base64_encode&text=hello&format=json 返回 {"ok":true,"res
     appType: "tool",
     appName: "全能单位换算",
     title: "单位换算器",
+    userSummary: "长度、重量、温度等常用单位双向换算，结果可复制",
     description: `单位换算器：长度、重量、温度、面积、数据存储（B/KB/MB/GB）。
 Tab 切换类别，双向实时换算，复制结果，最近换算历史。`,
   },
@@ -176,7 +181,8 @@ Tab 切换类别，双向实时换算，复制结果，最近换算历史。`,
     id: "landing-saas",
     appType: "landing",
     appName: "SaaS 产品页",
-    title: "SaaS 落地页",
+    title: "产品落地页",
+    userSummary: "带介绍、亮点、价格和常见问题的产品宣传页",
     description: `科技感 SaaS 产品发布页：Hero 标题+副标题+CTA、3 个特性卡片、定价三档、FAQ 4 条、页脚。
 渐变深色背景，scroll 动画，移动端响应式。`,
   },
@@ -185,6 +191,7 @@ Tab 切换类别，双向实时换算，复制结果，最近换算历史。`,
     appType: "dashboard",
     appName: "运营看板",
     title: "数据看板",
+    userSummary: "展示关键指标、趋势图和渠道表格的运营数据页（示例数据）",
     description: `小型运营数据看板（mock 数据）：
 - KPI 四宫格：用户、收入、转化、留存
 - 7 日折线图（Canvas/SVG）
@@ -196,6 +203,7 @@ Tab 切换类别，双向实时换算，复制结果，最近换算历史。`,
     appType: "form",
     appName: "活动报名",
     title: "活动报名表",
+    userSummary: "收集姓名、联系方式和场次选择的活动报名页",
     description: `线下活动报名表：姓名、手机、邮箱、场次选择、 dietary 备注。
 前端校验、提交后展示确认页与报名号（随机生成），可「再报一人」。`,
   },
@@ -310,13 +318,13 @@ export function listAppTypes() {
 }
 
 export function listAppPresets() {
-  return APP_PRESETS.map(({ id, appType, appName, title, description }) => ({
+  return APP_PRESETS.map(({ id, appType, appName, title, userSummary, description }) => ({
     id,
     appType,
     appName,
     title,
     description,
-    descriptionPreview: description.split("\n")[0].slice(0, 80),
+    descriptionPreview: userSummary,
   }));
 }
 

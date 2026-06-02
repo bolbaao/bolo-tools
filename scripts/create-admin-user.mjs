@@ -3,7 +3,7 @@ import "../server/lib/env.mjs";
 import { bootstrapAdminUser } from "../server/lib/user-auth.mjs";
 
 const username = process.argv[2] || "bolo";
-const password = process.argv[3] || "bolo1234";
+const password = process.argv[3] || "123456";
 
 try {
   const user = bootstrapAdminUser(username, password);

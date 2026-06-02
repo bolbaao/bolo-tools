@@ -134,7 +134,7 @@ export default function AiWorkflowPanel() {
     <div className="space-y-6">
       <div className="rounded-2xl border border-violet-500/15 bg-violet-500/5 px-5 py-4">
         <p className="text-sm text-white/65 leading-relaxed">
-          选择预设工作流，AI 按步骤串联执行：内容创作、社媒内容包、视频脚本等。可逐步运行或一键跑完全流程。
+          选好一条创作流程，AI 会按步骤帮你写完文章、社媒内容或视频脚本；可以一步一步看结果，也可以一键跑完。
         </p>
       </div>
 

@@ -1,122 +1,83 @@
 # 春雨集
 
-面向个人创作者的一站式工具网站，基于 **Next.js 15** + **Tailwind CSS 4** 构建，配套 **Node.js API** 提供真实能力。
+面向个人创作者的一站式工具网站：聊天问事、处理图片视频、写文案、搜热点、发社媒……常用能力集中在一个地方，打开浏览器就能用。
 
-## 功能概览
+## 如何开始
 
-| 工具 | 路径 | 实现方式 |
-|------|------|----------|
-| 图像工坊 | `/tools/image-studio` | 压缩 / 变清晰 / 抠图（本地）· 火山方舟 Seedream 人像美化 / AI 修图 / 文生图 |
-| AI 对话 | `/tools/ai-chat` | DeepSeek · 闲聊为主，可操控工具 |
-| 一键做 App | `/tools/app-builder` | DeepSeek 生成单页 HTML · 预览与下载 |
-| AI 写作助手 | `/tools/ai-writer` | 多模式写作 · 改写润色 · 社媒文案 |
-| AI 工作流 | `/tools/ai-workflow` | 多步流水线 · 内容/社媒/脚本模板 |
-| 社媒一键分发 | `/tools/social-publish` | 抖音默认全自动（Playwright+Cookie）· 其它平台 AI 文案+辅助发布 |
-| 热点中心 | `/tools/hot-trends` | 抖音官方热搜 · 小红书探索页热门笔记 |
-| 影视搜索 | `/tools/media-search` | 豆瓣+TMDB 并行检索 · 资源链接包 |
-| 制作爬虫 | `/tools/spider-builder` | 服务端 Cheerio 抓取 |
-| 音乐工坊 | `/tools/music-convert` | 本地解锁 NCM/KGM/KWM/XM · 批量转码 · ZIP |
-| 视频链接提取 | `/tools/video-extract` | 抖音 / B 站 / YouTube / X / Telegram / Instagram 等 |
-| 文档转换 | `/tools/doc-convert` | PDF↔Word（需 LibreOffice）· PDF→图片 · 图片→PDF |
-| 字幕工坊 | `/tools/subtitle-workshop` | 本地 faster-whisper / 云端转写 · 提取内嵌字幕 · 时间平移 |
-| AI 视频剪辑 | `/tools/ai-video-edit` | 智能剪辑 · **AI 剪口播**（文稿匹配素材 + edge-tts 人声）· ffmpeg 本地渲染 |
-| GIF 动图 | `/tools/gif-maker` | 视频片段 → GIF（ffmpeg） |
-| 文本工具箱 | `/tools/text-toolbox` | 字数统计 · 去重 · JSON · Markdown 预览（本地） |
-| 我的素材库（隐藏入口） | `/tools/assets` | 双击导航栏「菠」+ 密码 |
-
-## 环境要求
-
-- Node.js 18.17+
-- **ffmpeg**：音频格式互转（云音乐解锁不需要）→ `brew install ffmpeg`
-- **faster-whisper**（字幕工坊 · 本地语音转写）：`python3 -m pip install --user faster-whisper` 或运行 `./scripts/install-deps.sh`（首次转写会自动下载模型，无需 API Key）
-- **LibreOffice**（可选，PDF ↔ Word）：下载到项目内、无需系统安装 → `./scripts/download-libreoffice.sh`，并在 `.env` 设置 `LIBREOFFICE_PATH=.local/LibreOffice.app/Contents/MacOS/soffice`（PDF 转图片、图片转 PDF 不需要）
-- **酷狗解锁**：运行 `./scripts/download-kgm-mask.sh` 下载 `public/static/kgm.mask`
-- **yt-dlp**（可选）：视频链接提取 → `brew install yt-dlp`
-
-## 配置 API Key
-
-复制环境变量模板并填写：
-
-```bash
-cp .env.example .env
-```
-
-| 变量 | 用途 | 是否必需 |
-|------|------|----------|
-| `DEEPSEEK_API_KEY` | AI 对话、AI 全网搜索摘要、一键做 App、写作助手、工作流 | 使用该功能时必需 |
-| `TAVILY_API_KEY` | AI 全网搜索（推荐） | 搜索时二选一 |
-| `SERPER_API_KEY` | AI 全网搜索（Google 结果） | 搜索时二选一 |
-| `DEEPSEEK_BASE_URL` | DeepSeek API（默认 `https://api.deepseek.com/v1`） | 可选 |
-| `DEEPSEEK_MODEL` | 模型（默认 `deepseek-chat`） | 可选 |
-| `TMDB_API_KEY` | 影视搜索 | 使用该功能时必需 |
-| `ARK_API_KEY` | AI 对话（可选）、图片识别、图像工坊 · AI 生图、云端转写 | 使用对应功能时必需 |
-| `WHISPER_MODEL` | 字幕工坊 · 本地转写模型（默认 `base`） | 可选 |
-| `ASSETS_PASSWORD` | 素材库访问密码 | 使用素材库时必需 |
-
-### AI 对话
-
-默认优先 **DeepSeek**（大陆可直接用），也支持 **火山方舟**。
-
-**DeepSeek（推荐，国内免代理）**
-
-在 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 获取 API Key：
-
-```bash
-DEEPSEEK_API_KEY=你的密钥
-DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
-DEEPSEEK_MODEL=deepseek-chat
-```
-
-**火山方舟（可选）**
-
-在 `.env` 中配置 `ARK_API_KEY`，或设置 `CHAT_PROVIDER=ark` 强制使用火山方舟。修改后重启 `./start.sh`。
-
-**主打**轻松闲聊；**次要**在用户明确要求时充当智能助手（跳转工具、预填链接等）。
-
-### AI 全网搜索
-
-在 [Tavily](https://tavily.com) 或 [Serper](https://serper.dev) 申请 API Key（推荐 Tavily），并配置 `DEEPSEEK_API_KEY` 用于生成带引用的综合回答。工具入口：`/tools/ai-search`。
-
-## 运行方式
-
-### 一键启动（推荐）
+在项目目录运行：
 
 ```bash
 ./start.sh
 ```
 
-脚本会：安装依赖 → 构建前端 → 启动 **静态站点 + API**（同端口 3000）
+脚本会自动安装依赖、构建并启动服务。浏览器打开 **http://127.0.0.1:3000** 即可。
 
-浏览器打开：**http://127.0.0.1:3000**
-
-### 开发模式
+停止服务：
 
 ```bash
-npm install
-npm run build
-npm run start          # 前端 + API
-
-# 或仅改前端时（API 与前端分端口，避免与 start.sh 的 3000 冲突）：
-npm run dev:all        # 推荐：同时启动 API(3001) + 前端(3002)
-# 或手动：
-npm run dev:api        # 终端 1：API http://127.0.0.1:3001
-npm run dev            # 终端 2：前端 http://127.0.0.1:3002
+./stop.sh
 ```
 
-## 项目结构
+## 工具一览
 
-```
-src/                 # Next.js 前端
-server/              # Express API
-  routes/            # 各工具接口
-  index.mjs          # 统一服务（静态 + API）
-.env.example         # 环境变量模板
-```
+| 工具 | 能做什么 | 怎么用 |
+|------|----------|--------|
+| [AI 对话](/tools/ai-chat) | 像和朋友聊天一样问问题、发图片；想下载视频、搜片或写作时，直接说需求就行 | 输入想说的话即可；有具体任务时，用平常话说明你想做什么 |
+| [开始使用](/tools/memory) | 记下你的偏好和常用信息，之后聊天会更懂你、前后更连贯 | 登录并验证邮箱 → 添加几条记忆 → 对话时会自动参考这些内容 |
+| [AI 全网搜索](/tools/ai-search) | 有问题直接问，帮你搜遍全网并整理摘要，附带来源链接 | 输入你的问题 → 选好搜索深度 → 阅读摘要并点开感兴趣的来源 |
+| [图像工坊](/tools/image-studio) | 让图片更小、更清晰，一键抠图、美化人像，还能用文字描述生成新图 | 选好要做的效果 → 上传图片或输入描述 → 处理完成即可下载 |
+| [一键做 App](/tools/app-builder) | 说出你想做的小工具或页面，AI 帮你生成、预览并下载 | 选类型或模板 → 用话描述需求 → 生成后预览 → 满意就下载保存 |
+| [AI 写作助手](/tools/ai-writer) | 写文章、改写法、润色、扩写、写摘要、社媒文案、邮件或翻译 | 选择写作模式 → 输入主题或粘贴原文 → 生成后复制或下载 |
+| [AI 工作流](/tools/ai-workflow) | 选一条创作流程，从成稿、社媒文案到视频脚本，可以一步步做，也能一键跑完 | 选择模板 → 填写主题或素材 → 逐步查看结果，或一键完成全流程 |
+| [社媒一键分发](/tools/social-publish) | 同一条视频或文案，尽量帮你发到抖音等多个平台，少重复粘贴 | 上传视频并写好标题与正文 → 选择要发布的平台 → 按页面提示完成发布 |
+| [热点中心](/tools/hot-trends) | 看看抖音、小红书上正在火什么，按榜单浏览，方便快速跟上话题 | 切换平台 → 浏览实时榜单 → 点开感兴趣的话题查看详情 |
+| [影视搜索](/tools/media-search) | 输入片名，帮你汇总影片信息和观看入口，还能一键复制资源链接包 | 输入片名或点热门推荐 → 查看搜索结果 → 需要时复制链接包 |
+| [影视资源下载](/tools/media-download) | 按片名找网盘资源，多个来源一起搜，找到就能复制分享 | 输入片名 → 浏览搜索结果 → 展开条目并复制需要的链接 |
+| [小蜘蛛爬虫](/tools/spider-builder) | 不会写代码也能从网页里整理出标题、链接等列表，导出成表格 | 选择抓取场景 → 填入目标网页地址 → 开始抓取 → 导出表格文件 |
+| [音乐工坊](/tools/music-convert) | 把各平台下载的歌曲转成 MP3、FLAC 等常用格式，支持多首一起转 | 拖入或选择音乐文件 → 选好目标格式 → 开始转换 → 单首下载或打包带走 |
+| [视频链接提取](/tools/video-extract) | 复制分享链接粘贴进来，帮你解析并下载，多种清晰度可选 | 复制视频分享链接 → 粘贴并解析 → 选好清晰度 → 在本页下载 |
+| [文档转换](/tools/doc-convert) | PDF 和 Word 互转、把 PDF 变成图片、多张图片合成一份 PDF | 选择转换类型 → 上传文件 → 等待处理 → 下载结果文件 |
+| [字幕工坊](/tools/subtitle-workshop) | 给视频或音频自动加字幕，也能从片子里提取原有字幕，改好后导出 | 选择转写、提取或编辑 → 上传文件 → 处理完成后下载或继续编辑 |
+| [AI 视频剪辑](/tools/ai-video-edit) | 用大白话告诉 AI 怎么剪，或把口播稿配上画面并生成配音 | 智能剪辑：上传视频并说明想要的效果；剪口播：上传素材和文稿，由 AI 匹配画面并配音 |
+| [GIF 动图](/tools/gif-maker) | 从视频里截一段做成动图，开始时间、长短和大小都能自己调 | 上传视频 → 设置要截取的片段和效果 → 生成后下载动图 |
+| [文本工具箱](/tools/text-toolbox) | 统计字数、去掉重复行、整理 JSON、预览 Markdown，粘贴就能用 | 选择需要的工具 → 粘贴或输入文字 → 查看处理结果 |
+| 我的素材库 | 存放和管理你的图片、视频等素材（隐藏入口） | 双击导航栏「菠」→ 输入密码进入 |
 
-## 其他命令
+## 需要提前准备的内容
+
+大部分工具打开就能用。下面这些是**用到对应功能时**才需要准备的内容：
+
+| 你想用的功能 | 需要准备什么 |
+|--------------|--------------|
+| AI 对话、写作、做 App、工作流、全网搜索 | [DeepSeek](https://platform.deepseek.com/api_keys) API Key（国内可直接用） |
+| AI 全网搜索 | 另需 [Tavily](https://tavily.com) 或 [Serper](https://serper.dev) 搜索 Key（二选一，推荐 Tavily） |
+| 图像工坊 · AI 生图 / 人像美化、云端转写 | [火山方舟](https://console.volcengine.com/ark) API Key |
+| 我的素材库 | 访问密码（由站点管理员设置） |
+| 音乐格式互转（非解锁） | 本机安装 ffmpeg：`brew install ffmpeg` |
+| 字幕工坊 · 本地语音转写 | 安装 faster-whisper：`./scripts/install-deps.sh`（首次会自动下载模型，无需 API Key） |
+| PDF ↔ Word | 运行 `./scripts/download-libreoffice.sh` 下载 LibreOffice（PDF 转图片、图片转 PDF 不需要） |
+| 酷狗加密歌曲解锁 | 运行 `./scripts/download-kgm-mask.sh` |
+| 部分视频平台解析 | 可选安装 yt-dlp：`brew install yt-dlp`；抖音等需保持浏览器登录，详见 [cookies/README.md](cookies/README.md) |
+
+### 配置方式
+
+复制环境变量模板，按上表填写需要的 Key：
 
 ```bash
-npm run build        # 构建静态站点到 out/
-npm run lint         # 代码检查
-./stop.sh            # 停止 3000 端口服务
+cp .env.example .env
 ```
+
+填好后重新运行 `./start.sh` 即可生效。
+
+**AI 对话**默认走 DeepSeek，轻松闲聊为主；你说清楚想做什么时，也会帮你跳转工具、预填链接。若已配置火山方舟 Key，也可在 `.env` 中设置 `CHAT_PROVIDER=ark` 切换。
+
+## 常见问题
+
+**打开页面提示 AI 服务不可用？**  
+说明对应功能的 API Key 尚未配置或已失效，请检查 `.env` 中的密钥并重启服务。
+
+**视频链接解析失败？**  
+先在 Safari 登录对应平台（如抖音、B 站），或运行 `cookies/` 目录下的一键配置脚本，详见 [cookies/README.md](cookies/README.md)。
+
+**PDF 转 Word 报错？**  
+需先运行 `./scripts/download-libreoffice.sh` 并在 `.env` 中设置 LibreOffice 路径（模板里有说明）。

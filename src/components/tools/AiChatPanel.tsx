@@ -1,6 +1,6 @@
 "use client";
 
-import { ImageVisionIcon } from "@/components/icons/ToolIcon";
+import ChatAttachButton from "@/components/chat/ChatAttachButton";
 import AgentPermissionPrompt from "@/components/tools/AgentPermissionPrompt";
 import { listMissingPermissionTypes } from "@/lib/agent-permission-catalog";
 import {
@@ -36,6 +36,14 @@ import {
   prepareChatImagesForApi,
 } from "@/lib/chat-image-vision";
 import { filesToChatImages } from "@/lib/image-compress";
+import {
+  formatTextFilesForMessage,
+  isImageChatFile,
+  isReadableChatFile,
+  MAX_TEXT_FILES_PER_SEND,
+  readTextChatFile,
+  type ChatTextFile,
+} from "@/lib/chat-files";
 import { addMemory, extractMemoriesAuto } from "@/lib/memory";
 import {
   createChatSession,
@@ -56,8 +64,8 @@ const welcomeMessages: Record<ChatMode, string> = {
 };
 
 const inputPlaceholders: Record<ChatMode, string> = {
-  chat: "输入文字，或粘贴/上传图片…",
-  agent: "描述任务，例如：下载这个视频、搜一部电影、帮我写文案…",
+  chat: "输入文字，或上传/粘贴图片、PDF、Word、文本文件…",
+  agent: "描述任务，可附带图片、PDF、Word 或文本文件…",
 };
 
 const MAX_IMAGES_PER_SEND = 4;
@@ -69,6 +77,7 @@ type ChatMessage = {
   /** 仅发给 API 的内部系统消息，不在对话区展示 */
   hidden?: boolean;
   images?: ClientPhotoItem[];
+  files?: ChatTextFile[];
   plan?: string[];
   actionResults?: ActionResult[];
   permissionRequests?: AgentPermissionRequest[];
@@ -79,6 +88,9 @@ type AiChatPanelProps = {
   variant?: "default" | "hero" | "dock";
   chatMode?: ChatMode;
   onChatModeChange?: (mode: ChatMode) => void;
+  /** 主页折叠栏等传入的待处理文件，挂载后自动加入附件区 */
+  incomingFiles?: File[] | null;
+  onIncomingFilesConsumed?: () => void;
 };
 
 function filterPendingPermissionRequests(
@@ -108,6 +120,8 @@ export default function AiChatPanel({
   variant = "default",
   chatMode: chatModeProp,
   onChatModeChange,
+  incomingFiles,
+  onIncomingFilesConsumed,
 }: AiChatPanelProps) {
   const isHero = variant === "hero";
   const isDock = variant === "dock";
@@ -127,15 +141,77 @@ export default function AiChatPanel({
   const [error, setError] = useState<string | null>(null);
   const [clientPermissions, setClientPermissions] = useState<ClientPermissions>({});
   const [pendingImages, setPendingImages] = useState<ClientPhotoItem[]>([]);
+  const [pendingTextFiles, setPendingTextFiles] = useState<ChatTextFile[]>([]);
   const [sessionChatImages, setSessionChatImages] = useState<ClientPhotoItem[]>([]);
   const [imageBusy, setImageBusy] = useState(false);
+  const [fileBusy, setFileBusy] = useState(false);
   const [memoryBusy, setMemoryBusy] = useState<number | null>(null);
   const [memorySaved, setMemorySaved] = useState<number | null>(null);
   const [chatModels, setChatModels] = useState<ChatModelOption[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [internalChatMode, setInternalChatMode] = useState<ChatMode>(() => readStoredChatMode());
   const chatMode = chatModeProp ?? internalChatMode;
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const addChatFiles = useCallback(async (files: File[]) => {
+    if (!files.length) return;
+    setError(null);
+
+    const imageFiles = files.filter(isImageChatFile);
+    const textFiles = files.filter(isReadableChatFile);
+    const skipped = files.filter((f) => !isImageChatFile(f) && !isReadableChatFile(f));
+
+    if (skipped.length) {
+      setError(`已忽略不支持的文件：${skipped.map((f) => f.name).join("、")}`);
+    }
+
+    if (imageFiles.length) {
+      setImageBusy(true);
+      try {
+        const remain = MAX_IMAGES_PER_SEND - pendingImages.length;
+        if (remain <= 0) {
+          setError(`最多附加 ${MAX_IMAGES_PER_SEND} 张图片`);
+        } else {
+          const added = await filesToChatImages(imageFiles, remain);
+          if (!added.length && imageFiles.length) {
+            setError("请选择图片文件（JPG、PNG 等）");
+          } else {
+            setPendingImages((prev) => [...prev, ...added].slice(0, MAX_IMAGES_PER_SEND));
+          }
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "图片处理失败");
+      } finally {
+        setImageBusy(false);
+      }
+    }
+
+    if (textFiles.length) {
+      const remainText = MAX_TEXT_FILES_PER_SEND - pendingTextFiles.length;
+      if (remainText <= 0) {
+        setError((prev) =>
+          prev ? `${prev}；附件最多 ${MAX_TEXT_FILES_PER_SEND} 个` : `附件最多 ${MAX_TEXT_FILES_PER_SEND} 个`,
+        );
+        return;
+      }
+      setFileBusy(true);
+      try {
+        const added: ChatTextFile[] = [];
+        for (const file of textFiles.slice(0, remainText)) {
+          added.push(await readTextChatFile(file));
+        }
+        setPendingTextFiles((prev) => [...prev, ...added].slice(0, MAX_TEXT_FILES_PER_SEND));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "文件读取失败");
+      } finally {
+        setFileBusy(false);
+      }
+    }
+  }, [pendingImages.length, pendingTextFiles.length]);
+
+  useEffect(() => {
+    if (!incomingFiles?.length) return;
+    void addChatFiles(incomingFiles).finally(() => onIncomingFilesConsumed?.());
+  }, [incomingFiles, addChatFiles, onIncomingFilesConsumed]);
 
   useEffect(() => {
     fetchChatModels()
@@ -276,6 +352,10 @@ export default function AiChatPanel({
       .slice(-12)
       .map((m) => {
         let content = m.text.trim();
+        if (m.role === "user" && m.files?.length) {
+          const block = formatTextFilesForMessage(m.files);
+          content = content ? `${content}\n\n${block}` : block;
+        }
         if (m.role === "user" && m.images?.length) {
           const tag = `[用户发送了 ${m.images.length} 张图片]`;
           content = content ? `${content}\n${tag}` : tag;
@@ -287,30 +367,6 @@ export default function AiChatPanel({
       })
       .filter((m) => m.content.length > 0);
   }, []);
-
-  const addImageFiles = useCallback(async (files: FileList | File[]) => {
-    const list = [...files];
-    if (!list.length) return;
-    setImageBusy(true);
-    setError(null);
-    try {
-      const remain = MAX_IMAGES_PER_SEND - pendingImages.length;
-      if (remain <= 0) {
-        setError(`最多附加 ${MAX_IMAGES_PER_SEND} 张图片`);
-        return;
-      }
-      const added = await filesToChatImages(list, remain);
-      if (!added.length) {
-        setError("请选择图片文件（JPG、PNG 等）");
-        return;
-      }
-      setPendingImages((prev) => [...prev, ...added].slice(0, MAX_IMAGES_PER_SEND));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "图片处理失败");
-    } finally {
-      setImageBusy(false);
-    }
-  }, [pendingImages.length]);
 
   const appendAiFromResponse = useCallback(
     async (
@@ -406,9 +462,12 @@ export default function AiChatPanel({
 
   const send = async () => {
     const text = input.trim();
-    if ((!text && !pendingImages.length) || loading || permissionBusy || imageBusy) return;
+    const hasImages = pendingImages.length > 0;
+    const hasFiles = pendingTextFiles.length > 0;
+    if ((!text && !hasImages && !hasFiles) || loading || permissionBusy || imageBusy || fileBusy) return;
 
-    const msgImages = pendingImages.length ? [...pendingImages] : undefined;
+    const msgImages = hasImages ? [...pendingImages] : undefined;
+    const msgFiles = hasFiles ? [...pendingTextFiles] : undefined;
     const mergedSession = msgImages
       ? [...sessionChatImages, ...msgImages].slice(-MAX_SESSION_IMAGES)
       : sessionChatImages;
@@ -417,11 +476,17 @@ export default function AiChatPanel({
       setSessionChatImages(mergedSession);
       setPendingImages([]);
     }
+    if (msgFiles) setPendingTextFiles([]);
+
+    const displayText =
+      text ||
+      (msgFiles ? `已上传 ${msgFiles.map((f) => f.name).join("、")}` : "") ||
+      (msgImages ? `已发送 ${msgImages.length} 张图片` : "");
 
     setInput("");
     const nextMessages: ChatMessage[] = [
       ...messages,
-      { role: "user", text: text || "", images: msgImages },
+      { role: "user", text: displayText, images: msgImages, files: msgFiles },
     ];
     setMessages(nextMessages);
     setLoading(true);
@@ -542,6 +607,7 @@ export default function AiChatPanel({
     setError(null);
     setClientPermissions({});
     setPendingImages([]);
+    setPendingTextFiles([]);
     setSessionChatImages([]);
     setMemorySaved(null);
     setAutoMemoryNotice(null);
@@ -574,6 +640,7 @@ export default function AiChatPanel({
       ]);
       setClientPermissions({});
       setPendingImages([]);
+      setPendingTextFiles([]);
       setSessionChatImages([]);
       setMemorySaved(null);
     } catch (e) {
@@ -607,8 +674,8 @@ export default function AiChatPanel({
     <div className="space-y-4">
       {!isHero && !isDock && (
         <p className="text-sm text-white/45 leading-relaxed">
-          支持文字、图片与语音交流；可上传或粘贴图片让 AI 理解画面，也可授权定位、相册等以便回答与「这边」「当地」相关的问题。
-          Agent 模式会主动帮你打开工具并预填表单。
+          可发文字、图片和常见文档；上传图片能让 AI 看懂画面，授权定位或相册后，也方便回答「这边」「当地」一类问题。
+          开启 Agent 模式后，还会帮你打开对应工具并填好内容。
           {user?.emailVerified ? (
             <>
               {" "}
@@ -800,6 +867,20 @@ export default function AiChatPanel({
                     ))}
                   </div>
                 )}
+                {msg.files && msg.files.length > 0 && (
+                  <div className="max-w-[85%] flex flex-wrap gap-1.5 justify-end">
+                    {msg.files.map((f, j) => (
+                      <span
+                        key={`${f.name}-${j}`}
+                        className="inline-flex max-w-full items-center gap-1 rounded-lg border border-white/12 bg-white/8 px-2.5 py-1 text-[11px] text-white/70"
+                        title={f.name}
+                      >
+                        <span aria-hidden>📎</span>
+                        <span className="truncate">{f.name}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {(msg.text || msg.role === "ai") && (
                   <div
                     className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
@@ -860,18 +941,18 @@ export default function AiChatPanel({
           onPaste={(e) => {
             const files = [...e.clipboardData.items]
               .map((item) => (item.kind === "file" ? item.getAsFile() : null))
-              .filter((f): f is File => f !== null && f.type.startsWith("image/"));
+              .filter((f): f is File => f !== null);
             if (files.length) {
               e.preventDefault();
-              void addImageFiles(files);
+              void addChatFiles(files);
             }
           }}
         >
-          {pendingImages.length > 0 && (
+          {(pendingImages.length > 0 || pendingTextFiles.length > 0) && (
             <div className="flex flex-wrap gap-2 items-center">
               {pendingImages.map((img, j) => (
                 <div
-                  key={`${img.name}-${j}`}
+                  key={`img-${img.name}-${j}`}
                   className="relative h-14 w-14 overflow-hidden rounded-lg border border-violet-500/30"
                 >
                   {img.previewDataUrl && (
@@ -894,46 +975,56 @@ export default function AiChatPanel({
                   </button>
                 </div>
               ))}
-              <span className="text-[10px] text-white/35">最多 {MAX_IMAGES_PER_SEND} 张</span>
+              {pendingTextFiles.map((f, j) => (
+                <div
+                  key={`file-${f.name}-${j}`}
+                  className="relative flex max-w-[200px] items-center gap-1.5 rounded-lg border border-white/12 bg-white/5 px-2.5 py-2 pr-7"
+                >
+                  <span className="text-sm" aria-hidden>
+                    📎
+                  </span>
+                  <span className="min-w-0 truncate text-[11px] text-white/75">{f.name}</span>
+                  <button
+                    type="button"
+                    aria-label="移除文件"
+                    onClick={() =>
+                      setPendingTextFiles((prev) => prev.filter((_, idx) => idx !== j))
+                    }
+                    className="absolute top-0 right-0 bg-black/70 text-white text-[10px] leading-none px-1 py-0.5 rounded-bl"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <span className="text-[10px] text-white/35 w-full">
+                图片最多 {MAX_IMAGES_PER_SEND} 张 · 文件最多 {MAX_TEXT_FILES_PER_SEND} 个
+              </span>
             </div>
           )}
           <div className="flex gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                const files = e.target.files;
-                if (files?.length) void addImageFiles(files);
-                e.target.value = "";
-              }}
+            <ChatAttachButton
+              onFiles={addChatFiles}
+              disabled={loading || permissionBusy}
+              busy={imageBusy || fileBusy}
             />
-            <button
-              type="button"
-              title="上传或粘贴图片，AI 识别内容"
-              aria-label="上传或粘贴图片，AI 识别内容"
-              disabled={loading || permissionBusy || imageBusy}
-              onClick={() => fileInputRef.current?.click()}
-              className="group/img-btn shrink-0 flex h-[42px] w-[42px] items-center justify-center rounded-xl border border-white/10 bg-white/5 hover:border-violet-500/35 hover:bg-violet-500/8 disabled:opacity-40 transition-colors"
-            >
-              <ImageVisionIcon className="h-[22px] w-[22px] opacity-80 transition-opacity group-hover/img-btn:opacity-100" />
-            </button>
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void send()}
               placeholder={inputPlaceholders[chatMode]}
-              disabled={loading || permissionBusy || imageBusy}
+              disabled={loading || permissionBusy || imageBusy || fileBusy}
               className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-violet-500/50 disabled:opacity-50"
             />
             <button
               type="button"
               onClick={() => void send()}
               disabled={
-                loading || permissionBusy || imageBusy || (!input.trim() && !pendingImages.length)
+                loading ||
+                permissionBusy ||
+                imageBusy ||
+                fileBusy ||
+                (!input.trim() && !pendingImages.length && !pendingTextFiles.length)
               }
               className="rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-[#0a0b14] disabled:opacity-40 hover:bg-white/92 transition-colors"
             >

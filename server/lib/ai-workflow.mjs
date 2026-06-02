@@ -9,7 +9,7 @@ import { env } from "./env.mjs";
 export const WORKFLOW_PRESETS = {
   "content-pipeline": {
     label: "内容创作流水线",
-    description: "选题 → 大纲 → 正文 → 润色，一键产出成稿",
+    description: "从选题到大纲、正文再到润色，帮你写完一整篇文章",
     steps: [
       {
         id: "outline",
@@ -33,7 +33,7 @@ export const WORKFLOW_PRESETS = {
   },
   "social-pack": {
     label: "社媒内容包",
-    description: "主题 → 正文 → 标题备选 → 话题标签",
+    description: "围绕一个主题写好社媒正文，再配标题和话题标签，一次打包",
     steps: [
       {
         id: "body",
@@ -57,7 +57,7 @@ export const WORKFLOW_PRESETS = {
   },
   "script-pipeline": {
     label: "视频脚本流水线",
-    description: "选题 → 分镜大纲 → 完整口播稿",
+    description: "想好视频要讲什么，再出分镜和完整口播稿，拿来就能录",
     steps: [
       {
         id: "hook",

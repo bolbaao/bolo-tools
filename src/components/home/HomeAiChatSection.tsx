@@ -18,7 +18,7 @@ export default function HomeAiChatSection() {
             AI<span className="text-gradient-accent">对话</span>
           </h2>
           <p className="mt-2 text-sm text-white/40 font-light max-w-lg">
-            轻松闲聊为主；需要时也能帮你打开工具、预填表单
+            像聊天一样问问题、发图片；需要下载视频、搜片或写作时，直接说就行
           </p>
         </div>
         <Link

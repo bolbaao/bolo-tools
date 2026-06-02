@@ -136,7 +136,7 @@ export default function AiWriterPanel() {
     <div className="space-y-6">
       <div className="rounded-2xl border border-indigo-500/15 bg-indigo-500/5 px-5 py-4">
         <p className="text-sm text-white/65 leading-relaxed">
-          多模式 AI 写作：写文章、改写、润色、扩写、摘要、社媒文案、邮件与翻译。选好模式，输入素材，一键生成。
+          写文章、改写法、润色、扩写、写摘要、社媒文案、邮件或翻译——选好模式，输入内容，一键生成。
         </p>
       </div>
 

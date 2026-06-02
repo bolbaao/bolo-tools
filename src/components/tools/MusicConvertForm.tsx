@@ -213,7 +213,7 @@ export default function MusicConvertForm() {
               解锁 · 转码 · 一站完成
             </h2>
             <p className="mt-2 text-sm text-white/40 leading-relaxed max-w-md font-light">
-              支持主流平台加密曲目解锁，并转换为 MP3、FLAC 等常用格式。可混选多首批量处理，完成后单首或 ZIP 打包下载。
+              把各平台下载的音乐转成 MP3、FLAC 等常用格式，可一次选很多首，完成后单首下载或打包带走。
             </p>
           </div>
           <div className="flex flex-wrap gap-2 sm:justify-end">

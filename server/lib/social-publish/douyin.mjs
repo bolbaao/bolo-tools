@@ -20,11 +20,10 @@ export function isDouyinAutomationEnabled(opts = {}) {
 export function getDouyinPublishHint() {
   const headed = env("SOCIAL_PUBLISH_HEADED", "1") === "1";
   return [
-    "抖音默认全自动：上传视频 → 填标题/描述/话题 → 点击发布",
+    "抖音默认可全自动：上传视频、填写标题与正文后即可发布",
     headed
-      ? "首次若 Cookie 失效会弹出浏览器，请登录创作者中心后重试"
-      : "无界面模式需有效 cookies/douyin.txt（运行 ./scripts/setup-douyin-cookies.sh）",
-    "依赖：python3 -m pip install --user playwright && playwright install chromium",
+      ? "首次使用若需要登录，会弹出浏览器，按提示登录创作者中心后重试即可"
+      : "无界面模式需先完成账号登录配置，请按站点说明操作",
   ].join("；");
 }
 

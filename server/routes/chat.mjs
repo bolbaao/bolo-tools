@@ -1,5 +1,7 @@
 import { Router } from "express";
+import multer from "multer";
 import OpenAI from "openai";
+import { extractDocumentText } from "../lib/chat-document-extract.mjs";
 import { AGENT_PERMISSION_TYPES } from "../lib/agent-permissions-catalog.mjs";
 import { buildAgentSystemPrompt } from "../lib/agent-catalog.mjs";
 import {
@@ -22,6 +24,10 @@ import { getAuthUserFromRequest } from "../lib/user-auth.mjs";
 import { formatMemoriesForPrompt } from "../lib/user-memory.mjs";
 
 const router = Router();
+const documentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024, files: 1 },
+});
 
 const ALLOWED_ACTIONS = new Set(["navigate", "scroll", "filter_tools", "prefill"]);
 const ALLOWED_PERMISSIONS = new Set(AGENT_PERMISSION_TYPES);
@@ -102,6 +108,17 @@ function sanitizePermissionRequests(requests) {
       reason: String(r.reason ?? "").trim().slice(0, 200) || undefined,
     }));
 }
+
+router.post("/extract-document", documentUpload.single("file"), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file?.buffer?.length) throw new HttpError(400, "请上传 PDF 或 Word 文件");
+    const result = await extractDocumentText(file.buffer, file.originalname);
+    res.json({ ok: true, file: result });
+  } catch (err) {
+    sendError(res, err);
+  }
+});
 
 router.get("/models", (_req, res) => {
   const models = listAvailableChatModels();

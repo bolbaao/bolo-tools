@@ -39,6 +39,11 @@ export type AdminChatSession = AdminChatSessionSummary & {
   messages: AdminChatMessage[];
 };
 
+export async function getAdminDeveloperDocs() {
+  const data = await apiGet<{ ok: boolean; content: string }>("/api/admin/developer-docs", cred);
+  return data.content;
+}
+
 export async function listAdminUsers() {
   const data = await apiGet<{ ok: boolean; users: AdminUserSummary[] }>("/api/admin/users", cred);
   return data.users;

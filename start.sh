@@ -70,6 +70,11 @@ if [ ! -d "node_modules" ]; then
   npm install || exit 1
 fi
 
+# 默认管理员 bolo / 123456（已存在则重置密码并确保管理员权限）
+if node scripts/create-admin-user.mjs bolo 123456 2>/dev/null; then
+  echo "✓ 管理员账号: bolo / 123456"
+fi
+
 # 启动前尝试刷新抖音 Cookie（已配置 cookies/douyin.txt 或 setup 脚本时）
 if [ -f "cookies/douyin.txt" ] && command -v python3 >/dev/null 2>&1; then
   if python3 -c "import browser_cookie3" 2>/dev/null; then

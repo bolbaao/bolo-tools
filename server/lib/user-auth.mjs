@@ -495,10 +495,15 @@ export function bootstrapAdminUser(username, password) {
 
   if (idx >= 0) {
     const existing = users[idx];
-    if (!existing.isAdmin) {
-      users[idx] = { ...existing, isAdmin: true, emailVerified: true };
-      saveUsers(users);
-    }
+    const salt = crypto.randomBytes(16).toString("hex");
+    users[idx] = {
+      ...existing,
+      isAdmin: true,
+      emailVerified: true,
+      salt,
+      passwordHash: hashPassword(String(password), salt),
+    };
+    saveUsers(users);
     return toPublicUser(users[idx]);
   }
 

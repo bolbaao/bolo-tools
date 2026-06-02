@@ -279,7 +279,7 @@ export default function VideoExtractForm() {
         onClick={() => void handleExtract()}
       />
       <p className="text-center text-xs text-white/25 leading-relaxed">
-        基于 yt-dlp / 视频号专用解析 · 视频经本机 API 代理下载 · 请遵守各平台条款与版权规定
+        下载经本机处理，请遵守各平台使用条款与版权规定
       </p>
     </div>
   );

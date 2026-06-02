@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import EmailVerifyBanner from "@/components/EmailVerifyBanner";
+import AdminDeveloperBanner from "@/components/AdminDeveloperBanner";
 import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
@@ -28,6 +29,7 @@ export default function RootLayout({
           <AuthProvider>
             <Header />
             <EmailVerifyBanner />
+            <AdminDeveloperBanner />
             <main className="flex-1">{children}</main>
             <Footer />
           </AuthProvider>

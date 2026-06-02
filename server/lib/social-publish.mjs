@@ -61,8 +61,8 @@ export function getSocialPublishCapabilities() {
     automationHint: douyinAuto
       ? `抖音：${getDouyinPublishHint()}`
       : automation
-        ? "已开启全平台浏览器自动发布（实验）"
-        : "其它平台为辅助发布；抖音全自动默认开启（SOCIAL_PUBLISH_DOUYIN_AUTO=1）",
+        ? "已开启多平台自动发布（实验功能）"
+        : "除抖音外，其它平台以辅助发布为主；抖音全自动默认开启",
   };
 }
 

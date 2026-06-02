@@ -53,6 +53,8 @@ export function markdownToHtml(md: string): string {
     .map((block) => {
       const line = block.trim();
       if (!line) return "";
+      const table = markdownTableToHtml(line);
+      if (table) return table;
       if (line.startsWith("```")) {
         const inner = line.replace(/^```\w*\n?/, "").replace(/\n?```$/, "");
         return `<pre class="md-code"><code>${inner}</code></pre>`;
@@ -76,8 +78,24 @@ export function markdownToHtml(md: string): string {
     .join("");
 }
 
+function markdownTableToHtml(block: string): string | null {
+  const lines = block.split("\n").filter((l) => l.trim());
+  if (lines.length < 2 || !lines.every((l) => l.includes("|"))) return null;
+  const rows = lines
+    .filter((l) => !/^\|[\s\-:|]+\|$/.test(l.trim()))
+    .map((line) => line.split("|").slice(1, -1).map((c) => c.trim()));
+  if (rows.length === 0) return null;
+  const [head, ...body] = rows;
+  const ths = head.map((c) => `<th class="md-th">${inline(c)}</th>`).join("");
+  const trs = body
+    .map((row) => `<tr>${row.map((c) => `<td class="md-td">${inline(c)}</td>`).join("")}</tr>`)
+    .join("");
+  return `<div class="md-table-wrap overflow-x-auto mb-4"><table class="md-table w-full text-xs border-collapse"><thead><tr class="border-b border-white/10">${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+}
+
 function inline(s: string) {
   return s
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
     .replace(/`([^`]+)`/g, "<code class='md-inline'>$1</code>");

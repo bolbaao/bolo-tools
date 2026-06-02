@@ -303,10 +303,10 @@ export default function SocialPublishPanel() {
           })}
         </div>
         <p className="text-xs text-white/40 leading-relaxed">
-          绿点表示本机已检测到 Cookie。{automationHint}
+          绿点表示该平台账号已就绪。{automationHint}
           {automationEnabled && !douyinAutoEnabled && (
             <span className="block mt-1 text-amber-200/80">
-              其它平台实验性自动发布需设置 SOCIAL_PUBLISH_AUTOMATION=1。
+              其它平台的自动发布需在站点设置中开启。
             </span>
           )}
         </p>

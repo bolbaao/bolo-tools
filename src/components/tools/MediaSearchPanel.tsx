@@ -9,7 +9,7 @@ type ResourceLink = {
   id: string;
   label: string;
   url: string;
-  kind: "meta" | "watch" | "search" | "rent" | "buy";
+  kind: "meta" | "search";
 };
 
 type AggregateResult = {
@@ -20,23 +20,21 @@ type AggregateResult = {
   poster: string | null;
   score: string | null;
   overview: string;
-  matchedFrom: string[];
   links: ResourceLink[];
   copyText: string;
-  watchCount: number;
 };
 
 type AggregateResponse = {
   ok: boolean;
   query: string;
   results: AggregateResult[];
-  stats: { doubanHits: number; tmdbHits: number; merged: number };
+  total: number;
 };
 
 export default function MediaSearchPanel() {
   const [keyword, setKeyword] = useState("");
   const [results, setResults] = useState<AggregateResult[]>([]);
-  const [stats, setStats] = useState<AggregateResponse["stats"] | null>(null);
+  const [total, setTotal] = useState<number | null>(null);
   const [hotKeywords, setHotKeywords] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,11 +50,11 @@ export default function MediaSearchPanel() {
       const params = new URLSearchParams({ q: term });
       const data = await apiGet<AggregateResponse>(`/api/media/aggregate-search?${params}`);
       setResults(data.results);
-      setStats(data.stats);
+      setTotal(data.total);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "搜索失败");
       setResults([]);
-      setStats(null);
+      setTotal(null);
     } finally {
       setLoading(false);
     }
@@ -89,20 +87,18 @@ export default function MediaSearchPanel() {
     window.setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  const linkStyle = (kind: ResourceLink["kind"]) => {
-    if (kind === "watch") return "text-emerald-300/90 ring-emerald-500/25 bg-emerald-500/10";
-    if (kind === "meta") return "text-indigo-300/90 ring-indigo-500/25 bg-indigo-500/10";
-    return "text-white/55 ring-white/10 bg-white/5";
-  };
+  const linkStyle = (kind: ResourceLink["kind"]) =>
+    kind === "meta"
+      ? "text-indigo-300/90 ring-indigo-500/25 bg-indigo-500/10"
+      : "text-white/55 ring-white/10 bg-white/5";
 
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-indigo-500/15 bg-indigo-500/5 px-5 py-4">
         <p className="text-sm text-white/65 leading-relaxed">
-          输入片名后，将<strong className="text-white/85 font-medium">智能检索</strong>
-          影视信息，并为每条结果生成
-          <strong className="text-white/85 font-medium">可复制的链接包</strong>
-          （详情页、正版观看指引与各平台搜索入口）。
+          输入片名，帮你汇总影片介绍、观看入口和搜索链接，需要时可
+          <strong className="text-white/85 font-medium">一键复制</strong>
+          整包链接。
         </p>
       </div>
 
@@ -148,8 +144,8 @@ export default function MediaSearchPanel() {
         </p>
       )}
 
-      {stats && !loading && (
-        <p className="text-xs text-white/35 text-center">共找到 {stats.merged} 条相关结果</p>
+      {total !== null && !loading && (
+        <p className="text-xs text-white/35 text-center">共找到 {total} 条相关结果</p>
       )}
 
       {loading && (
@@ -185,16 +181,6 @@ export default function MediaSearchPanel() {
                         {item.score ? ` · ★ ${item.score}` : ""}
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                      {item.matchedFrom.map((s) => (
-                        <span
-                          key={s}
-                          className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-white/45 ring-1 ring-white/8"
-                        >
-                          {s}
-                        </span>
-                      ))}
-                    </div>
                   </div>
                   {item.overview && (
                     <p className="mt-2 text-xs text-white/35 line-clamp-2 leading-relaxed">
@@ -206,14 +192,7 @@ export default function MediaSearchPanel() {
 
               <div className="border-t border-white/8 px-4 pb-4 sm:px-5 sm:pb-5 pt-3 space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium text-white/50">
-                    资源与链接
-                    {item.watchCount > 0 && (
-                      <span className="ml-1 text-emerald-400/80">
-                        · {item.watchCount} 个正版平台
-                      </span>
-                    )}
-                  </span>
+                  <span className="text-xs font-medium text-white/50">资源与链接</span>
                   <button
                     type="button"
                     onClick={() => void copyBundle(item)}

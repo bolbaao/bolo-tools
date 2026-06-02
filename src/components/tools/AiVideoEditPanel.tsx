@@ -391,15 +391,11 @@ export default function AiVideoEditPanel() {
       <div className="rounded-2xl border border-violet-500/15 bg-violet-500/5 px-5 py-4">
         {mode === "edit" ? (
           <p className="text-sm text-white/70 leading-relaxed">
-            用自然语言描述剪辑需求，AI 生成 ffmpeg 方案并本地渲染。支持多视频按顺序拼接。
-            需配置 <span className="text-violet-300">DEEPSEEK_API_KEY</span> 或{" "}
-            <span className="text-violet-300">ARK_API_KEY</span>。
+            用大白话说明想怎么剪，AI 会给出剪辑方案并在本机生成视频，也支持多段视频按顺序拼接。
           </p>
         ) : (
           <p className="text-sm text-white/70 leading-relaxed">
-            上传口播文稿与多条视频素材，AI 自动为每段文案匹配画面，并用 edge-tts 合成人声旁白，输出完整口播视频。
-            需 AI Key + <span className="text-violet-300">edge-tts</span>（
-            <code className="text-xs">pip install edge-tts</code>）。
+            上传口播稿和多段视频，AI 会为每段文案匹配画面并配上旁白，合成完整口播视频。
           </p>
         )}
         {aiConfigured === false && (
