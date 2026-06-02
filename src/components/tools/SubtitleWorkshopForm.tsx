@@ -93,15 +93,11 @@ export default function SubtitleWorkshopForm() {
   const handleTranscribe = async () => {
     if (!file) return;
     if (transcribeStatus && !transcribeStatus.available) {
-      setError(transcribeStatus.hint || "语音转写暂不可用，请先安装依赖并重启服务");
+      setError("语音转写暂不可用，请稍后再试或改用其他方式");
       return;
     }
     if (transcribeStatus && !selectedModeAvailable) {
-      setError(
-        transcribeMode === "api"
-          ? "云端转写未配置。请在服务器 .env 填入 ARK_API_KEY 后重启。"
-          : "本地转写未就绪。请安装 faster-whisper 或改用云端转写。",
-      );
+      setError("语音转写暂不可用，请稍后再试");
       return;
     }
     setLoading(true);

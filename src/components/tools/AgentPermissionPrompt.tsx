@@ -43,9 +43,8 @@ export default function AgentPermissionPrompt({
           >
             <p className="font-medium text-amber-200/90 mb-0.5">需要你的授权：{meta.title}</p>
             <p className="text-white/50 mb-2 leading-relaxed">
-              {req.reason || meta.hint}
+              {req.reason?.trim() || meta.hint}
             </p>
-            <p className="text-white/35 mb-2">{meta.hint}</p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"

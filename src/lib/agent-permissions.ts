@@ -7,15 +7,15 @@ export const PERMISSION_META: Record<
 > = {
   geolocation: {
     title: "获取位置",
-    hint: "用于核实当地天气、位置相关回答（仅本次对话，不存储）",
+    hint: "以便回答你当地的天气、附近等相关问题（仅本次使用，不会保存）",
   },
   "clipboard-read": {
     title: "读取剪贴板",
-    hint: "用于核实你刚复制、但未发到对话框里的链接或文字",
+    hint: "以便读取你刚复制、但还没粘贴到对话框里的链接或文字",
   },
   notifications: {
     title: "桌面通知",
-    hint: "用于核实并开启任务完成时的系统提醒",
+    hint: "以便在任务完成时用系统通知提醒你",
   },
   "photos-picker": {
     title: "访问相册",

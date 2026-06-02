@@ -58,17 +58,16 @@ function extractChoiceText(choice) {
   return { raw, finishReason: choice.finish_reason ?? null };
 }
 
-function formatChatError(err, provider) {
-  const label = getChatProviderLabel(provider);
+function formatChatError(err) {
   const msg = err?.message || String(err);
   if (/InvalidEndpointOrModel|does not exist|model.*not found/i.test(msg)) {
-    return `模型无效。请检查 .env 中的模型名称（当前：${label}）`;
+    return "AI 模型暂时不可用，请稍后再试";
   }
   if (/timeout|timed out|ETIMEDOUT|AbortError|ECONNREFUSED|ENOTFOUND|fetch failed|Connection error/i.test(msg)) {
-    return `无法连接 ${label}。请检查网络与 API Key 后重启 ./start.sh`;
+    return "AI 服务连接超时，请检查网络后稍后再试";
   }
   if (/401|invalid.*key|authentication/i.test(msg)) {
-    return `${label} API Key 无效或已过期`;
+    return "AI 服务暂时不可用，请稍后再试";
   }
   return msg;
 }
@@ -276,7 +275,7 @@ router.post("/", async (req, res) => {
     });
   } catch (err) {
     if (!(err instanceof HttpError)) {
-      sendError(res, new HttpError(502, formatChatError(err, chatConfig?.provider)));
+      sendError(res, new HttpError(502, formatChatError(err)));
       return;
     }
     sendError(res, err);

@@ -1,3 +1,5 @@
+import { toUserFacingErrorMessage } from "@/lib/service-message";
+
 const API_BASE = typeof window !== "undefined" ? "" : "http://127.0.0.1:3000";
 
 /** 浏览器内请求 API / 代理下载的完整 URL */
@@ -22,14 +24,14 @@ export class ApiError extends Error {
 function extractErrorMessage(data: unknown, res: Response): string {
   if (data && typeof data === "object") {
     const o = data as Record<string, unknown>;
-    if (typeof o.error === "string" && o.error) return o.error;
-    if (typeof o.message === "string" && o.message) return o.message;
+    if (typeof o.error === "string" && o.error) return toUserFacingErrorMessage(o.error);
+    if (typeof o.message === "string" && o.message) return toUserFacingErrorMessage(o.message);
   }
   if (res.status === 404) {
     return apiNotFoundMessage();
   }
-  if (res.status >= 500) return `服务异常（${res.status}）`;
-  if (res.statusText) return res.statusText;
+  if (res.status >= 500) return toUserFacingErrorMessage(`服务异常（${res.status}）`);
+  if (res.statusText) return toUserFacingErrorMessage(res.statusText);
   return "请求失败";
 }
 
@@ -53,7 +55,7 @@ async function parseJson<T>(res: Response): Promise<T> {
   }
   const body = data as { ok?: boolean; error?: string };
   if (body.ok === false && body.error) {
-    throw new ApiError(body.error, res.status);
+    throw new ApiError(toUserFacingErrorMessage(body.error), res.status);
   }
   return data as T;
 }
@@ -205,7 +207,7 @@ async function readBinaryUploadResponse(res: Response): Promise<{
     let message = "上传失败";
     try {
       const data = JSON.parse(text) as { error?: string };
-      if (data.error) message = data.error;
+      if (data.error) message = toUserFacingErrorMessage(data.error);
     } catch {
       if (text.includes("<!DOCTYPE") || text.includes("<html")) {
         message = apiNotFoundMessage();
@@ -252,7 +254,7 @@ function sniffDownloadError(bytes: Uint8Array): string | null {
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
     try {
       const j = JSON.parse(new TextDecoder().decode(bytes)) as { error?: string };
-      return j.error || "转换失败（服务返回错误信息）";
+      return toUserFacingErrorMessage(j.error || "转换失败，请稍后再试");
     } catch {
       return "下载到的不是有效文档（疑似错误信息）";
     }

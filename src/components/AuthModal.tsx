@@ -266,7 +266,7 @@ export default function AuthModal({ open, onClose, initialMode = "login" }: Prop
         )}
         {devCode && (
           <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center text-sm font-mono tracking-widest text-amber-200">
-            开发模式验证码：{devCode}
+            验证码（本地环境）：{devCode}
           </p>
         )}
 

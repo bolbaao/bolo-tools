@@ -124,16 +124,7 @@ export default function MediaSearchPanel() {
       </div>
 
       <p className="text-center text-[11px] text-white/25 leading-relaxed">
-        外部链接跳转至第三方页面，请自行甄别内容。布局参考
-        <a
-          href="https://sdocapp.com/s/JCuSjA3k5zzjjvQN9"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-white/35 underline underline-offset-2 ml-1"
-        >
-          群公告导航
-        </a>
-        。
+        外部链接将跳转至第三方页面，请自行甄别内容与安全。
       </p>
     </div>
   );

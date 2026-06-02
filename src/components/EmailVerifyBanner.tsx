@@ -52,7 +52,7 @@ export default function EmailVerifyBanner() {
         {message && <p className="mt-2 text-xs text-emerald-300/90">{message}</p>}
         {devCode && (
           <p className="mt-2 text-xs font-mono tracking-widest text-amber-200">
-            开发模式验证码：{devCode}
+            验证码（本地环境）：{devCode}
           </p>
         )}
         {devVerifyUrl && (
