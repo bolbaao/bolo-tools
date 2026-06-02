@@ -1,10 +1,32 @@
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
-import { saveAgentPrefill } from "@/lib/agent-prefill";
+import { dispatchAgentPrefillEvent, saveAgentPrefill } from "@/lib/agent-prefill";
+import { buildAgentPrefillHref, prefillTargetPath } from "@/lib/agent-prefill-href";
 import type { ActionResult, AgentAction } from "@/lib/agent-types";
 import { openToolkit } from "@/lib/toolkit";
 import { getToolById } from "@/lib/tools";
 
 export const AGENT_UI_EVENT = "pineapple-agent:ui";
+
+/** prefill 先于 navigate，且跳过与 prefill 重复的 navigate */
+function orderAgentActions(actions: AgentAction[]): AgentAction[] {
+  const prefills = actions.filter((a) => a.type === "prefill");
+  const prefillPaths = new Set(
+    prefills.map((a) => prefillTargetPath(String(a.params?.toolId ?? ""))),
+  );
+
+  const rest = actions.filter((a) => {
+    if (a.type === "prefill") return false;
+    if (a.type === "navigate") {
+      const path = String(a.params?.path ?? "").replace(/\/$/, "");
+      for (const target of prefillPaths) {
+        if (path === target.replace(/\/$/, "")) return false;
+      }
+    }
+    return true;
+  });
+
+  return [...prefills, ...rest];
+}
 
 export async function executeAgentActions(
   actions: AgentAction[],
@@ -12,7 +34,7 @@ export async function executeAgentActions(
 ): Promise<ActionResult[]> {
   const results: ActionResult[] = [];
 
-  for (const action of actions) {
+  for (const action of orderAgentActions(actions)) {
     try {
       const r = await runOne(action, router);
       results.push(r);
@@ -73,13 +95,24 @@ async function runOne(action: AgentAction, router: AppRouterInstance): Promise<A
       const fields = (p.fields as Record<string, string>) ?? {};
       if (!toolId) return { type: action.type, ok: false, message: "缺少 toolId" };
       const tool = getToolById(toolId);
-      const targetPath = tool?.href ?? `/tools/${toolId}`;
-      const needsNavigate =
-        typeof window !== "undefined" && !window.location.pathname.startsWith(targetPath);
-      saveAgentPrefill(toolId, fields, { autoSubmit: true, silent: needsNavigate });
-      if (needsNavigate) {
-        router.push(targetPath);
+      const href = buildAgentPrefillHref(toolId, fields);
+      saveAgentPrefill(toolId, fields, { autoSubmit: true, silent: true });
+
+      const onTargetPage =
+        typeof window !== "undefined" &&
+        window.location.pathname.replace(/\/$/, "") ===
+          prefillTargetPath(toolId).replace(/\/$/, "");
+
+      if (typeof window !== "undefined" && !onTargetPage) {
+        // 静态导出站点：整页跳转 + URL 参数，比 router.push 更可靠
+        window.location.assign(href);
+      } else {
+        router.push(href);
+        window.setTimeout(() => {
+          dispatchAgentPrefillEvent({ toolId, fields, autoSubmit: true });
+        }, 80);
       }
+
       return {
         type: action.type,
         ok: true,

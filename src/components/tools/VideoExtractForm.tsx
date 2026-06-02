@@ -82,6 +82,12 @@ function detectClientPlatform(text: string): string | null {
   return null;
 }
 
+function extractUrlFromText(text: string): string {
+  const match = text.match(/https?:\/\/[^\s<>"']+/i);
+  if (!match) return text.trim();
+  return match[0].replace(/[.,;:!?)]+$/u, "");
+}
+
 export default function VideoExtractForm() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -110,10 +116,10 @@ export default function VideoExtractForm() {
 
   useAgentPrefill("video-extract", {
     apply: (fields) => {
-      if (fields.url) setUrl(fields.url);
+      if (fields.url) setUrl(extractUrlFromText(fields.url));
     },
-    canSubmit: (fields) => Boolean(fields.url?.trim()),
-    submit: (fields) => handleExtract(fields.url),
+    canSubmit: (fields) => Boolean(extractUrlFromText(fields.url || "").trim()),
+    submit: (fields) => handleExtract(extractUrlFromText(fields.url || "")),
   });
 
   const handleDownload = async (fmt: VideoFormat, title: string) => {
