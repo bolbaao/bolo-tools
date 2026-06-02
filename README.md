@@ -8,7 +8,6 @@
 |------|------|----------|
 | 图像工坊 | `/tools/image-studio` | 压缩 / 变清晰 / 抠图（本地）· 火山方舟 Seedream 文生图 |
 | AI 对话 | `/tools/ai-chat` | DeepSeek · 闲聊为主，可操控工具 |
-| AI 文字成曲 | `/tools/ai-music` | Suno 兼容 API · 灵感/歌词模式 · 在线试听下载 |
 | 一键做 App | `/tools/app-builder` | DeepSeek 生成单页 HTML · 预览与下载 |
 | AI 写作助手 | `/tools/ai-writer` | 多模式写作 · 改写润色 · 社媒文案 |
 | AI 工作流 | `/tools/ai-workflow` | 多步流水线 · 内容/社媒/脚本模板 |
@@ -49,7 +48,6 @@ cp .env.example .env
 | `DEEPSEEK_MODEL` | 模型（默认 `deepseek-chat`） | 可选 |
 | `TMDB_API_KEY` | 影视搜索 | 使用该功能时必需 |
 | `ARK_API_KEY` | AI 对话（可选）、图片识别、图像工坊 · AI 生图、云端转写 | 使用对应功能时必需 |
-| `SUNO_API_BASE` + `SUNO_API_KEY` | AI 文字成曲（完整 Suno 成曲） | 完整成曲时必需；未配置时可用 DeepSeek 演示模式 |
 | `WHISPER_MODEL` | 字幕工坊 · 本地转写模型（默认 `base`） | 可选 |
 | `ASSETS_PASSWORD` | 素材库访问密码 | 使用素材库时必需 |
 
@@ -72,33 +70,6 @@ DEEPSEEK_MODEL=deepseek-chat
 在 `.env` 中配置 `ARK_API_KEY`，或设置 `CHAT_PROVIDER=ark` 强制使用火山方舟。修改后重启 `./start.sh`。
 
 **主打**轻松闲聊；**次要**在用户明确要求时充当智能助手（跳转工具、预填链接等）。
-
-### AI 文字成曲（Suno 网关）
-
-完整成曲需 Suno 兼容 API。项目内置 **GPTNB**、**OpenAI-HK** 等常见网关预设。
-
-**一键配置**
-
-```bash
-node scripts/setup-suno.mjs
-# 或指定提供商
-node scripts/setup-suno.mjs --provider gptnb --key 你的密钥
-./start.sh
-node scripts/setup-suno.mjs --check      # 验证配置
-node scripts/test-suno-live.mjs          # 实测成曲（约 1–3 分钟）
-```
-
-**手动配置（GPTNB 示例）**
-
-```bash
-SUNO_PROVIDER=gptnb
-SUNO_API_BASE=https://api.gptnb.ai
-SUNO_API_KEY=你的密钥
-SUNO_MODEL=chirp-v4
-SUNO_API_MODE=v2
-```
-
-未配置 Suno 时，若已有 `DEEPSEEK_API_KEY`，会自动使用**演示模式**（AI 作词 + 旋律预览）。工具入口：`/tools/ai-music`。
 
 ### AI 全网搜索
 

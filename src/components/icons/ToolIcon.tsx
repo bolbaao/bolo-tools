@@ -227,19 +227,6 @@ function MemoryIcon({ gradId }: IconProps) {
   );
 }
 
-function AiMusicIcon({ gradId }: IconProps) {
-  const g = `url(#${gradId})`;
-  return (
-    <>
-      <path d="M8 16.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" {...stroke} stroke={g} />
-      <path d="M10 14.5V7.5l6.5-2v7" {...stroke} stroke={g} />
-      <path d="M16.5 12.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" {...stroke} stroke={g} />
-      <path d="M5 6.5l1.5 1.5M18 5l-1.5 1.5" {...stroke} stroke={g} strokeWidth={1.1} />
-      <path d="M12 3.5v1.5" {...stroke} stroke={g} strokeWidth={1.1} />
-    </>
-  );
-}
-
 function AppBuilderIcon({ gradId }: IconProps) {
   const g = `url(#${gradId})`;
   return (
@@ -296,7 +283,6 @@ const ICONS: Record<string, (props: IconProps) => ReactNode> = {
   "ai-chat": AiChatIcon,
   memory: MemoryIcon,
   "ai-search": AiSearchIcon,
-  "ai-music": AiMusicIcon,
   "app-builder": AppBuilderIcon,
   "ai-writer": AiWriterIcon,
   "ai-workflow": AiWorkflowIcon,

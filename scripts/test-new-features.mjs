@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 端到端冒烟测试：AI 文字成曲 + 一键做 App
+ * 端到端冒烟测试：一键做 App 等 AI 功能
  * 用法: node scripts/test-new-features.mjs
  */
 import "../server/lib/env.mjs";
@@ -49,33 +49,11 @@ async function main() {
   }
   ok("服务健康检查");
 
-  const musicCaps = await get("/api/ai-music/capabilities");
-  if (musicCaps.status !== 200) {
-    fail("AI 音乐 capabilities", `status=${musicCaps.status}`);
-  } else {
-    ok("AI 音乐 capabilities", JSON.stringify(musicCaps.data));
-  }
-
   const appCaps = await get("/api/app-builder/capabilities");
   if (appCaps.status !== 200 || !appCaps.data?.aiConfigured) {
     fail("一键做 App capabilities", JSON.stringify(appCaps.data));
   } else {
     ok("一键做 App capabilities", `${appCaps.data.appTypes?.length || 0} 种类型`);
-  }
-
-  console.log("\n— 测试 AI 文字成曲 —");
-  const music = await post(
-    "/api/ai-music/generate",
-    { prompt: "一首关于菠萝的短轻快流行歌", style: "pop, chinese", mode: "inspiration" },
-    120000,
-  );
-  if (music.status !== 200 || !music.data?.ok || !music.data.tracks?.length) {
-    fail("AI 文字成曲 generate", `status=${music.status} ${music.data?.error || ""}`);
-  } else {
-    const t = music.data.tracks[0];
-    const hasAudio = Boolean(t.audioUrl || t.audioBase64);
-    if (!hasAudio) fail("AI 文字成曲 generate", "无音频输出");
-    else ok("AI 文字成曲 generate", `${t.title} (${t.demo ? "演示" : "Suno"})`);
   }
 
   console.log("\n— 测试一键做 App —");

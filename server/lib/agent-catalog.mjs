@@ -48,13 +48,6 @@ export const AGENT_TOOLS = [
     fields: { query: "搜索问题或关键词" },
   },
   {
-    id: "ai-music",
-    title: "AI 文字成曲",
-    href: "/tools/ai-music",
-    description: "输入文字灵感或歌词，AI 生成完整歌曲",
-    fields: { prompt: "创作描述或歌词", style: "音乐风格", mode: "inspiration|lyrics" },
-  },
-  {
     id: "app-builder",
     title: "一键做 App",
     href: "/tools/app-builder",

@@ -87,17 +87,6 @@ export const tools: Tool[] = [
     demoHint: "提问 → 全网检索 → 摘要与来源",
   },
   {
-    id: "ai-music",
-    title: "AI 文字成曲",
-    description: "用文字灵感或歌词，AI 自动生成完整歌曲，支持在线试听与下载。",
-    usageGuide: "选择灵感/歌词模式 → 填写描述或歌词与风格 → 一键成曲 → 试听或下载",
-    href: "/tools/ai-music",
-    gradient: "from-fuchsia-500/20 via-violet-500/15 to-pink-500/10",
-    tag: "AI",
-    bento: "default",
-    demoHint: "写灵感或歌词 · 选风格 · 成曲下载",
-  },
-  {
     id: "app-builder",
     title: "一键做 App",
     description: "用自然语言描述需求，AI 生成可独立运行的单页应用，预览并下载。",

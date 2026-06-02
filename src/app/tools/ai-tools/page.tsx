@@ -4,15 +4,10 @@ import { getToolById } from "@/lib/tools";
 const AI_TOOL_IDS = [
   "ai-chat",
   "ai-search",
-  "ai-music",
   "app-builder",
   "ai-writer",
   "ai-workflow",
 ] as const;
-
-const PLANNED = [
-  { title: "AI 生图", status: "available" as const, href: "/tools/image-studio/?tab=generate" },
-];
 
 export default function AiToolsPage() {
   const aiTools = AI_TOOL_IDS.map((id) => getToolById(id)).filter(Boolean);
@@ -34,7 +29,7 @@ export default function AiToolsPage() {
 
         <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">AI 工具</h1>
         <p className="mt-4 text-base leading-relaxed text-white/45 sm:text-lg">
-          对话、搜索、写作、成曲、做 App 与工作流 — 一站完成智能创作。
+          对话、搜索、写作、做 App 与工作流 — 一站完成智能创作。
         </p>
         <p className="mt-2 text-sm text-white/30">选择下方工具进入，按页面指引即可使用。</p>
 
@@ -56,26 +51,6 @@ export default function AiToolsPage() {
                   进入 →
                 </Link>
               </div>
-            </li>
-          ))}
-          {PLANNED.map((item) => (
-            <li
-              key={item.title}
-              className="flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3.5"
-            >
-              <span className="text-sm text-white/80">{item.title}</span>
-              {item.status === "available" && item.href ? (
-                <Link
-                  href={item.href}
-                  className="shrink-0 rounded-full bg-violet-500/20 px-3 py-1 text-xs font-medium text-violet-200 ring-1 ring-violet-500/35 hover:bg-violet-500/30 transition-colors"
-                >
-                  已上线 →
-                </Link>
-              ) : (
-                <span className="shrink-0 rounded-full bg-white/5 px-3 py-1 text-xs text-white/35 ring-1 ring-white/10">
-                  开发中
-                </span>
-              )}
             </li>
           ))}
         </ul>
