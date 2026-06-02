@@ -57,7 +57,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const inputPlaceholder = "描述任务或随便聊聊，可附带图片、PDF、Word 或文本文件…";
 

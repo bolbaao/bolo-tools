@@ -10,6 +10,7 @@ export type ChatModelsResponse = {
   ok: boolean;
   models: ChatModelOption[];
   defaultProvider: string | null;
+  imageVision?: boolean;
 };
 
 export type ChatMode = "chat" | "agent";

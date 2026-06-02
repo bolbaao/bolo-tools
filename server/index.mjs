@@ -1,4 +1,6 @@
 import "./lib/env.mjs";
+import { env } from "./lib/env.mjs";
+import { ensureAdminUser } from "./lib/user-auth.mjs";
 import express from "express";
 import fs from "fs";
 import path from "path";
@@ -76,6 +78,17 @@ app.use((req, res, next) => {
   return jsonDefault(req, res, next);
 });
 
+app.use((err, req, res, next) => {
+  if (err?.type === "entity.too.large") {
+    res.status(413).json({
+      ok: false,
+      error: "上传内容过大，请减少图片数量或换用更小的图片后重试",
+    });
+    return;
+  }
+  next(err);
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
@@ -150,6 +163,19 @@ if (hasOut && !API_ONLY) {
     }
     res.status(404).json({ ok: false, error: "开发模式仅提供 API，请访问 Next 开发服（npm run dev）" });
   });
+}
+
+try {
+  const adminName = env("ADMIN_USERNAME", "bolo");
+  const adminPass = env("ADMIN_PASSWORD", "123456");
+  const admin = ensureAdminUser(adminName, adminPass);
+  if (admin.created) {
+    console.log(`✓ 已创建管理员账号: ${adminName} / ${adminPass}`);
+  } else if (admin.promoted) {
+    console.log(`✓ 已将 ${adminName} 设为管理员（保留原密码）`);
+  }
+} catch (err) {
+  console.warn(`⚠️ 管理员账号初始化失败: ${err.message}`);
 }
 
 app.listen(PORT, HOST, () => {

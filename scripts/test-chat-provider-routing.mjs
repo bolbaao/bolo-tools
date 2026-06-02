@@ -14,12 +14,12 @@ const cases = [
     expect: "deepseek",
   },
   {
-    name: "附图走火山方舟",
+    name: "附图仍走 DeepSeek（识图由独立视觉 API 完成）",
     opts: {
       messages: [{ role: "user", content: "看看这张图\n[用户发送了 1 张图片]" }],
       pageContext: { chatImages: [{ previewDataUrl: "data:image/png;base64,abc" }] },
     },
-    expect: "ark",
+    expect: "deepseek",
   },
   {
     name: "Agent 模式任务走 DeepSeek",

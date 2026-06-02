@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 export default function DeveloperPanel() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +29,10 @@ export default function DeveloperPanel() {
   useEffect(() => {
     if (user?.isAdmin) void load();
   }, [user?.isAdmin, load]);
+
+  if (authLoading) {
+    return <p className="text-center text-sm text-white/40 py-20">验证登录状态…</p>;
+  }
 
   if (!user?.isAdmin) {
     return (

@@ -24,6 +24,16 @@ function secret() {
   return env("USER_SESSION_SECRET") || env("ASSETS_SESSION_SECRET") || "pineapple-user-dev";
 }
 
+/** 仅在 HTTPS 站点或显式开启时附加 Secure，避免 HTTP 部署（如内网/腾讯云）无法写入登录 Cookie */
+function cookieSecureFlag() {
+  const override = env("COOKIE_SECURE");
+  if (/^(0|false|no)$/i.test(override)) return "";
+  if (/^(1|true|yes)$/i.test(override)) return "; Secure";
+  const base = env("APP_BASE_URL");
+  if (base.startsWith("https://")) return "; Secure";
+  return "";
+}
+
 function ensureUsersDir() {
   if (!fs.existsSync(USERS_DIR)) {
     fs.mkdirSync(USERS_DIR, { recursive: true });
@@ -431,7 +441,7 @@ export function getUserSessionFromRequest(req) {
 }
 
 export function setUserSessionCookie(res, token) {
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  const secure = cookieSecureFlag();
   res.setHeader(
     "Set-Cookie",
     `${COOKIE_NAME}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${MAX_AGE_SEC}${secure}`,
@@ -439,9 +449,10 @@ export function setUserSessionCookie(res, token) {
 }
 
 export function clearUserSessionCookie(res) {
+  const secure = cookieSecureFlag();
   res.setHeader(
     "Set-Cookie",
-    `${COOKIE_NAME}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`,
+    `${COOKIE_NAME}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secure}`,
   );
 }
 
@@ -480,6 +491,50 @@ export function requireAdminAuth(req, res, next) {
 
 export function listAllUsers() {
   return loadUsers().map(migrateUser);
+}
+
+/** 首次部署时创建管理员；已存在则仅补齐 isAdmin，不重置密码 */
+export function ensureAdminUser(username, password) {
+  const nameError = validateUsername(username);
+  if (nameError) throw Object.assign(new Error(nameError), { status: 400 });
+
+  const passError = validatePassword(password);
+  if (passError) throw Object.assign(new Error(passError), { status: 400 });
+
+  const name = String(username).trim();
+  const users = loadUsers().map(migrateUser);
+  const idx = users.findIndex((u) => u.username.toLowerCase() === name.toLowerCase());
+
+  if (idx >= 0) {
+    const existing = users[idx];
+    if (existing.isAdmin) {
+      return { user: toPublicUser(existing), created: false };
+    }
+    users[idx] = {
+      ...existing,
+      isAdmin: true,
+      emailVerified: true,
+    };
+    saveUsers(users);
+    return { user: toPublicUser(users[idx]), created: false, promoted: true };
+  }
+
+  const salt = crypto.randomBytes(16).toString("hex");
+  const user = {
+    id: randomUUID(),
+    username: name,
+    email: undefined,
+    emailVerified: true,
+    isAdmin: true,
+    salt,
+    passwordHash: hashPassword(password, salt),
+    createdAt: new Date().toISOString(),
+  };
+
+  users.push(user);
+  saveUsers(users);
+  ensureUserMemoryDir(user.id);
+  return { user: toPublicUser(user), created: true };
 }
 
 export function bootstrapAdminUser(username, password) {

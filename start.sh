@@ -78,8 +78,10 @@ if [ -f "$PDF_WORKER_SRC" ]; then
 fi
 
 # 默认管理员 bolo / 123456（已存在则重置密码并确保管理员权限）
-if node scripts/create-admin-user.mjs bolo 123456 2>/dev/null; then
+if node scripts/create-admin-user.mjs bolo 123456; then
   echo "✓ 管理员账号: bolo / 123456"
+else
+  echo "⚠️  管理员账号初始化失败，请手动运行: node scripts/create-admin-user.mjs bolo 123456"
 fi
 
 # 启动前尝试刷新抖音 Cookie（已配置 cookies/douyin.txt 或 setup 脚本时）
