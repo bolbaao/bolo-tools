@@ -125,6 +125,9 @@ export function agentPrefillHasActionableFields(fields: Record<string, string>):
     "instruction",
     "prompt",
     "topic",
+    "mode",
+    "format",
+    "tab",
   ];
   return keys.some((k) => Boolean(fields[k]?.trim()));
 }

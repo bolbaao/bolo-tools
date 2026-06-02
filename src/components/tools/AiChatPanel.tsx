@@ -9,6 +9,7 @@ import {
   requestClientPermission,
 } from "@/lib/agent-permissions";
 import { executeAgentActions, formatActionResults } from "@/lib/agent-executor";
+import { stashFilesForPrefillActions } from "@/lib/stash-tool-prefill-files";
 import type {
   ActionResult,
   AgentAction,
@@ -142,6 +143,7 @@ export default function AiChatPanel({
   const [clientPermissions, setClientPermissions] = useState<ClientPermissions>({});
   const [pendingImages, setPendingImages] = useState<ClientPhotoItem[]>([]);
   const [pendingTextFiles, setPendingTextFiles] = useState<ChatTextFile[]>([]);
+  const [pendingRawFiles, setPendingRawFiles] = useState<File[]>([]);
   const [sessionChatImages, setSessionChatImages] = useState<ClientPhotoItem[]>([]);
   const [imageBusy, setImageBusy] = useState(false);
   const [fileBusy, setFileBusy] = useState(false);
@@ -155,6 +157,7 @@ export default function AiChatPanel({
   const addChatFiles = useCallback(async (files: File[]) => {
     if (!files.length) return;
     setError(null);
+    setPendingRawFiles((prev) => [...prev, ...files].slice(0, 8));
 
     const imageFiles = files.filter(isImageChatFile);
     const textFiles = files.filter(isReadableChatFile);
@@ -372,9 +375,11 @@ export default function AiChatPanel({
     async (
       data: AgentResponse,
       historyAfterUser: ChatMessage[],
+      rawFilesForTools: File[] = [],
     ): Promise<ChatMessage[]> => {
       let actionResults: ActionResult[] = [];
       if (data.actions?.length) {
+        await stashFilesForPrefillActions(data.actions as AgentAction[], rawFilesForTools);
         await new Promise((r) => setTimeout(r, 120));
         actionResults = await executeAgentActions(data.actions as AgentAction[], router);
       }
@@ -400,6 +405,7 @@ export default function AiChatPanel({
       history: ChatMessage[],
       perms: ClientPermissions,
       chatImages: ClientPhotoItem[],
+      rawFilesForTools: File[] = [],
       provider: string | null = selectedProvider,
       mode: ChatMode = chatMode,
     ) => {
@@ -431,7 +437,7 @@ export default function AiChatPanel({
         setSessionChatImages(cached);
       }
 
-      return appendAiFromResponse(data, history);
+      return appendAiFromResponse(data, history, rawFilesForTools);
     },
     [appendAiFromResponse, buildApiMessages, chatMode, getPageContext, selectedProvider],
   );
@@ -477,6 +483,8 @@ export default function AiChatPanel({
       setPendingImages([]);
     }
     if (msgFiles) setPendingTextFiles([]);
+    const rawFilesForAgent = pendingRawFiles.length ? [...pendingRawFiles] : [];
+    setPendingRawFiles([]);
 
     const displayText =
       text ||
@@ -493,7 +501,7 @@ export default function AiChatPanel({
     setError(null);
 
     try {
-      const updated = await runChat(nextMessages, clientPermissions, mergedSession);
+      const updated = await runChat(nextMessages, clientPermissions, mergedSession, rawFilesForAgent);
       setMessages(updated);
       void maybeExtractMemories(updated);
     } catch (e) {

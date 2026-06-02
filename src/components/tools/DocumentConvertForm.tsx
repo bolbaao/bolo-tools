@@ -7,8 +7,11 @@ import {
   type DocCapabilities,
   type DocConvertMode,
 } from "@/lib/doc-convert";
+import { inferDocConvertModeFromFiles } from "@/lib/doc-convert-prefill";
 import { FEATURE_UNAVAILABLE } from "@/lib/service-message";
+import { AGENT_AUTOSUBMIT_DELAY_MS } from "@/lib/agent-prefill";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
+import { useToolPrefillFiles } from "@/hooks/useToolPrefillFiles";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 function formatBytes(n: number) {
@@ -28,16 +31,39 @@ export default function DocumentConvertForm() {
 
   const meta = useMemo(() => DOC_CONVERT_MODES.find((m) => m.id === mode)!, [mode]);
 
+  const autoConvertAfterPrefillRef = useRef(false);
+
   const onModeChange = useCallback((next: DocConvertMode) => {
     setMode(next);
     setFiles([]);
     setError(null);
   }, []);
 
+  const applyPickedFiles = useCallback((picked: File[]) => {
+    if (!picked.length) return;
+    const inferred = inferDocConvertModeFromFiles(picked);
+    const targetMode = inferred ?? mode;
+    const targetMeta = DOC_CONVERT_MODES.find((m) => m.id === targetMode)!;
+    setFiles(targetMeta.multiple ? picked : [picked[0]]);
+    setError(null);
+    if (inferred) setMode(inferred);
+  }, [mode]);
+
+  useToolPrefillFiles("doc-convert", {
+    onFiles: applyPickedFiles,
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    autoConvertAfterPrefillRef.current =
+      params.get("agent_tool") === "doc-convert" && params.get("agent_auto") === "1";
+  }, []);
+
   useAgentPrefill("doc-convert", {
     apply: (fields) => {
       const next = fields.mode as DocConvertMode;
-      if (DOC_CONVERT_MODES.some((m) => m.id === next)) onModeChange(next);
+      if (DOC_CONVERT_MODES.some((m) => m.id === next)) setMode(next);
     },
   });
 
@@ -116,6 +142,15 @@ export default function DocumentConvertForm() {
       setLoading(false);
     }
   }, [files, mode, modeAvailable, scale]);
+
+  useEffect(() => {
+    if (!files.length || !autoConvertAfterPrefillRef.current) return;
+    autoConvertAfterPrefillRef.current = false;
+    const timer = window.setTimeout(() => {
+      void convert();
+    }, AGENT_AUTOSUBMIT_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [files.length, convert]);
 
   return (
     <div className="space-y-6">
