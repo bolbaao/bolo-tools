@@ -35,10 +35,6 @@ pick_browser() {
     echo "safari"
     return
   fi
-  if [ -d "/Applications/Google Chrome.app" ]; then
-    echo "chrome"
-    return
-  fi
   echo "safari"
 }
 

@@ -6,7 +6,7 @@ export function apiUrl(path: string): string {
 }
 
 export function apiNotFoundMessage(): string {
-  return "未找到 API。请用 ./start.sh 启动，或开发时运行 npm run dev:all（或分别 npm run dev:api + npm run dev）";
+  return "服务暂时无法连接，请刷新页面或稍后再试";
 }
 
 export class ApiError extends Error {
@@ -87,10 +87,10 @@ export async function apiPost<T>(
   } catch (e) {
     if (e instanceof ApiError) throw e;
     if (e instanceof Error && e.name === "AbortError") {
-      throw new ApiError("请求超时。大文件或网络较慢时请稍后重试，或在 .env 增大 DOC_CONVERT_TIMEOUT_MS", 408);
+      throw new ApiError("请求超时，文件较大或网络较慢，请稍后重试", 408);
     }
     if (e instanceof TypeError) {
-      throw new ApiError("无法连接本地服务，请确认已运行 ./start.sh", 0);
+      throw new ApiError("服务暂时无法连接，请刷新页面或稍后再试", 0);
     }
     throw e;
   } finally {
@@ -140,10 +140,10 @@ export async function apiUpload<T>(
   } catch (e) {
     if (e instanceof ApiError) throw e;
     if (e instanceof Error && e.name === "AbortError") {
-      throw new ApiError("请求超时。大文件或网络较慢时请稍后重试，或在 .env 增大 DOC_CONVERT_TIMEOUT_MS", 408);
+      throw new ApiError("请求超时，文件较大或网络较慢，请稍后重试", 408);
     }
     if (e instanceof TypeError) {
-      throw new ApiError("无法连接本地服务，请确认已运行 ./start.sh", 0);
+      throw new ApiError("服务暂时无法连接，请刷新页面或稍后再试", 0);
     }
     throw e;
   } finally {
@@ -179,10 +179,10 @@ export async function apiUploadBinary(
   } catch (e) {
     if (e instanceof ApiError) throw e;
     if (e instanceof Error && e.name === "AbortError") {
-      throw new ApiError("请求超时。大文件或网络较慢时请稍后重试，或在 .env 增大 DOC_CONVERT_TIMEOUT_MS", 408);
+      throw new ApiError("请求超时，文件较大或网络较慢，请稍后重试", 408);
     }
     if (e instanceof TypeError) {
-      throw new ApiError("无法连接本地服务，请确认已运行 ./start.sh", 0);
+      throw new ApiError("服务暂时无法连接，请刷新页面或稍后再试", 0);
     }
     throw e;
   } finally {

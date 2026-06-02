@@ -96,10 +96,10 @@ export default function MediaSearchPanel() {
     <div className="space-y-6">
       <div className="rounded-2xl border border-indigo-500/15 bg-indigo-500/5 px-5 py-4">
         <p className="text-sm text-white/65 leading-relaxed">
-          输入片名后，将<strong className="text-white/85 font-medium">并行检索</strong>
-          豆瓣与 TMDB，合并去重后为每条结果生成
+          输入片名后，将<strong className="text-white/85 font-medium">智能检索</strong>
+          影视信息，并为每条结果生成
           <strong className="text-white/85 font-medium">可复制的链接包</strong>
-          （豆瓣、正版流媒体、各平台搜索入口）。
+          （详情页、正版观看指引与各平台搜索入口）。
         </p>
       </div>
 
@@ -114,7 +114,7 @@ export default function MediaSearchPanel() {
         />
         <ActionButton
           label="搜索"
-          loadingLabel="检索多源中…"
+          loadingLabel="检索中…"
           loading={loading}
           disabled={!keyword.trim()}
           onClick={() => void runSearch(keyword)}
@@ -146,13 +146,11 @@ export default function MediaSearchPanel() {
       )}
 
       {stats && !loading && (
-        <p className="text-xs text-white/35 text-center">
-          豆瓣 {stats.doubanHits} 条 · TMDB {stats.tmdbHits} 条 · 合并展示 {stats.merged} 条
-        </p>
+        <p className="text-xs text-white/35 text-center">共找到 {stats.merged} 条相关结果</p>
       )}
 
       {loading && (
-        <p className="text-center text-sm text-white/40 py-10">正在并行检索豆瓣与 TMDB…</p>
+        <p className="text-center text-sm text-white/40 py-10">正在检索影视信息…</p>
       )}
 
       {!loading && results.length > 0 && (
@@ -245,7 +243,7 @@ export default function MediaSearchPanel() {
       )}
 
       <p className="text-center text-[11px] text-white/25 leading-relaxed">
-        链接包含豆瓣条目、TMDB 正版观看指引与各平台搜索入口，仅供信息检索。请支持正版内容。
+        链接仅供信息检索与导航，请支持正版内容。
       </p>
     </div>
   );

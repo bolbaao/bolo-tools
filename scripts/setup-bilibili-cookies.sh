@@ -8,7 +8,23 @@ BROWSER_ARG="${1:-}"
 
 export PATH="$ROOT/.local/bin:${HOME}/Library/Python/3.9/bin:${HOME}/Library/Python/3.10/bin:${HOME}/Library/Python/3.11/bin:${HOME}/Library/Python/3.12/bin:$PATH"
 
-BROWSER="${BROWSER_ARG:-${BILIBILI_BROWSER:-chrome}}"
+pick_browser() {
+  if [ -n "$BROWSER_ARG" ]; then
+    echo "$BROWSER_ARG"
+    return
+  fi
+  if [ -n "${BILIBILI_BROWSER:-}" ]; then
+    echo "$BILIBILI_BROWSER"
+    return
+  fi
+  if [ -d "/Applications/Safari.app" ]; then
+    echo "safari"
+    return
+  fi
+  echo "safari"
+}
+
+BROWSER="$(pick_browser)"
 export BILIBILI_BROWSER="$BROWSER"
 
 echo "🍍 配置 B 站 Cookie（浏览器: ${BROWSER}）"

@@ -4,7 +4,7 @@
 
 ## 一次性配置（推荐）
 
-在终端执行（Chrome 里先登录 [douyin.com](https://www.douyin.com)）：
+在终端执行（Safari 里先登录 [douyin.com](https://www.douyin.com)）：
 
 ```bash
 chmod +x scripts/setup-douyin-cookies.sh
@@ -13,7 +13,7 @@ chmod +x scripts/setup-douyin-cookies.sh
 
 脚本会：
 
-1. 从 Chrome 导出 Cookie 到 `cookies/douyin.txt`
+1. 从 Safari 导出 Cookie 到 `cookies/douyin.txt`
 2. 在 `.env` 写入 `YTDLP_COOKIES=./cookies/douyin.txt`
 3. 可选：安装 **每天 8:00 自动刷新** 的 macOS 计划任务
 
@@ -24,16 +24,16 @@ chmod +x scripts/setup-douyin-cookies.sh
 即使不配置 `.env`，服务端也会按顺序尝试：
 
 1. `cookies/douyin.txt`（定时刷新后的文件）
-2. Chrome / Safari / Edge 浏览器里的 Cookie
+2. Safari / Chrome / Edge 浏览器里的 Cookie（默认优先 Safari）
 
 ## 日常注意
 
 | 做法 | 说明 |
 |------|------|
-| Chrome 保持登录抖音 | 自动刷新才有有效 Cookie |
+| Safari 保持登录抖音 | 自动刷新才有有效 Cookie |
 | 偶尔仍失败 | 再运行一次 `./scripts/setup-douyin-cookies.sh` |
 | 更新 yt-dlp | `pip3 install -U yt-dlp` |
-| 从浏览器读 Cookie 失败 | 完全退出 Chrome（Cmd+Q）后再解析，或依赖 cookies.txt |
+| 从浏览器读 Cookie 失败 | 完全退出 Safari（Cmd+Q）后再解析，或依赖 cookies.txt |
 
 ## 手动方式
 
@@ -42,8 +42,28 @@ chmod +x scripts/setup-douyin-cookies.sh
 ```bash
 YTDLP_COOKIES=./cookies/douyin.txt
 # 或
-YTDLP_COOKIES_FROM_BROWSER=chrome
+YTDLP_COOKIES_FROM_BROWSER=safari
 ```
+
+---
+
+# B 站 Cookie
+
+```bash
+./scripts/setup-bilibili-cookies.sh
+```
+
+默认从 **Safari** 导出到 `cookies/bilibili.txt`（需先在 Safari 登录 bilibili.com）。
+
+---
+
+# X (Twitter) Cookie
+
+```bash
+./scripts/setup-x-cookies.sh
+```
+
+默认从 **Safari** 导出到 `cookies/x.txt`（需先在 Safari 登录 x.com）。
 
 ---
 

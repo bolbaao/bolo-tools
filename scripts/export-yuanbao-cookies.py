@@ -99,7 +99,7 @@ def main():
 
     print("未找到 yuanbao.tencent.com 的 Cookie。", file=sys.stderr)
     print(
-        "请先在浏览器打开 https://yuanbao.tencent.com 并登录；"
+        "请先在 Safari 打开 https://yuanbao.tencent.com 并登录；"
         "系统设置 → 隐私 → 完全磁盘访问权限 → 勾选终端/Cursor。",
         file=sys.stderr,
     )

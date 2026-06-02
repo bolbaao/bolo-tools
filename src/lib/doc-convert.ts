@@ -17,7 +17,7 @@ export const DOC_CONVERT_MODES: DocConvertModeMeta[] = [
   {
     id: "pdf-to-word",
     label: "PDF 转 Word",
-    hint: "上传 PDF，自动转换（云端不可达时用本地引擎）",
+    hint: "上传 PDF，自动转换为可编辑的 Word 文档",
     accept: ".pdf,application/pdf",
     multiple: false,
     needsOffice: true,

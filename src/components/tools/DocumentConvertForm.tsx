@@ -7,6 +7,7 @@ import {
   type DocCapabilities,
   type DocConvertMode,
 } from "@/lib/doc-convert";
+import { FEATURE_UNAVAILABLE } from "@/lib/service-message";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 function formatBytes(n: number) {
@@ -58,7 +59,7 @@ export default function DocumentConvertForm() {
       return;
     }
     if (!modeAvailable) {
-      setError("请配置 CONVERTAPI_SECRET 或安装本地 LibreOffice（./scripts/download-libreoffice.sh）");
+      setError(FEATURE_UNAVAILABLE);
       return;
     }
 
@@ -126,28 +127,12 @@ export default function DocumentConvertForm() {
               } ${!available ? "opacity-60" : ""}`}
             >
               <span className="font-medium">{m.label}</span>
-              {m.needsOffice && (
-                <span className="mt-1 block text-[10px] text-cyan-200/70">本地/云端</span>
-              )}
             </button>
           );
         })}
       </div>
 
       <p className="text-sm text-white/45 leading-relaxed">{meta.hint}</p>
-
-      {meta.needsOffice && caps?.libreOffice && (
-        <p className="rounded-xl border border-emerald-500/15 bg-emerald-500/5 px-4 py-3 text-xs leading-relaxed text-emerald-100/80">
-          已检测到本地 LibreOffice。云端 ConvertAPI 在国内常无法直连时会<strong className="font-medium">自动改用本地转换</strong>，无需代理即可使用 PDF ↔ Word。
-        </p>
-      )}
-
-      {meta.needsOffice && caps?.onlineConvert && !caps?.libreOffice && (
-        <p className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-xs leading-relaxed text-cyan-100/85">
-          若出现「无法连接云端」，请在 .env 配置 <code className="text-white/60">HTTPS_PROXY</code>，或运行{" "}
-          <code className="text-white/50">./scripts/download-libreoffice.sh</code> 启用本地回退。
-        </p>
-      )}
 
       <div
         className="rounded-2xl border border-dashed border-white/12 bg-white/[0.02] px-5 py-8 text-center transition-colors hover:border-white/20 hover:bg-white/[0.03]"
@@ -229,7 +214,7 @@ export default function DocumentConvertForm() {
       />
 
       <p className="text-center text-xs text-white/25 leading-relaxed">
-        PDF ↔ Word：优先云端，不可达时自动本地 LibreOffice · 图片类转换在本地完成
+        上传文件后自动转换，PDF ↔ Word 与图片类任务均在本页完成下载
       </p>
     </div>
   );

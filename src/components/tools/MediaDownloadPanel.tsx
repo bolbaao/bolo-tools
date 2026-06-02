@@ -117,8 +117,8 @@ export default function MediaDownloadPanel() {
     <div className="space-y-6">
       <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 px-5 py-4">
         <p className="text-sm text-white/65 leading-relaxed">
-          输入片名后，将<strong className="text-white/85 font-medium">并行检索多个公开资源源</strong>
-          ，聚合百度网盘、迅雷、夸克、阿里云盘等下载链接，支持一键复制。
+          输入片名后，将<strong className="text-white/85 font-medium">智能检索</strong>
+          网盘资源，聚合百度网盘、迅雷、夸克、阿里云盘等下载链接，支持一键复制。
         </p>
         <p className="mt-2 text-xs text-white/35">
           提示：不要带「第几部」「第几期」等无关词；搜不到时可换关键词或刷新重试。
@@ -136,7 +136,7 @@ export default function MediaDownloadPanel() {
         />
         <ActionButton
           label="搜索资源"
-          loadingLabel="检索多源中…"
+          loadingLabel="检索中…"
           loading={loading}
           disabled={!keyword.trim()}
           onClick={() => void runSearch(keyword)}
@@ -169,7 +169,7 @@ export default function MediaDownloadPanel() {
 
       {warnings.length > 0 && !error && (
         <p className="text-xs text-amber-300/70 text-center rounded-xl bg-amber-500/10 px-4 py-2">
-          部分资源源未返回结果：{warnings.join("；")}
+          部分来源暂未返回结果：{warnings.join("；")}
         </p>
       )}
 
@@ -191,7 +191,7 @@ export default function MediaDownloadPanel() {
       )}
 
       {loading && (
-        <p className="text-center text-sm text-white/40 py-10">正在并行检索多个资源源…</p>
+        <p className="text-center text-sm text-white/40 py-10">正在检索网盘资源…</p>
       )}
 
       {!loading && hasResults && (

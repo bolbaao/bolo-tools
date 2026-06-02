@@ -227,6 +227,55 @@ function MemoryIcon({ gradId }: IconProps) {
   );
 }
 
+function AiMusicIcon({ gradId }: IconProps) {
+  const g = `url(#${gradId})`;
+  return (
+    <>
+      <path d="M8 16.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" {...stroke} stroke={g} />
+      <path d="M10 14.5V7.5l6.5-2v7" {...stroke} stroke={g} />
+      <path d="M16.5 12.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" {...stroke} stroke={g} />
+      <path d="M5 6.5l1.5 1.5M18 5l-1.5 1.5" {...stroke} stroke={g} strokeWidth={1.1} />
+      <path d="M12 3.5v1.5" {...stroke} stroke={g} strokeWidth={1.1} />
+    </>
+  );
+}
+
+function AppBuilderIcon({ gradId }: IconProps) {
+  const g = `url(#${gradId})`;
+  return (
+    <>
+      <rect x="5" y="4.5" width="14" height="15" rx="2.5" {...stroke} stroke={g} />
+      <path d="M8.5 8h7M8.5 11.5h5M8.5 15h6" {...stroke} stroke={g} strokeWidth={1.25} />
+      <path d="M16 17.5l2.5 2.5" {...stroke} stroke={g} />
+      <path d="M17.5 17.5l-1 1 .5.5 1-1" {...stroke} stroke={g} strokeWidth={1.2} />
+    </>
+  );
+}
+
+function AiWriterIcon({ gradId }: IconProps) {
+  const g = `url(#${gradId})`;
+  return (
+    <>
+      <path d="M6 5.5h8l-1 2H7l-1-2z" {...stroke} stroke={g} />
+      <path d="M7 9.5h10M7 12.5h8M7 15.5h6" {...stroke} stroke={g} strokeWidth={1.25} />
+      <path d="M16.5 14l3 3" {...stroke} stroke={g} />
+      <path d="M18 14l-1.2 1.2.6.6 1.2-1.2" {...stroke} stroke={g} strokeWidth={1.2} />
+    </>
+  );
+}
+
+function AiWorkflowIcon({ gradId }: IconProps) {
+  const g = `url(#${gradId})`;
+  return (
+    <>
+      <rect x="4" y="5" width="5" height="4" rx="1" {...stroke} stroke={g} />
+      <rect x="15" y="5" width="5" height="4" rx="1" {...stroke} stroke={g} />
+      <rect x="9.5" y="15" width="5" height="4" rx="1" {...stroke} stroke={g} />
+      <path d="M6.5 9v2.5h5M17.5 9v2.5h-5M12 11.5v3.5" {...stroke} stroke={g} strokeWidth={1.25} />
+    </>
+  );
+}
+
 function DefaultIcon({ gradId }: IconProps) {
   const g = `url(#${gradId})`;
   return (
@@ -247,6 +296,10 @@ const ICONS: Record<string, (props: IconProps) => ReactNode> = {
   "ai-chat": AiChatIcon,
   memory: MemoryIcon,
   "ai-search": AiSearchIcon,
+  "ai-music": AiMusicIcon,
+  "app-builder": AppBuilderIcon,
+  "ai-writer": AiWriterIcon,
+  "ai-workflow": AiWorkflowIcon,
   "media-search": MediaSearchIcon,
   "media-download": MediaDownloadIcon,
   "spider-builder": SpiderBuilderIcon,

@@ -187,8 +187,8 @@ export function getDouyinCookieStrategies() {
 export function getBilibiliCookieStrategies() {
   const strategies = [];
   const seen = new Set();
-  const preferred = env("BILIBILI_COOKIES_FROM_BROWSER") || env("YTDLP_COOKIES_FROM_BROWSER") || "chrome";
-  const browsers = [preferred, "chrome", "safari", "chromium", "brave", "edge", "firefox"];
+  const preferred = env("BILIBILI_COOKIES_FROM_BROWSER") || env("YTDLP_COOKIES_FROM_BROWSER") || "safari";
+  const browsers = [preferred, "safari", "chrome", "chromium", "brave", "edge", "firefox"];
   addCookieStrategies(strategies, seen, [env("BILIBILI_COOKIES"), "./cookies/bilibili.txt"], browsers);
   return strategies;
 }
@@ -197,8 +197,8 @@ export function getBilibiliCookieStrategies() {
 export function getSocialCookieStrategies() {
   const strategies = [];
   const seen = new Set();
-  const preferred = env("SOCIAL_COOKIES_FROM_BROWSER") || env("YTDLP_COOKIES_FROM_BROWSER") || "chrome";
-  const browsers = [preferred, "chrome", "safari", "chromium", "brave", "edge", "firefox"];
+  const preferred = env("SOCIAL_COOKIES_FROM_BROWSER") || env("YTDLP_COOKIES_FROM_BROWSER") || "safari";
+  const browsers = [preferred, "safari", "chrome", "chromium", "brave", "edge", "firefox"];
   addCookieStrategies(
     strategies,
     seen,
@@ -217,8 +217,8 @@ export function getTwitterCookieStrategies() {
     env("TWITTER_COOKIES_FROM_BROWSER") ||
     env("SOCIAL_COOKIES_FROM_BROWSER") ||
     env("YTDLP_COOKIES_FROM_BROWSER") ||
-    "chrome";
-  const browsers = [preferred, "chrome", "safari", "chromium", "brave", "edge", "firefox"];
+    "safari";
+  const browsers = [preferred, "safari", "chrome", "chromium", "brave", "edge", "firefox"];
   addCookieStrategies(
     strategies,
     seen,
@@ -256,19 +256,21 @@ export function formatYtDlpError(stderr, platform) {
     return `抖音 Cookie 已失效。请在 ${browser} 登录 douyin.com 后运行 ./scripts/setup-douyin-cookies.sh ${browser}`;
   }
   if (platform === "bilibili" && /login|352|412|会员|鉴权|cookie/i.test(text)) {
-    return "该 B 站视频可能需要登录。请运行 ./scripts/setup-bilibili-cookies.sh 后重试";
+    const browser = env("BILIBILI_COOKIES_FROM_BROWSER") || env("YTDLP_COOKIES_FROM_BROWSER") || "safari";
+    return `该 B 站视频可能需要登录。请在 ${browser} 登录 bilibili.com 后运行 ./scripts/setup-bilibili-cookies.sh`;
   }
   if (platform === "youtube" && /sign in|login|private|members only/i.test(text)) {
-    return "该 YouTube 视频需要登录或为私密视频。请在浏览器登录 YouTube 后配置 Cookie（见 .env.example）";
+    const browser = env("SOCIAL_COOKIES_FROM_BROWSER") || env("YTDLP_COOKIES_FROM_BROWSER") || "safari";
+    return `该 YouTube 视频需要登录或为私密视频。请在 ${browser} 登录 YouTube 后配置 Cookie（见 .env.example）`;
   }
   if (
     platform === "twitter" &&
     /login|authenticate|private|csrf|not authorized|No video could be found|no video/i.test(text)
   ) {
-    return "X 视频解析失败。请在浏览器登录 x.com 后运行 ./scripts/setup-x-cookies.sh，或确认链接为公开视频帖（非纯图片/文字）";
+    return "X 视频解析失败。请在 Safari 登录 x.com 后运行 ./scripts/setup-x-cookies.sh，或确认链接为公开视频帖（非纯图片/文字）";
   }
   if (platform === "instagram" && /login|cookie|rate-limit/i.test(text)) {
-    return "Instagram 通常需要登录 Cookie。请在浏览器登录 instagram.com 后配置 SOCIAL_COOKIES";
+    return "Instagram 通常需要登录 Cookie。请在 Safari 登录 instagram.com 后配置 SOCIAL_COOKIES";
   }
   if (platform === "weixin-channels") {
     return "微信视频号解析失败。请粘贴含 oid 的完整分享链接，并运行 ./scripts/setup-yuanbao-cookies.sh（Safari 登录元宝）";

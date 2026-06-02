@@ -84,7 +84,7 @@ export default function AssetsPanel() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-white/40">
-          共 {items.length} 项 · 存储在本地服务器
+          共 {items.length} 项 · 你的专属素材库
         </p>
         <button
           type="button"

@@ -9,18 +9,19 @@ import {
   transcribeWithLocalWhisper,
 } from "./whisper-local.mjs";
 
+const ARK_DEFAULT_BASE = "https://ark.cn-beijing.volces.com/api/v3";
+
 export function resolveTranscribeConfig() {
-  const apiKey = env("OPENAI_API_KEY") || env("ARK_API_KEY") || env("VOLC_API_KEY");
+  const apiKey = env("ARK_API_KEY") || env("VOLC_API_KEY");
   if (!apiKey) return null;
-  const baseURL =
-    env("OPENAI_BASE_URL") ||
-    env("TRANSCRIBE_BASE_URL") ||
-    (env("ARK_API_KEY") ? env("ARK_BASE_URL") : "") ||
-    "https://api.openai.com/v1";
+  const baseURL = (env("TRANSCRIBE_BASE_URL") || env("ARK_BASE_URL") || ARK_DEFAULT_BASE).replace(
+    /\/$/,
+    "",
+  );
   return {
     apiKey,
-    baseURL: baseURL.replace(/\/$/, ""),
-    model: env("TRANSCRIBE_MODEL") || env("WHISPER_MODEL") || "whisper-1",
+    baseURL,
+    model: env("TRANSCRIBE_MODEL") || "whisper-1",
   };
 }
 
@@ -42,7 +43,7 @@ export function getTranscribeStatus() {
     mode,
     model: getWhisperModel(),
     modelPath: getWhisperModelPath(),
-    hint: mode ? null : localHint || "可在 .env 配置 OPENAI_API_KEY 使用云端转写",
+    hint: mode ? null : localHint || "可在 .env 配置 ARK_API_KEY 使用云端转写",
   };
 }
 
@@ -72,7 +73,7 @@ async function transcribeWithApi(audioPath, format = "srt") {
     const msg = err?.message || String(err);
     if (/not found|404|unsupported|Invalid/i.test(msg)) {
       throw new Error(
-        "当前 API 不支持语音转写。请配置 OPENAI_API_KEY 与兼容 Whisper 的 OPENAI_BASE_URL，或安装本地 faster-whisper。",
+        "当前 API 不支持语音转写。请配置 ARK_API_KEY，或安装本地 faster-whisper。",
       );
     }
     throw err;

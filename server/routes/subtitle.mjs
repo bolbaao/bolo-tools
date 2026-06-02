@@ -96,7 +96,7 @@ router.post("/transcribe", upload.single("file"), async (req, res) => {
     if (!isTranscribeAvailable()) {
       throw new HttpError(
         503,
-        "未安装本地转写引擎。请运行: python3 -m pip install --user faster-whisper（或 ./scripts/install-deps.sh）。也可在 .env 配置 OPENAI_API_KEY 使用云端转写。",
+        "未安装本地转写引擎。请运行: python3 -m pip install --user faster-whisper（或 ./scripts/install-deps.sh）。也可在 .env 配置 ARK_API_KEY 使用云端转写。",
       );
     }
     if (!req.file) throw new HttpError(400, "请上传视频或音频");

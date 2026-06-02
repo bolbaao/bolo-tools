@@ -38,8 +38,9 @@ export default function BentoToolCard({ tool, index = 0 }: Props) {
           >
             {tool.title}
           </h3>
+          <p className="mt-2 text-sm leading-relaxed text-white/40 line-clamp-2">{tool.description}</p>
 
-          <div className="mt-4 flex-1 min-h-[88px]">
+          <div className="mt-3 flex-1 min-h-[72px]">
             <ToolDemoVisual toolId={tool.id} large={isLarge} />
           </div>
 

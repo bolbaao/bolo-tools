@@ -19,13 +19,13 @@ def preferred_browsers():
         or os.environ.get("YTDLP_COOKIES_FROM_BROWSER")
     )
     if env_browser:
-        rest = ("chrome", "safari", "chromium", "brave", "edge", "firefox")
+        rest = ("safari", "chrome", "chromium", "brave", "edge", "firefox")
         ordered = [env_browser]
         for b in rest:
             if b != env_browser:
                 ordered.append(b)
         return tuple(ordered)
-    return ("chrome", "safari", "chromium", "brave", "edge", "firefox")
+    return ("safari", "chrome", "chromium", "brave", "edge", "firefox")
 
 
 def load_browser_cookie3():
@@ -116,7 +116,7 @@ def main():
 
     print("未找到 x.com 的 Cookie。", file=sys.stderr)
     print(
-        "请在浏览器打开 https://x.com 并登录；"
+        "请在 Safari 打开 https://x.com 并登录；"
         "系统设置 → 隐私 → 完全磁盘访问权限 → 勾选终端/Cursor。",
         file=sys.stderr,
     )

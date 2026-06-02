@@ -35,6 +35,11 @@ export default function ToolPageLayout({ tool, children }: Props) {
                   <h1 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
                     {tool.title}
                   </h1>
+                  <p className="mt-3 text-sm leading-relaxed text-white/55">{tool.description}</p>
+                  <p className="mt-2 text-xs leading-relaxed text-white/40">
+                    <span className="text-white/50">使用方式：</span>
+                    {tool.usageGuide}
+                  </p>
                 </div>
               </div>
             </div>

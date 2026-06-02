@@ -123,7 +123,7 @@ export default function GifMakerForm() {
         disabled={!file}
         onClick={handleGenerate}
       />
-      <p className="text-center text-xs text-white/25">服务端 ffmpeg 处理，需已安装 ffmpeg</p>
+      <p className="text-center text-xs text-white/25">上传视频并设置片段参数，即可生成并下载 GIF</p>
     </div>
   );
 }

@@ -15,7 +15,7 @@ type TranscribeStatus = {
 };
 
 const TABS: { id: Tab; label: string; hint: string }[] = [
-  { id: "transcribe", label: "语音转文字", hint: "本地 Whisper" },
+  { id: "transcribe", label: "语音转文字", hint: "音视频转字幕" },
   { id: "extract", label: "提取内嵌", hint: "从视频取字幕轨" },
   { id: "edit", label: "编辑导出", hint: "平移 / 转 VTT" },
 ];
@@ -43,7 +43,7 @@ export default function SubtitleWorkshopForm() {
         if (!cancelled) {
           setTranscribeStatus({
             available: false,
-            hint: "无法连接本地 API。请用 ./start.sh 启动，或开发时运行 npm run dev:all",
+            hint: "语音转写服务暂不可用，请稍后再试或联系客服。",
           });
         }
       }
@@ -157,8 +157,8 @@ export default function SubtitleWorkshopForm() {
         </p>
       )}
 
-      {tab === "transcribe" && transcribeStatus?.available && transcribeStatus.mode === "local" && (
-        <p className="text-xs text-center text-emerald-400/70">✓ 本地 Whisper 已就绪</p>
+      {tab === "transcribe" && transcribeStatus?.available && (
+        <p className="text-xs text-center text-emerald-400/70">✓ 语音转写服务已就绪</p>
       )}
 
       {tab !== "edit" && (
@@ -270,8 +270,8 @@ export default function SubtitleWorkshopForm() {
 
       <p className="text-center text-xs text-white/25 leading-relaxed">
         {tab === "transcribe"
-          ? "语音转文字使用本机 faster-whisper，导出自动转为简体中文 · 提取/编辑在本地完成"
-          : "提取内嵌字幕需视频含字幕轨 · 需 ffmpeg"}
+          ? "上传音视频即可生成字幕，支持 SRT、VTT、纯文本导出"
+          : "提取内嵌字幕需视频本身带有字幕轨"}
       </p>
     </div>
   );

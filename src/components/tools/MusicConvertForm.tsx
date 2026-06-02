@@ -17,10 +17,10 @@ import { ENCRYPTED_ACCEPT } from "@/lib/music-unlock";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 const PLATFORMS = [
-  { label: "网易云", ext: "NCM", tone: "from-rose-500/20 to-pink-500/5 text-rose-200/90 ring-rose-500/25" },
-  { label: "酷狗", ext: "KGM", tone: "from-amber-500/20 to-orange-500/5 text-amber-200/90 ring-amber-500/25" },
-  { label: "酷我", ext: "KWM", tone: "from-sky-500/20 to-cyan-500/5 text-sky-200/90 ring-sky-500/25" },
-  { label: "虾米", ext: "XM", tone: "from-emerald-500/20 to-teal-500/5 text-emerald-200/90 ring-emerald-500/25" },
+  { label: "网易云", tone: "from-rose-500/20 to-pink-500/5 text-rose-200/90 ring-rose-500/25" },
+  { label: "酷狗", tone: "from-amber-500/20 to-orange-500/5 text-amber-200/90 ring-amber-500/25" },
+  { label: "酷我", tone: "from-sky-500/20 to-cyan-500/5 text-sky-200/90 ring-sky-500/25" },
+  { label: "虾米", tone: "from-emerald-500/20 to-teal-500/5 text-emerald-200/90 ring-emerald-500/25" },
 ] as const;
 
 type MusicItem = {
@@ -196,22 +196,21 @@ export default function MusicConvertForm() {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-violet-300/70">
-              本地优先
+              音乐工坊
             </p>
             <h2 className="mt-1 text-lg font-semibold tracking-tight text-white/95">
               解锁 · 转码 · 一站完成
             </h2>
             <p className="mt-2 text-sm text-white/40 leading-relaxed max-w-md font-light">
-              加密曲目在浏览器内解密，不上传云端；格式不一致时由本机 ffmpeg 转为目标格式。可混选批量处理。
+              支持主流平台加密曲目解锁，并转换为 MP3、FLAC 等常用格式。可混选多首批量处理，完成后单首或 ZIP 打包下载。
             </p>
           </div>
           <div className="flex flex-wrap gap-2 sm:justify-end">
             {PLATFORMS.map((p) => (
               <span
-                key={p.ext}
-                className={`inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r px-3 py-1 text-[11px] font-medium ring-1 ${p.tone}`}
+                key={p.label}
+                className={`inline-flex items-center rounded-full bg-gradient-to-r px-3 py-1 text-[11px] font-medium ring-1 ${p.tone}`}
               >
-                <span className="opacity-60">{p.ext}</span>
                 {p.label}
               </span>
             ))}
@@ -220,7 +219,7 @@ export default function MusicConvertForm() {
         <div className="mt-5 flex flex-wrap gap-3 text-[11px] text-white/35">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-1 w-1 rounded-full bg-emerald-400/80" />
-            隐私：解密在本地完成
+            安全处理，注重隐私
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-1 w-1 rounded-full bg-violet-400/80" />
@@ -300,7 +299,7 @@ export default function MusicConvertForm() {
               {dragActive ? "松开即可添加" : "拖入音乐文件，或点击选择"}
             </p>
             <p className="mt-1.5 text-xs text-white/35 max-w-sm">
-              NCM · KGM · KWM · XM · MP3 · WAV · FLAC · AAC · OGG
+              支持网易云、酷狗、酷我、虾米及 MP3、WAV、FLAC 等常见格式
             </p>
           </div>
           <button
@@ -388,7 +387,7 @@ export default function MusicConvertForm() {
                   <p className="truncate text-sm text-white/85">{item.file.name}</p>
                   <p className="text-[11px] text-white/35 mt-0.5">
                     {formatBytes(item.file.size)}
-                    {item.kind === "encrypted" ? " · 本地解密" : " · ffmpeg"}
+                    {item.kind === "encrypted" && item.status === "done" ? " · 已解锁" : ""}
                     {item.status === "done" && item.result && (
                       <span className="text-emerald-400/70"> → {item.result.filename}</span>
                     )}

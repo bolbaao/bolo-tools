@@ -1,14 +1,22 @@
 import Link from "next/link";
+import { getToolById } from "@/lib/tools";
+
+const AI_TOOL_IDS = [
+  "ai-chat",
+  "ai-search",
+  "ai-music",
+  "app-builder",
+  "ai-writer",
+  "ai-workflow",
+] as const;
 
 const PLANNED = [
-  { title: "AI 对话", status: "available" as const, href: "/tools/ai-chat/" },
-  { title: "AI 全网搜索", status: "available" as const, href: "/tools/ai-search/" },
   { title: "AI 生图", status: "available" as const, href: "/tools/image-studio/?tab=generate" },
-  { title: "AI 写作助手", status: "soon" as const },
-  { title: "AI 工作流", status: "soon" as const },
 ];
 
 export default function AiToolsPage() {
+  const aiTools = AI_TOOL_IDS.map((id) => getToolById(id)).filter(Boolean);
+
   return (
     <div className="relative min-h-[calc(100vh-3.5rem)]">
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24 text-center">
@@ -26,11 +34,30 @@ export default function AiToolsPage() {
 
         <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">AI 工具</h1>
         <p className="mt-4 text-base leading-relaxed text-white/45 sm:text-lg">
-          AI 工具陆续开发中，敬请期待。
+          对话、搜索、写作、成曲、做 App 与工作流 — 一站完成智能创作。
         </p>
-        <p className="mt-2 text-sm text-white/30">我们会把更多智能能力收拢到这里，保持简洁好用。</p>
+        <p className="mt-2 text-sm text-white/30">选择下方工具进入，按页面指引即可使用。</p>
 
         <ul className="mt-12 space-y-3 text-left">
+          {aiTools.map((tool) => (
+            <li
+              key={tool!.id}
+              className="rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3.5"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <span className="text-sm font-medium text-white/85">{tool!.title}</span>
+                  <p className="mt-1 text-xs text-white/40 leading-relaxed">{tool!.description}</p>
+                </div>
+                <Link
+                  href={tool!.href}
+                  className="shrink-0 rounded-full bg-violet-500/20 px-3 py-1 text-xs font-medium text-violet-200 ring-1 ring-violet-500/35 hover:bg-violet-500/30 transition-colors"
+                >
+                  进入 →
+                </Link>
+              </div>
+            </li>
+          ))}
           {PLANNED.map((item) => (
             <li
               key={item.title}

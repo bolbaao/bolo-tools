@@ -30,18 +30,6 @@ pick_browser() {
     echo "safari"
     return
   fi
-  if [ -d "/Applications/Google Chrome.app" ]; then
-    echo "chrome"
-    return
-  fi
-  if [ -d "/Applications/Brave Browser.app" ]; then
-    echo "brave"
-    return
-  fi
-  if [ -d "/Applications/Microsoft Edge.app" ]; then
-    echo "edge"
-    return
-  fi
   echo "safari"
 }
 

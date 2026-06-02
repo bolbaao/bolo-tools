@@ -59,10 +59,7 @@ function formatChatError(err, provider) {
     return `模型无效。请检查 .env 中的模型名称（当前：${label}）`;
   }
   if (/timeout|timed out|ETIMEDOUT|AbortError|ECONNREFUSED|ENOTFOUND|fetch failed|Connection error/i.test(msg)) {
-    if (provider === "openai") {
-      return `无法连接 ${label}。大陆直连 api.openai.com 通常不可用，请在 .env 配置 HTTPS_PROXY，或使用 OPENAI_BASE_URL 指向可访问的兼容网关`;
-    }
-    return `无法连接 ${label}。请检查网络、代理与 API Key 后重启 ./start.sh`;
+    return `无法连接 ${label}。请检查网络与 API Key 后重启 ./start.sh`;
   }
   if (/401|invalid.*key|authentication/i.test(msg)) {
     return `${label} API Key 无效或已过期`;
@@ -128,7 +125,7 @@ router.post("/", async (req, res) => {
     if (!chatConfig) {
       throw new HttpError(
         503,
-        "未配置 AI 对话 Key。请在 .env 填入 DEEPSEEK_API_KEY、OPENAI_API_KEY（ChatGPT）或 ARK_API_KEY，详见 .env.example",
+        "未配置 AI 对话 Key。请在 .env 填入 DEEPSEEK_API_KEY 或 ARK_API_KEY，详见 .env.example",
       );
     }
 

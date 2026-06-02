@@ -164,9 +164,7 @@ export default function VideoExtractForm() {
           ))}
         </div>
         <p className="text-[11px] text-white/30 leading-relaxed">
-          粘贴分享链接或整段文案即可。抖音 / B 站 / YouTube / X / 微信视频号 / Telegram / Instagram 等均支持多清晰度与本页直接下载。
-          微信视频号需运行 <code className="text-white/45">./scripts/setup-yuanbao-cookies.sh --install-cron</code>（Safari 登录元宝）。
-          X 视频多数需登录 Cookie，失败时请运行 <code className="text-white/45">./scripts/setup-x-cookies.sh</code>（见 .env.example）。
+          粘贴分享链接或整段文案即可。抖音、B 站、YouTube、X、微信视频号、Telegram、Instagram 等均支持多清晰度与本页直接下载。部分平台需登录或权限，解析失败时请换链接重试或联系客服。
         </p>
       </div>
 

@@ -49,5 +49,5 @@ export async function fetchChatModels(): Promise<ChatModelsResponse> {
 }
 
 export function formatChatModelLabel(option: ChatModelOption): string {
-  return `${option.label} · ${option.model}`;
+  return option.label;
 }

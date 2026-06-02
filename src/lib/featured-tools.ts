@@ -18,21 +18,19 @@ export const featuredTools: FeaturedTool[] = [
   {
     id: "music-convert",
     title: "音乐格式转换",
-    description:
-      "上传网易云等加密曲目，选择 MP3、FLAC 等目标格式，批量转换后打包下载。",
+    description: "上传各平台加密曲目，转换为 MP3、FLAC 等格式，支持批量打包下载。",
     href: "/tools/music-convert",
   },
   {
     id: "video-extract",
     title: "视频链接提取",
-    description:
-      "粘贴抖音、B 站、YouTube 等平台链接，解析多清晰度地址并本页直接下载。",
+    description: "粘贴抖音、B 站、YouTube 等平台链接，解析多清晰度并本页直接下载。",
     href: "/tools/video-extract",
   },
   {
     id: "image-studio",
     title: "图像工坊",
-    description: "压缩、变清晰、智能抠图，浏览器本地处理，不上传服务器。",
+    description: "压缩、变清晰、智能抠图与 AI 生图，一站式完成图像处理。",
     href: "/tools/image-studio",
   },
   {
@@ -50,7 +48,7 @@ export const featuredTools: FeaturedTool[] = [
   {
     id: "toolkit",
     title: "实用工具箱",
-    description: "字幕、GIF、文本处理、爬虫等首页未收录的工具，按分类浏览并一键进入。",
+    description: "字幕、GIF、文本处理、爬虫等更多工具，按分类浏览并一键进入。",
     href: "#toolkit",
   },
 ];

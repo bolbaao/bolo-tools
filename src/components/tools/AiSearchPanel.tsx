@@ -3,6 +3,7 @@
 import ActionButton from "@/components/ActionButton";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { ApiError, apiGet, apiPost } from "@/lib/api";
+import { AI_SERVICE_UNAVAILABLE } from "@/lib/service-message";
 import { useCallback, useEffect, useState } from "react";
 
 type SearchResult = {
@@ -87,17 +88,7 @@ export default function AiSearchPanel() {
 
       {caps && !caps.available && (
         <p className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-xs leading-relaxed text-cyan-100/85">
-          请在 <code className="text-white/60">.env</code> 配置{" "}
-          <code className="text-white/60">TAVILY_API_KEY</code>（推荐，{" "}
-          <a
-            href="https://tavily.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-cyan-300/90 underline underline-offset-2"
-          >
-            tavily.com
-          </a>
-          ）或 <code className="text-white/60">SERPER_API_KEY</code>，并重启服务。
+          {AI_SERVICE_UNAVAILABLE}
         </p>
       )}
 
@@ -153,7 +144,7 @@ export default function AiSearchPanel() {
                   </span>
                 )}
                 <span className="text-[10px] text-white/30">
-                  {data.provider === "tavily" ? "Tavily" : "Serper"} · {data.results.length} 条来源
+                  {data.results.length} 条来源
                 </span>
               </div>
               <div className="text-sm text-white/75 leading-relaxed whitespace-pre-wrap">{data.summary}</div>

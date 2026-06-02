@@ -16,10 +16,10 @@ import { useCallback, useEffect, useState } from "react";
 type Tab = "compress" | "sharpen" | "cutout" | "generate";
 
 const TABS: { id: Tab; label: string; hint: string }[] = [
-  { id: "compress", label: "压缩", hint: "本地压缩体积" },
-  { id: "sharpen", label: "变清晰", hint: "本地锐化增强" },
-  { id: "cutout", label: "抠图", hint: "本地 AI 去背景" },
-  { id: "generate", label: "AI 生图", hint: "火山方舟 Seedream" },
+  { id: "compress", label: "压缩", hint: "减小体积" },
+  { id: "sharpen", label: "变清晰", hint: "锐化增强" },
+  { id: "cutout", label: "抠图", hint: "智能去背景" },
+  { id: "generate", label: "AI 生图", hint: "文字描述成图" },
 ];
 
 const genStyles = ["写实", "电影感", "动漫", "水彩", "赛博朋克", "国风"];
@@ -363,7 +363,7 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
           </span>
         )}
         <span className="text-sm text-white/50">{file?.name ?? "上传图片"}</span>
-        <span className="text-xs text-white/25">浏览器本地处理，不上传服务器</span>
+        <span className="text-xs text-white/25">压缩、清晰、抠图即时处理，注重隐私</span>
         <input type="file" accept="image/*" className="hidden" onChange={onFile} />
       </label>
 
@@ -499,8 +499,8 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
 
       <p className="text-center text-xs text-white/25 leading-relaxed">
         {tab === "generate"
-          ? "AI 生图由火山方舟 Seedream 提供 · 需在 .env 配置 ARK_API_KEY"
-          : "压缩、变清晰、抠图为浏览器本地处理"}
+          ? "AI 生图：输入画面描述，一键生成并下载"
+          : "压缩、变清晰、抠图：上传图片即可处理并下载"}
       </p>
     </div>
   );

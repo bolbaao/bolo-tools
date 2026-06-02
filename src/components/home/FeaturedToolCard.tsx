@@ -16,9 +16,12 @@ function CardBody({ tool, isToolkit }: { tool: FeaturedTool; isToolkit: boolean 
     <article className="relative flex h-full flex-col p-6 sm:p-7">
         <ToolIconBox id={tool.id} size="md" />
 
-        <h3 className="mt-5 flex-1 text-lg font-semibold tracking-tight text-white transition-colors group-hover:text-white">
+        <h3 className="mt-5 text-lg font-semibold tracking-tight text-white transition-colors group-hover:text-white">
           {tool.title}
         </h3>
+        <p className="mt-2 flex-1 text-sm leading-relaxed text-white/42 line-clamp-3">
+          {tool.description}
+        </p>
 
         <div className="mt-6 flex items-center justify-between border-t border-white/[0.06] pt-5">
           <span className="text-sm font-medium text-white/55 transition-colors group-hover:text-violet-200/90">

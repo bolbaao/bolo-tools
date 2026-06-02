@@ -567,7 +567,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
     <div className="space-y-4">
       {!isHero && (
         <p className="text-sm text-white/45 leading-relaxed">
-          支持上传/粘贴图片识别（火山方舟 ARK_API_KEY + ARK_VISION_MODEL；同一会话内已识别图片不会重复调用）；也可申请定位、相册等权限。
+          支持文字、图片与语音交流；可上传或粘贴图片让 AI 理解画面，也可授权定位、相册等以便回答与「这边」「当地」相关的问题。
           {user?.emailVerified ? (
             <>
               {" "}
@@ -633,7 +633,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
                 ))}
               </select>
             ) : (
-              <span className="text-xs text-white/30">未配置模型</span>
+              <span className="text-xs text-white/30">暂无可用模型</span>
             )}
             {user?.emailVerified && sessions.length > 0 && (
               <select

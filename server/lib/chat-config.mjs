@@ -4,8 +4,6 @@ const DEEPSEEK_DEFAULT_BASE = "https://api.deepseek.com/v1";
 const DEEPSEEK_DEFAULT_MODEL = "deepseek-chat";
 const ARK_DEFAULT_BASE = "https://ark.cn-beijing.volces.com/api/v3";
 const ARK_DEFAULT_MODEL = "doubao-1-5-pro-32k-250115";
-const OPENAI_DEFAULT_BASE = "https://api.openai.com/v1";
-const OPENAI_DEFAULT_MODEL = "gpt-4o-mini";
 
 function deepseekConfig() {
   const apiKey = env("DEEPSEEK_API_KEY");
@@ -30,21 +28,9 @@ export function resolveArkConfig() {
   };
 }
 
-function openaiConfig() {
-  const apiKey = env("OPENAI_API_KEY");
-  if (!apiKey) return null;
-  return {
-    provider: "openai",
-    apiKey,
-    baseURL: env("OPENAI_BASE_URL") || OPENAI_DEFAULT_BASE,
-    model: env("OPENAI_MODEL") || OPENAI_DEFAULT_MODEL,
-  };
-}
-
 const PROVIDERS = {
   deepseek: deepseekConfig,
   ark: resolveArkConfig,
-  openai: openaiConfig,
 };
 
 /** @returns {{ provider: string, apiKey: string, baseURL: string, model: string } | null} */
@@ -56,7 +42,7 @@ export function resolveChatConfig() {
     return null;
   }
 
-  return deepseekConfig() || resolveArkConfig() || openaiConfig();
+  return deepseekConfig() || resolveArkConfig();
 }
 
 /** @returns {{ id: string, label: string, model: string }[]} */
@@ -85,7 +71,6 @@ export function resolveChatConfigByProvider(provider) {
 }
 
 export function getChatProviderLabel(provider) {
-  if (provider === "openai") return "OpenAI / ChatGPT";
   if (provider === "ark") return "火山方舟";
   if (provider === "deepseek") return "DeepSeek";
   return provider || "AI";

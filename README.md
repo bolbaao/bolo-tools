@@ -8,6 +8,10 @@
 |------|------|----------|
 | 图像工坊 | `/tools/image-studio` | 压缩 / 变清晰 / 抠图（本地）· 火山方舟 Seedream 文生图 |
 | AI 对话 | `/tools/ai-chat` | DeepSeek · 闲聊为主，可操控工具 |
+| AI 文字成曲 | `/tools/ai-music` | Suno 兼容 API · 灵感/歌词模式 · 在线试听下载 |
+| 一键做 App | `/tools/app-builder` | DeepSeek 生成单页 HTML · 预览与下载 |
+| AI 写作助手 | `/tools/ai-writer` | 多模式写作 · 改写润色 · 社媒文案 |
+| AI 工作流 | `/tools/ai-workflow` | 多步流水线 · 内容/社媒/脚本模板 |
 | 热点中心 | `/tools/hot-trends` | 抖音官方热搜 · 小红书探索页热门笔记 |
 | 影视搜索 | `/tools/media-search` | 豆瓣+TMDB 并行检索 · 资源链接包 |
 | 制作爬虫 | `/tools/spider-builder` | 服务端 Cheerio 抓取 |
@@ -38,20 +42,20 @@ cp .env.example .env
 
 | 变量 | 用途 | 是否必需 |
 |------|------|----------|
-| `DEEPSEEK_API_KEY` | AI 对话、AI 全网搜索摘要 | 使用该功能时必需 |
+| `DEEPSEEK_API_KEY` | AI 对话、AI 全网搜索摘要、一键做 App、写作助手、工作流 | 使用该功能时必需 |
 | `TAVILY_API_KEY` | AI 全网搜索（推荐） | 搜索时二选一 |
 | `SERPER_API_KEY` | AI 全网搜索（Google 结果） | 搜索时二选一 |
 | `DEEPSEEK_BASE_URL` | DeepSeek API（默认 `https://api.deepseek.com/v1`） | 可选 |
 | `DEEPSEEK_MODEL` | 模型（默认 `deepseek-chat`） | 可选 |
 | `TMDB_API_KEY` | 影视搜索 | 使用该功能时必需 |
-| `ARK_API_KEY` | AI 对话（可选）、图片识别、图像工坊 · AI 生图 | 使用对应功能时必需 |
+| `ARK_API_KEY` | AI 对话（可选）、图片识别、图像工坊 · AI 生图、云端转写 | 使用对应功能时必需 |
+| `SUNO_API_BASE` + `SUNO_API_KEY` | AI 文字成曲（完整 Suno 成曲） | 完整成曲时必需；未配置时可用 DeepSeek 演示模式 |
 | `WHISPER_MODEL` | 字幕工坊 · 本地转写模型（默认 `base`） | 可选 |
-| `OPENAI_API_KEY` | 字幕工坊 · 云端转写（本地不可用时的备选） | 可选 |
 | `ASSETS_PASSWORD` | 素材库访问密码 | 使用素材库时必需 |
 
 ### AI 对话
 
-默认优先 **DeepSeek**（大陆可直接用）。也支持 **ChatGPT（OpenAI 兼容 API）** 与火山方舟。
+默认优先 **DeepSeek**（大陆可直接用），也支持 **火山方舟**。
 
 **DeepSeek（推荐，国内免代理）**
 
@@ -63,26 +67,38 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
 DEEPSEEK_MODEL=deepseek-chat
 ```
 
-**ChatGPT（大陆需代理或中转）**
+**火山方舟（可选）**
 
-1. 在 `.env` 中指定使用 OpenAI，并填入 Key（若已配置 DeepSeek，需注释掉 `DEEPSEEK_API_KEY` 或设置 `CHAT_PROVIDER=openai`）：
-
-```bash
-CHAT_PROVIDER=openai
-OPENAI_API_KEY=sk-你的密钥
-OPENAI_MODEL=gpt-4o-mini
-```
-
-2. 任选一种联网方式：
-
-- **本机 VPN / Clash**：在 `.env` 增加（端口按客户端实际修改）  
-  `HTTPS_PROXY=http://127.0.0.1:7890`  
-  保持 `OPENAI_BASE_URL=https://api.openai.com/v1`
-- **OpenAI 兼容中转**：将 `OPENAI_BASE_URL` 改为你购买的中转服务提供的 `https://xxx/v1` 地址（无需代理）
-
-修改后重启 `./start.sh`。
+在 `.env` 中配置 `ARK_API_KEY`，或设置 `CHAT_PROVIDER=ark` 强制使用火山方舟。修改后重启 `./start.sh`。
 
 **主打**轻松闲聊；**次要**在用户明确要求时充当智能助手（跳转工具、预填链接等）。
+
+### AI 文字成曲（Suno 网关）
+
+完整成曲需 Suno 兼容 API。项目内置 **GPTNB**、**OpenAI-HK** 等常见网关预设。
+
+**一键配置**
+
+```bash
+node scripts/setup-suno.mjs
+# 或指定提供商
+node scripts/setup-suno.mjs --provider gptnb --key 你的密钥
+./start.sh
+node scripts/setup-suno.mjs --check      # 验证配置
+node scripts/test-suno-live.mjs          # 实测成曲（约 1–3 分钟）
+```
+
+**手动配置（GPTNB 示例）**
+
+```bash
+SUNO_PROVIDER=gptnb
+SUNO_API_BASE=https://api.gptnb.ai
+SUNO_API_KEY=你的密钥
+SUNO_MODEL=chirp-v4
+SUNO_API_MODE=v2
+```
+
+未配置 Suno 时，若已有 `DEEPSEEK_API_KEY`，会自动使用**演示模式**（AI 作词 + 旋律预览）。工具入口：`/tools/ai-music`。
 
 ### AI 全网搜索
 

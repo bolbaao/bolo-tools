@@ -20,6 +20,10 @@ import authRouter from "./routes/auth.mjs";
 import memoryRouter from "./routes/memory.mjs";
 import chatHistoryRouter from "./routes/chat-history.mjs";
 import adminRouter from "./routes/admin.mjs";
+import aiMusicRouter from "./routes/ai-music.mjs";
+import appBuilderRouter from "./routes/app-builder.mjs";
+import aiWriterRouter from "./routes/ai-writer.mjs";
+import aiWorkflowRouter from "./routes/ai-workflow.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, "..", "out");
@@ -92,6 +96,10 @@ app.use("/api/auth", authRouter);
 app.use("/api/memory", memoryRouter);
 app.use("/api/chat-history", chatHistoryRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/ai-music", aiMusicRouter);
+app.use("/api/app-builder", appBuilderRouter);
+app.use("/api/ai-writer", aiWriterRouter);
+app.use("/api/ai-workflow", aiWorkflowRouter);
 
 if (hasOut && !API_ONLY) {
   app.use((req, res) => {
