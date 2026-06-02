@@ -18,10 +18,10 @@ const BLOCKED_KEYWORDS = [
 
 /** 多路 API 并行检索，按分组合并后面向用户展示 */
 const SOURCE_DEFS = [
-  { id: "dyfx", group: "primary", groupLabel: "主资源库", path: "/api/getDyfx", kind: "simple" },
-  { id: "ttzjb", group: "primary", groupLabel: "主资源库", path: "/api/getTTZJB", kind: "simple" },
-  { id: "juzi", group: "extended", groupLabel: "扩展资源库", path: "/api/getJuzi", kind: "simple" },
-  { id: "girls", group: "more", groupLabel: "更多资源", path: "/api/getGirls", kind: "simple" },
+  { id: "dyfx", group: "primary", groupLabel: "相关结果", path: "/api/getDyfx", kind: "simple" },
+  { id: "ttzjb", group: "primary", groupLabel: "相关结果", path: "/api/getTTZJB", kind: "simple" },
+  { id: "juzi", group: "extended", groupLabel: "更多结果", path: "/api/getJuzi", kind: "simple" },
+  { id: "girls", group: "more", groupLabel: "更多结果", path: "/api/getGirls", kind: "simple" },
 ];
 
 const GROUP_ORDER = ["primary", "extended", "more"];
@@ -232,8 +232,9 @@ export async function searchMediaResources(query) {
 }
 
 export function buildCopyText(result) {
-  const lines = [`${result.query} · 影视资源`, ""];
+  const lines = [`${result.query}`, ""];
   for (const section of result.sections) {
+    if (section.items.length === 0) continue;
     lines.push(`【${section.source}】`);
     for (const item of section.items) {
       lines.push(item.title);

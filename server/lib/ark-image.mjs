@@ -110,7 +110,7 @@ export async function editArkImage({ prompt, imageDataUrl, resolution = "2k" }) 
 
   const image = imageDataUrl?.trim();
   if (!image) throw new Error("请上传参考图片");
-  if (!/^data:image\/(jpeg|jpg|png);base64,/i.test(image) && !/^https?:\/\//i.test(image)) {
+  if (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(image)) {
     throw new Error("图片格式无效，请重新上传");
   }
 

@@ -30,22 +30,37 @@ type Capabilities = {
   aiSynthesis: boolean;
 };
 
-const EXAMPLE_QUERIES = [
-  "2025 年新能源汽车销量趋势",
-  "Cursor IDE 最新功能",
-  "如何优化 Next.js 首屏加载",
-  "苹果 Vision Pro 国内发售",
-];
+type HotTopic = {
+  title: string;
+  heat: string;
+  tag: string;
+  searchQuery: string;
+};
+
+function formatHotUpdatedAt(iso?: string) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("zh-CN", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export default function AiSearchPanel() {
   const [query, setQuery] = useState("");
   const [depth, setDepth] = useState<"basic" | "advanced">("advanced");
   const [caps, setCaps] = useState<Capabilities | null>(null);
+  const [hotTopics, setHotTopics] = useState<HotTopic[]>([]);
+  const [hotLoading, setHotLoading] = useState(true);
+  const [hotUpdatedAt, setHotUpdatedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SearchResponse | null>(null);
 
-  const runSearch = useCallback(async (q?: string) => {
+  const runSearch = useCallback(async (q?: string, opts?: { topic?: "news" | "general" }) => {
     const term = (q ?? query).trim();
     if (!term) return;
     setQuery(term);
@@ -55,7 +70,12 @@ export default function AiSearchPanel() {
     try {
       const result = await apiPost<SearchResponse>(
         "/api/ai-search/search",
-        { query: term, depth, synthesize: true },
+        {
+          query: term,
+          depth,
+          synthesize: true,
+          topic: opts?.topic || "general",
+        },
         { timeoutMs: 120000 },
       );
       setData(result);
@@ -80,27 +100,44 @@ export default function AiSearchPanel() {
       .catch(() => setCaps(null));
   }, []);
 
-  return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-violet-500/15 bg-violet-500/5 px-5 py-4">
-        <p className="text-sm text-white/65 leading-relaxed">
-          输入问题后，将<strong className="text-white/85 font-medium">检索全网</strong>
-          并由 AI 综合多来源生成带引用的答案，适合查资料、对比信息、快速了解热点。
-        </p>
-      </div>
+  const loadHotTopics = useCallback(() => {
+    setHotLoading(true);
+    apiGet<{ ok: boolean; topics: HotTopic[]; updatedAt?: string }>("/api/ai-search/hot-topics")
+      .then((res) => {
+        setHotTopics(res.topics || []);
+        setHotUpdatedAt(res.updatedAt || null);
+      })
+      .catch(() => {
+        setHotTopics([]);
+        setHotUpdatedAt(null);
+      })
+      .finally(() => setHotLoading(false));
+  }, []);
 
-      {caps && !caps.available && (
+  useEffect(() => {
+    loadHotTopics();
+  }, [loadHotTopics]);
+
+  return (
+    <>
+      {caps && !caps.available ? (
         <p className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-xs leading-relaxed text-cyan-100/85">
           {AI_SERVICE_UNAVAILABLE}
         </p>
-      )}
+      ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <input
           type="search"
+          data-tool-primary-input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && runSearch()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && query.trim() && !loading) {
+              e.preventDefault();
+              void runSearch();
+            }
+          }}
           placeholder="输入你想查的问题…"
           className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-violet-500/40 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
         />
@@ -115,19 +152,55 @@ export default function AiSearchPanel() {
         </select>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {EXAMPLE_QUERIES.map((q) => (
-          <button
-            key={q}
-            type="button"
-            onClick={() => runSearch(q)}
-            disabled={loading}
-            className="rounded-full bg-white/[0.04] px-3 py-1.5 text-xs text-white/45 ring-1 ring-white/10 hover:bg-white/[0.08] hover:text-white/70 disabled:opacity-40"
-          >
-            {q}
-          </button>
-        ))}
-      </div>
+      <ActionButton
+        label="开始搜索"
+        loadingLabel="正在检索全网…"
+        loading={loading}
+        disabled={!query.trim() || (caps ? !caps.available : false)}
+        onClick={() => runSearch()}
+      />
+
+      <section className="space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-xs font-medium text-white/50">当下时事热点</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-white/30">
+              {hotLoading
+                ? "正在抓取热搜…"
+                : hotTopics.length > 0
+                  ? `抖音热搜 · ${hotUpdatedAt ? `更新于 ${formatHotUpdatedAt(hotUpdatedAt)}` : "实时"}`
+                  : "暂无热点数据"}
+            </span>
+            <button
+              type="button"
+              onClick={loadHotTopics}
+              disabled={hotLoading || loading}
+              className="text-[10px] text-violet-300/80 hover:text-violet-200 disabled:opacity-40"
+            >
+              刷新
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {hotLoading && hotTopics.length === 0 && (
+            <span className="rounded-full bg-white/[0.04] px-3 py-1.5 text-xs text-white/30 ring-1 ring-white/10">
+              加载热点中…
+            </span>
+          )}
+          {hotTopics.map((item) => (
+            <button
+              key={item.title}
+              type="button"
+              onClick={() => runSearch(item.searchQuery, { topic: "news" })}
+              disabled={loading}
+              title={`${item.heat} · ${item.tag}`}
+              className="rounded-full bg-amber-500/[0.08] px-3 py-1.5 text-xs text-amber-100/75 ring-1 ring-amber-500/20 hover:bg-amber-500/[0.14] hover:text-amber-50 disabled:opacity-40"
+            >
+              {item.title}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {error && (
         <p className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300/90">
@@ -135,8 +208,8 @@ export default function AiSearchPanel() {
         </p>
       )}
 
-      {data && (
-        <div className="space-y-5">
+      {data ? (
+        <div className="space-y-5" data-tool-result>
           {data.summary && (
             <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 sm:p-6">
               <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -190,19 +263,20 @@ export default function AiSearchPanel() {
             </section>
           )}
         </div>
-      )}
+      ) : null}
 
-      <ActionButton
-        label="开始搜索"
-        loadingLabel="正在检索全网…"
-        loading={loading}
-        disabled={!query.trim() || (caps ? !caps.available : false)}
-        onClick={() => runSearch()}
-      />
+      <details className="rounded-2xl border border-violet-500/15 bg-violet-500/5 px-5 py-3">
+        <summary className="cursor-pointer text-sm text-white/65 marker:content-none [&::-webkit-details-marker]:hidden">
+          功能说明
+        </summary>
+        <p className="mt-2 text-sm leading-relaxed text-white/65">
+          输入问题后将检索全网并由 AI 综合多来源生成带引用的答案。下方热点来自抖音热搜，点击即可深度检索近期新闻。
+        </p>
+      </details>
 
-      <p className="text-center text-xs text-white/25 leading-relaxed">
+      <p className="text-center text-xs leading-relaxed text-white/25">
         检索由 Tavily / Serper 提供 · 摘要由 DeepSeek 生成 · 请核对来源后用于重要决策
       </p>
-    </div>
+    </>
   );
 }

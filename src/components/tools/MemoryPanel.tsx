@@ -10,7 +10,6 @@ import {
   updateMemory,
   type MemoryItem,
 } from "@/lib/memory";
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 
@@ -120,7 +119,7 @@ export default function MemoryPanel() {
       <>
         <div className="bento-card p-8 text-center">
           <p className="text-white/70 text-sm leading-relaxed">
-            登录后可创建专属记忆库，保存偏好、习惯与重要信息；AI 对话会自动参考这些记忆。
+            登录后可创建专属记忆库，保存偏好、习惯与重要信息，随时查看和编辑。
           </p>
           <button
             type="button"
@@ -139,7 +138,7 @@ export default function MemoryPanel() {
     return (
       <div className="bento-card p-8 text-center space-y-3">
         <p className="text-sm text-white/70 leading-relaxed">
-          请先验证邮箱 <span className="text-white">{user.email}</span>，验证后可管理记忆库并使用自动记忆提取。
+          请先验证邮箱 <span className="text-white">{user.email}</span>，验证后可管理记忆库。
         </p>
         <p className="text-xs text-white/40">可在页面顶部重新发送验证邮件。</p>
       </div>
@@ -149,12 +148,7 @@ export default function MemoryPanel() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-white/45 leading-relaxed">
-        你好，<span className="text-white/70">{user.username}</span>
-        。这里保存的信息会在{" "}
-        <Link href="/tools/ai-chat" className="text-emerald-400/80 hover:text-emerald-300">
-          AI 对话
-        </Link>{" "}
-        中自动生效，让回复更贴合你。
+        你好，<span className="text-white/70">{user.username}</span>。在这里保存你的偏好与常用信息，需要时随时更新。
       </p>
 
       <div className="bento-card p-4 sm:p-5 space-y-3">

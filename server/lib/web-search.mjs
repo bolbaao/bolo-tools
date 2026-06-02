@@ -15,7 +15,7 @@ export function getWebSearchCapabilities() {
 
 /**
  * @param {string} query
- * @param {{ depth?: 'basic'|'advanced', maxResults?: number }} opts
+ * @param {{ depth?: 'basic'|'advanced', maxResults?: number, topic?: 'general'|'news', days?: number }} opts
  * @returns {Promise<{ query: string, provider: string, answer?: string, results: WebSearchResult[] }>}
  */
 export async function searchWeb(query, opts = {}) {
@@ -24,12 +24,14 @@ export async function searchWeb(query, opts = {}) {
 
   const depth = opts.depth === "basic" ? "basic" : "advanced";
   const maxResults = Math.min(12, Math.max(3, Number(opts.maxResults) || 8));
+  const topic = opts.topic === "news" ? "news" : "general";
+  const days = Math.min(30, Math.max(1, Number(opts.days) || (topic === "news" ? 3 : 0))) || undefined;
 
   if (env("TAVILY_API_KEY")) {
-    return searchWithTavily(q, { depth, maxResults });
+    return searchWithTavily(q, { depth, maxResults, topic, days });
   }
   if (env("SERPER_API_KEY")) {
-    return searchWithSerper(q, { maxResults });
+    return searchWithSerper(q, { maxResults, topic });
   }
 
   throw new HttpError(
@@ -38,16 +40,20 @@ export async function searchWeb(query, opts = {}) {
   );
 }
 
-async function searchWithTavily(query, { depth, maxResults }) {
+async function searchWithTavily(query, { depth, maxResults, topic, days }) {
   const apiKey = env("TAVILY_API_KEY");
   const body = {
     api_key: apiKey,
     query,
     search_depth: depth,
+    topic,
     include_answer: true,
     include_raw_content: false,
     max_results: maxResults,
   };
+  if (topic === "news" && days) {
+    body.days = days;
+  }
 
   let data;
   try {
@@ -81,11 +87,12 @@ async function searchWithTavily(query, { depth, maxResults }) {
   };
 }
 
-async function searchWithSerper(query, { maxResults }) {
+async function searchWithSerper(query, { maxResults, topic }) {
   const apiKey = env("SERPER_API_KEY");
+  const endpoint = topic === "news" ? "https://google.serper.dev/news" : "https://google.serper.dev/search";
   let data;
   try {
-    const res = await fetch("https://google.serper.dev/search", {
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -105,7 +112,7 @@ async function searchWithSerper(query, { maxResults }) {
     throw new HttpError(502, `无法连接 Serper：${(e.message || String(e)).slice(0, 120)}`);
   }
 
-  const organic = data.organic || [];
+  const organic = topic === "news" ? data.news || [] : data.organic || [];
   const results = organic.map((r) => ({
     title: String(r.title || "").trim() || "未命名页面",
     url: String(r.link || "").trim(),

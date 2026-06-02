@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { createCaptcha, verifyCaptcha } from "../lib/captcha.mjs";
 import { HttpError, sendError } from "../lib/http-error.mjs";
 import {
   authenticateUser,
@@ -15,6 +16,15 @@ import {
 
 const router = Router();
 
+router.get("/captcha", (_req, res) => {
+  try {
+    const captcha = createCaptcha();
+    res.json({ ok: true, captchaId: captcha.id, image: captcha.image });
+  } catch (err) {
+    sendError(res, err.status ? err : new HttpError(500, err.message));
+  }
+});
+
 router.post("/send-code", async (req, res) => {
   try {
     const { email } = req.body ?? {};
@@ -27,11 +37,12 @@ router.post("/send-code", async (req, res) => {
 
 router.post("/register", async (req, res) => {
   try {
-    const { username, email, password, confirmPassword, verificationCode } = req.body ?? {};
-    const user = await registerUser(username, email, password, confirmPassword, verificationCode);
+    const { username, password, confirmPassword, captchaId, captchaCode } = req.body ?? {};
+    verifyCaptcha(captchaId, captchaCode);
+    const user = await registerUser(username, password, confirmPassword);
     const token = createUserSessionToken(user.id);
     setUserSessionCookie(res, token);
-    res.json({ ok: true, user, message: "注册成功，邮箱已验证" });
+    res.json({ ok: true, user, message: "注册成功" });
   } catch (err) {
     sendError(res, err.status ? err : new HttpError(500, err.message));
   }
@@ -86,7 +97,7 @@ router.post("/resend-verification", async (req, res) => {
     if (!authUser) throw new HttpError(401, "请先登录");
     const result = await resendVerificationEmail(authUser.id);
     const message = result.devMode
-      ? "未配置邮件服务，验证码见下方或服务器控制台"
+      ? "未配置邮件服务，验证信息已输出至服务器控制台"
       : "验证邮件已重新发送（含验证码）";
     res.json({ ok: true, ...result, message });
   } catch (err) {

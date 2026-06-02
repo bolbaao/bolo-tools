@@ -93,9 +93,27 @@ function markdownTableToHtml(block: string): string | null {
   return `<div class="md-table-wrap overflow-x-auto mb-4"><table class="md-table w-full text-xs border-collapse"><thead><tr class="border-b border-white/10">${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
 }
 
+function sanitizeLinkHref(href: string): string | null {
+  const trimmed = href.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed, "https://example.invalid");
+    if (parsed.protocol === "http:" || parsed.protocol === "https:" || parsed.protocol === "mailto:") {
+      return parsed.href;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 function inline(s: string) {
   return s
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label, href) => {
+      const safe = sanitizeLinkHref(href);
+      if (!safe) return label;
+      return `<a href="${safe}" rel="noopener noreferrer">${label}</a>`;
+    })
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
     .replace(/`([^`]+)`/g, "<code class='md-inline'>$1</code>");

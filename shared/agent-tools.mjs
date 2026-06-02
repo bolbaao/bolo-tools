@@ -11,7 +11,7 @@ export const AGENT_TOOLS = [
     id: "media-download",
     title: "影视资源下载",
     href: "/tools/media-download",
-    description: "按片名检索网盘资源（百度、迅雷、夸克等），找到即可复制链接",
+    description: "按名称搜索相关内容，找到即可复制链接",
     fields: { keyword: "片名或关键词" },
   },
   {
@@ -134,4 +134,3 @@ export const AGENT_TOOLS = [
   },
 ];
 
-export const AGENT_CATEGORIES = ["全部", "AI", "图像", "视频", "音频", "文档", "运营", "影视", "开发"];

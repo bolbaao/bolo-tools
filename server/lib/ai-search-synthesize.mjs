@@ -6,8 +6,9 @@ import { env } from "./env.mjs";
 /**
  * @param {string} query
  * @param {{ answer?: string, results: Array<{ title: string, url: string, snippet: string }> }} searchPayload
+ * @param {{ topic?: 'general'|'news' }} opts
  */
-export async function synthesizeSearchAnswer(query, searchPayload) {
+export async function synthesizeSearchAnswer(query, searchPayload, opts = {}) {
   const chatConfig = resolveChatConfig();
   if (!chatConfig) {
     throw new HttpError(
@@ -25,6 +26,11 @@ export async function synthesizeSearchAnswer(query, searchPayload) {
     ? `\n搜索引擎初步摘要（仅供参考，请核实并改写）：\n${searchPayload.answer}\n`
     : "";
 
+  const newsHint =
+    opts.topic === "news"
+      ? "6. 用户关注当下时事热点，请突出「最新进展、时间线、各方反应」，避免过时信息"
+      : "";
+
   const system = `你是春雨集的 AI 全网搜索助手。根据用户问题与检索到的网页摘要，给出准确、有条理的中文回答。
 
 要求：
@@ -32,7 +38,8 @@ export async function synthesizeSearchAnswer(query, searchPayload) {
 2. 在正文中用 [1]、[2] 标注引用（对应来源编号）
 3. 若信息不足或来源矛盾，明确说明不确定之处
 4. 回答简洁实用，可用小标题与列表
-5. 末尾单独一行「参考来源」列出用到的编号与标题`;
+5. 末尾单独一行「参考来源」列出用到的编号与标题
+${newsHint}`;
 
   const user = `用户问题：${query}
 ${tavilyHint}

@@ -3,6 +3,7 @@
 import ActionButton from "@/components/ActionButton";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { ApiError, apiGet } from "@/lib/api";
+import { formatResourceNotFound, sanitizeMediaSearchError } from "@/lib/service-message";
 import { useCallback, useEffect, useState } from "react";
 
 type ParsedLink = {
@@ -71,7 +72,8 @@ export default function MediaDownloadPanel() {
       setWarnings(data.errors || []);
       setCollapsed({});
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "搜索失败");
+      const raw = e instanceof ApiError ? e.message : "搜索失败";
+      setError(sanitizeMediaSearchError(raw, term));
       setSections([]);
       setStats(null);
       setCopyText("");
@@ -120,11 +122,11 @@ export default function MediaDownloadPanel() {
     <div className="space-y-6">
       <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 px-5 py-4">
         <p className="text-sm text-white/65 leading-relaxed">
-          输入片名后，会同时在多个资源库里查找网盘链接（百度、迅雷、夸克、阿里云盘等），找到即可
+          输入名称后搜索，找到结果即可
           <strong className="text-white/85 font-medium">一键复制</strong>。
         </p>
         <p className="mt-2 text-xs text-white/35">
-          提示：不要带「第几部」「第几期」等无关词；搜不到时可换关键词或刷新重试。
+          提示：不要带「第几部」「第几期」等无关词；搜不到时可换关键词或别名再试。
         </p>
       </div>
 
@@ -138,8 +140,8 @@ export default function MediaDownloadPanel() {
           className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-1 focus:ring-amber-500/40"
         />
         <ActionButton
-          label="搜索资源"
-          loadingLabel="检索中…"
+          label="搜索"
+          loadingLabel="查找中…"
           loading={loading}
           disabled={!keyword.trim()}
           onClick={() => void runSearch(keyword)}
@@ -172,14 +174,14 @@ export default function MediaDownloadPanel() {
 
       {warnings.length > 0 && !error && (
         <p className="text-xs text-amber-300/70 text-center rounded-xl bg-amber-500/10 px-4 py-2">
-          部分来源暂未返回结果：{warnings.join("；")}
+          部分结果暂未返回，可换关键词再试
         </p>
       )}
 
       {stats && !loading && (
         <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-white/35">
           <span>
-            {stats.sections} 个来源 · {stats.items} 条结果 · {stats.links} 个链接
+            {stats.items} 条结果 · {stats.links} 个链接
           </span>
           {copyText && (
             <button
@@ -194,7 +196,7 @@ export default function MediaDownloadPanel() {
       )}
 
       {loading && (
-        <p className="text-center text-sm text-white/40 py-10">正在检索网盘资源…</p>
+        <p className="text-center text-sm text-white/40 py-10">正在查找…</p>
       )}
 
       {!loading && hasResults && (
@@ -285,12 +287,12 @@ export default function MediaDownloadPanel() {
 
       {!loading && !hasResults && keyword && !error && (
         <p className="text-center text-sm text-white/40 py-10">
-          未找到相关资源，请换关键词重试（不要带第几部、第几期等无关词）
+          {formatResourceNotFound(keyword)}
         </p>
       )}
 
       <p className="text-center text-[11px] text-white/25 leading-relaxed">
-        本工具来自公开内容检索，搜索结果不代表本站立场。请支持正版内容，链接仅供信息检索。
+        搜索结果不代表本站立场，请支持正版内容。
       </p>
     </div>
   );

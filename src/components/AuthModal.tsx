@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Props = {
   open: boolean;
@@ -14,71 +14,114 @@ function PasswordInput({
   value,
   onChange,
   placeholder,
-  show,
   autoComplete,
   onKeyDown,
+  showToggle = true,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
-  show: boolean;
   autoComplete?: string;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  showToggle?: boolean;
 }) {
+  const [show, setShow] = useState(false);
+
   return (
-    <input
-      type={show ? "text" : "password"}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onKeyDown={onKeyDown}
-      placeholder={placeholder}
-      autoComplete={autoComplete}
-      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-    />
+    <div className="relative">
+      <input
+        type={showToggle && show ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        className={`w-full rounded-xl border input-dark px-4 py-3 text-sm focus:outline-none ${showToggle ? "pr-11" : ""}`}
+      />
+      {showToggle ? (
+        <button
+          type="button"
+          onClick={() => setShow((prev) => !prev)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/35 transition-colors hover:text-white/60"
+          aria-label={show ? "隐藏密码" : "显示密码"}
+        >
+          {show ? (
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.75}
+                d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"
+              />
+            </svg>
+          ) : (
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.75}
+                d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.75}
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          )}
+        </button>
+      ) : null}
+    </div>
   );
 }
 
 export default function AuthModal({ open, onClose, initialMode = "login" }: Props) {
-  const { login, register, sendRegisterCode } = useAuth();
+  const { login, register, fetchRegisterCaptcha } = useAuth();
   const usernameRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [codeCooldown, setCodeCooldown] = useState(0);
+  const [captchaId, setCaptchaId] = useState("");
+  const [captchaImage, setCaptchaImage] = useState("");
+  const [captchaCode, setCaptchaCode] = useState("");
+  const [captchaLoading, setCaptchaLoading] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [sendingCode, setSendingCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [devCode, setDevCode] = useState<string | null>(null);
+
+  const loadCaptcha = useCallback(async () => {
+    setCaptchaLoading(true);
+    try {
+      const next = await fetchRegisterCaptcha();
+      setCaptchaId(next.captchaId);
+      setCaptchaImage(next.image);
+      setCaptchaCode("");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "验证码加载失败");
+    } finally {
+      setCaptchaLoading(false);
+    }
+  }, [fetchRegisterCaptcha]);
 
   useEffect(() => {
     if (open) {
       setMode(initialMode);
       setUsername("");
-      setEmail("");
       setPassword("");
       setConfirmPassword("");
-      setVerificationCode("");
-      setShowPassword(false);
-      setCodeCooldown(0);
+      setCaptchaId("");
+      setCaptchaImage("");
+      setCaptchaCode("");
       setError(null);
       setSuccess(null);
-      setDevCode(null);
       setTimeout(() => usernameRef.current?.focus(), 100);
+      if (initialMode === "register") {
+        void loadCaptcha();
+      }
     }
-  }, [open, initialMode]);
-
-  useEffect(() => {
-    if (codeCooldown <= 0) return;
-    const timer = setInterval(() => {
-      setCodeCooldown((s) => (s <= 1 ? 0 : s - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [codeCooldown]);
+  }, [open, initialMode, loadCaptcha]);
 
   useEffect(() => {
     if (!open) return;
@@ -89,33 +132,12 @@ export default function AuthModal({ open, onClose, initialMode = "login" }: Prop
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const handleSendCode = async () => {
-    if (!email.trim() || sendingCode || codeCooldown > 0) return;
-    setSendingCode(true);
-    setError(null);
-    setDevCode(null);
-    try {
-      const result = await sendRegisterCode(email.trim());
-      setSuccess(result.message);
-      setDevCode(result.devMode && result.code ? result.code : null);
-      setCodeCooldown(60);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "发送失败");
-    } finally {
-      setSendingCode(false);
-    }
-  };
-
   const submit = async () => {
     if (!username.trim() || !password || loading) return;
     if (mode === "register") {
-      if (!email.trim() || !confirmPassword || !verificationCode.trim()) return;
+      if (!confirmPassword || !captchaCode.trim()) return;
       if (password !== confirmPassword) {
         setError("两次输入的密码不一致");
-        return;
-      }
-      if (!/^\d{6}$/.test(verificationCode.trim())) {
-        setError("请输入 6 位邮箱验证码");
         return;
       }
     }
@@ -130,16 +152,19 @@ export default function AuthModal({ open, onClose, initialMode = "login" }: Prop
       } else {
         const msg = await register(
           username.trim(),
-          email.trim(),
           password,
           confirmPassword,
-          verificationCode.trim(),
+          captchaId,
+          captchaCode.trim(),
         );
         setSuccess(msg || "注册成功");
         onClose();
       }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "操作失败");
+      if (mode === "register") {
+        void loadCaptcha();
+      }
     } finally {
       setLoading(false);
     }
@@ -162,7 +187,7 @@ export default function AuthModal({ open, onClose, initialMode = "login" }: Prop
       />
       <div className="relative w-full max-w-sm bento-card p-6 sm:p-8 animate-[bento-in_0.35s_ease-out]">
         <div className="flex justify-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-2xl font-semibold text-white shadow-lg shadow-emerald-500/30">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl btn-primary text-2xl font-semibold shadow-lg">
             记
           </span>
         </div>
@@ -172,7 +197,7 @@ export default function AuthModal({ open, onClose, initialMode = "login" }: Prop
         <p className="mt-2 text-center text-xs text-white/40">
           {mode === "login"
             ? "登录后可使用专属记忆库与对话历史"
-            : "设置密码后填写邮箱验证码完成注册"}
+            : "填写用户名和密码即可完成注册"}
         </p>
 
         <input
@@ -182,7 +207,7 @@ export default function AuthModal({ open, onClose, initialMode = "login" }: Prop
           onChange={(e) => setUsername(e.target.value)}
           placeholder="用户名（3–32 字符）"
           autoComplete="username"
-          className="mt-6 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+          className="mt-6 w-full rounded-xl border input-dark px-4 py-3 text-sm focus:outline-none"
         />
 
         <div className="mt-3">
@@ -190,7 +215,6 @@ export default function AuthModal({ open, onClose, initialMode = "login" }: Prop
             value={password}
             onChange={setPassword}
             placeholder="密码（至少 6 位）"
-            show={showPassword}
             autoComplete={mode === "login" ? "current-password" : "new-password"}
             onKeyDown={(e) => e.key === "Enter" && mode === "login" && void submit()}
           />
@@ -202,72 +226,52 @@ export default function AuthModal({ open, onClose, initialMode = "login" }: Prop
               value={confirmPassword}
               onChange={setConfirmPassword}
               placeholder="确认密码"
-              show={showPassword}
+              showToggle={false}
               autoComplete="new-password"
               onKeyDown={(e) => e.key === "Enter" && void submit()}
             />
           </div>
         )}
 
-        <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-white/45 select-none">
-          <input
-            type="checkbox"
-            checked={showPassword}
-            onChange={(e) => setShowPassword(e.target.checked)}
-            className="h-3.5 w-3.5 rounded border-white/20 bg-white/5 accent-emerald-500"
-          />
-          显示密码
-        </label>
-
         {mode === "register" && (
-          <>
+          <div className="mt-3">
+            <label htmlFor="register-captcha" className="mb-2 block text-xs text-white/45">
+              图形验证码
+            </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="邮箱"
-              autoComplete="email"
-              className="mt-4 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+              id="register-captcha"
+              type="text"
+              value={captchaCode}
+              onChange={(e) => setCaptchaCode(e.target.value.replace(/\s/g, "").slice(0, 8))}
+              placeholder="输入验证码"
+              autoComplete="off"
+              className="w-full rounded-xl border input-dark px-4 py-3 text-sm focus:outline-none"
             />
-            <div className="mt-3 flex gap-2">
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={verificationCode}
-                onChange={(e) =>
-                  setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                }
-                placeholder="邮箱验证码（6 位）"
-                autoComplete="one-time-code"
-                className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-              />
-              <button
-                type="button"
-                onClick={() => void handleSendCode()}
-                disabled={sendingCode || !email.trim() || codeCooldown > 0}
-                className="shrink-0 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-3 text-xs text-emerald-300 hover:bg-emerald-500/15 disabled:opacity-40 whitespace-nowrap"
-              >
-                {sendingCode
-                  ? "发送中…"
-                  : codeCooldown > 0
-                    ? `${codeCooldown}s`
-                    : "获取验证码"}
-              </button>
-            </div>
-          </>
+            <button
+              type="button"
+              onClick={() => void loadCaptcha()}
+              disabled={captchaLoading}
+              className="relative mt-2 overflow-hidden rounded-xl border border-white/10 bg-white/5 transition-opacity hover:opacity-90 disabled:opacity-50"
+              aria-label="刷新验证码"
+              title="刷新验证码"
+            >
+              {captchaImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={captchaImage} alt="图形验证码" className="block h-10 w-[7.5rem]" />
+              ) : (
+                <span className="flex h-10 w-[7.5rem] items-center justify-center text-xs text-white/35">
+                  {captchaLoading ? "加载中…" : "点击刷新"}
+                </span>
+              )}
+            </button>
+          </div>
         )}
 
         {error && (
-          <p className="mt-3 text-center text-xs text-red-400/90">{error}</p>
+          <p className="mt-3 text-center text-xs text-danger/90">{error}</p>
         )}
         {success && (
-          <p className="mt-3 text-center text-xs text-emerald-400/90">{success}</p>
-        )}
-        {devCode && (
-          <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center text-sm font-mono tracking-widest text-amber-200">
-            验证码（本地环境）：{devCode}
-          </p>
+          <p className="mt-3 text-center text-xs text-success/90">{success}</p>
         )}
 
         <button
@@ -277,12 +281,9 @@ export default function AuthModal({ open, onClose, initialMode = "login" }: Prop
             loading ||
             !username.trim() ||
             !password ||
-            (mode === "register" &&
-              (!email.trim() ||
-                !confirmPassword ||
-                verificationCode.trim().length !== 6))
+            (mode === "register" && (!confirmPassword || !captchaCode.trim() || !captchaId))
           }
-          className="mt-5 w-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 py-3 text-sm font-medium text-white disabled:opacity-50 hover:brightness-110 transition-all"
+          className="mt-5 w-full rounded-full btn-primary py-3 text-sm font-medium disabled:opacity-50 transition-all"
         >
           {loading ? "处理中…" : mode === "login" ? "登录" : "注册"}
         </button>
@@ -290,10 +291,17 @@ export default function AuthModal({ open, onClose, initialMode = "login" }: Prop
         <button
           type="button"
           onClick={() => {
-            setMode(mode === "login" ? "register" : "login");
+            const nextMode = mode === "login" ? "register" : "login";
+            setMode(nextMode);
             setError(null);
             setSuccess(null);
-            setShowPassword(false);
+            setCaptchaCode("");
+            if (nextMode === "register") {
+              void loadCaptcha();
+            } else {
+              setCaptchaId("");
+              setCaptchaImage("");
+            }
           }}
           className="mt-3 w-full text-xs text-white/40 hover:text-white/60 transition-colors"
         >

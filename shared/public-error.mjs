@@ -9,6 +9,35 @@ export const FEATURE_UNAVAILABLE =
 export const IMAGE_VISION_UNAVAILABLE =
   "图片识别暂不可用，请稍后再试。如需开通请联系客服。";
 
+/**
+ * 全网搜索未命中时，不暴露检索渠道
+ * @param {string} query
+ */
+export function formatSearchNotFound(query) {
+  const q = String(query || "该内容").trim() || "该内容";
+  return `暂时没找到「${q}」的相关信息，换个关键词再试试？`;
+}
+
+/**
+ * 资源搜索未命中时，不暴露检索渠道或方式
+ * @param {string} query
+ */
+export function formatResourceNotFound(query) {
+  const q = String(query || "该内容").trim() || "该内容";
+  return `暂时没找到「${q}」的资源，换个关键词或别名再试试？`;
+}
+
+/**
+ * 资源搜索失败时，避免向用户暴露接口、网盘、屏蔽规则等内部细节
+ * @param {string | null | undefined} raw
+ * @param {string} [query]
+ */
+export function sanitizeMediaSearchError(raw, query) {
+  const msg = String(raw ?? "").trim();
+  if (/请输入|关键词过长|精简后再试/.test(msg)) return msg;
+  return formatResourceNotFound(query);
+}
+
 const VISION_API_HINT =
   /401|403|invalid.*key|authentication|api key|密钥|未配置|额度|credit|spending limit/i;
 

@@ -38,7 +38,7 @@ export default function DeveloperPanel() {
     return (
       <div className="text-center py-16 space-y-4">
         <p className="text-white/50">需要管理员账号才能查看开发者手册</p>
-        <p className="text-xs text-white/30">默认账号 bolo / 123456（由 start.sh 自动创建）</p>
+        <p className="text-xs text-white/30">请使用管理员账号登录</p>
         <Link
           href="/"
           className="inline-flex rounded-full bg-white/10 px-5 py-2 text-sm text-white/80 hover:bg-white/15"

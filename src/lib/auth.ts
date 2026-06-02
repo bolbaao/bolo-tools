@@ -37,16 +37,24 @@ export async function sendRegistrationCode(email: string) {
   return data;
 }
 
+export async function fetchRegisterCaptcha() {
+  const data = await apiGet<{ ok: boolean; captchaId: string; image: string }>(
+    "/api/auth/captcha",
+    cred,
+  );
+  return { captchaId: data.captchaId, image: data.image };
+}
+
 export async function registerUser(
   username: string,
-  email: string,
   password: string,
   confirmPassword: string,
-  verificationCode: string,
+  captchaId: string,
+  captchaCode: string,
 ) {
   const data = await apiPost<{ ok: boolean; user: AuthUser; message?: string }>(
     "/api/auth/register",
-    { username, email, password, confirmPassword, verificationCode },
+    { username, password, confirmPassword, captchaId, captchaCode },
     cred,
   );
   return data;

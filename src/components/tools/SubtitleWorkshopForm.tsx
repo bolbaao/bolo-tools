@@ -4,7 +4,7 @@ import ActionButton from "@/components/ActionButton";
 import { ApiError, apiGet, apiUpload, downloadText } from "@/lib/api";
 import { shiftSrt, srtToVtt } from "@/lib/srt";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 type Tab = "transcribe" | "extract" | "edit";
 type SubFormat = "srt" | "vtt" | "text";

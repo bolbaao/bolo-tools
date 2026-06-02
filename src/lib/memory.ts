@@ -24,15 +24,6 @@ export async function addMemory(content: string) {
   return data.item;
 }
 
-export async function extractMemoriesAuto(userMessage: string, assistantReply: string) {
-  const data = await apiPost<{ ok: boolean; added: MemoryItem[] }>(
-    "/api/memory/extract-auto",
-    { userMessage, assistantReply },
-    cred,
-  );
-  return data.added;
-}
-
 export async function updateMemory(id: string, content: string) {
   const res = await fetch(`/api/memory/${encodeURIComponent(id)}`, {
     method: "PUT",

@@ -1,12 +1,18 @@
 import "./lib/env.mjs";
 import { env } from "./lib/env.mjs";
 import { describeAiStack } from "./lib/chat-config.mjs";
-import { ensureAdminUser } from "./lib/user-auth.mjs";
+import { ensureAdminUser, getAuthUserFromRequest } from "./lib/user-auth.mjs";
+import {
+  apiRateLimit,
+  authRateLimit,
+  heavyApiRateLimit,
+  requireAuthIfPublic,
+  validateSecurityConfig,
+} from "./lib/security.mjs";
 import express from "express";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import chatRouter from "./routes/chat.mjs";
 import audioRouter from "./routes/audio.mjs";
 import videoRouter from "./routes/video.mjs";
 import mediaRouter from "./routes/media.mjs";
@@ -18,19 +24,23 @@ import subtitleRouter from "./routes/subtitle.mjs";
 import gifRouter from "./routes/gif.mjs";
 import arkImageRouter from "./routes/ark-image.mjs";
 import aiSearchRouter from "./routes/ai-search.mjs";
+import chatRouter from "./routes/chat.mjs";
 import feedbackRouter from "./routes/feedback.mjs";
 import authRouter from "./routes/auth.mjs";
 import memoryRouter from "./routes/memory.mjs";
-import chatHistoryRouter from "./routes/chat-history.mjs";
+import homeBackgroundRouter from "./routes/home-background.mjs";
 import adminRouter from "./routes/admin.mjs";
 import appBuilderRouter from "./routes/app-builder.mjs";
 import aiWriterRouter from "./routes/ai-writer.mjs";
 import aiWorkflowRouter from "./routes/ai-workflow.mjs";
 import aiVideoEditRouter from "./routes/ai-video-edit.mjs";
+import mlsharp3dRouter from "./routes/mlsharp-3d.mjs";
 import socialPublishRouter from "./routes/social-publish.mjs";
+import { startUserMediaCleanupInterval } from "./lib/user-media-library.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, "..", "out");
+const OUT_ROOT = path.resolve(OUT_DIR);
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || "127.0.0.1";
 
@@ -48,16 +58,30 @@ const MIME = {
   ".woff2": "font/woff2",
 };
 
+function isPathUnderRoot(resolved, root) {
+  return resolved === root || resolved.startsWith(root + path.sep);
+}
+
 function resolveFile(urlPath) {
   let p = decodeURIComponent(urlPath.split("?")[0]);
-  if (p.endsWith("/")) p += "index.html";
-  const file = path.join(OUT_DIR, p);
-  if (fs.existsSync(file) && fs.statSync(file).isFile()) return file;
-  const htmlAlt = path.join(OUT_DIR, p + ".html");
-  if (fs.existsSync(htmlAlt)) return htmlAlt;
-  const indexInDir = path.join(OUT_DIR, p, "index.html");
-  if (fs.existsSync(indexInDir)) return indexInDir;
-  return path.join(OUT_DIR, "404.html");
+  if (!p || p.includes("\0") || /\.\./.test(p)) return null;
+  p = p.replace(/^\/+/, "");
+  if (!p || p.endsWith("/")) p = `${p || ""}index.html`;
+
+  const candidates = [
+    p,
+    `${p.replace(/\.html$/, "")}.html`,
+    path.join(p, "index.html"),
+  ];
+
+  for (const rel of candidates) {
+    const resolved = path.resolve(OUT_ROOT, rel);
+    if (!isPathUnderRoot(resolved, OUT_ROOT)) continue;
+    if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) return resolved;
+  }
+
+  const fallback = path.resolve(OUT_ROOT, "404.html");
+  return isPathUnderRoot(fallback, OUT_ROOT) && fs.existsSync(fallback) ? fallback : null;
 }
 
 const API_ONLY = process.env.API_ONLY === "1" || process.env.API_ONLY === "true";
@@ -69,15 +93,15 @@ if (!hasOut && !API_ONLY) {
   process.exit(1);
 }
 
+try {
+  validateSecurityConfig();
+} catch (err) {
+  console.error(`❌ ${err.message}`);
+  process.exit(1);
+}
+
 const app = express();
-const jsonDefault = express.json({ limit: "2mb" });
-const jsonChat = express.json({ limit: "15mb" });
-app.use((req, res, next) => {
-  if (req.method === "POST" && req.path.startsWith("/api/chat")) {
-    return jsonChat(req, res, next);
-  }
-  return jsonDefault(req, res, next);
-});
+app.use(express.json({ limit: "2mb" }));
 
 app.use((err, req, res, next) => {
   if (err?.type === "entity.too.large") {
@@ -90,43 +114,50 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-app.get("/api/health", (_req, res) => {
-  const aiStack = describeAiStack();
-  res.json({
-    ok: true,
-    service: "pineapple-toolbox-api",
-    mode: API_ONLY || !hasOut ? "api-only" : "full",
-    features: {
-      auth: true,
-      memory: true,
-      imageVision: aiStack.vision.configured,
-    },
-    aiStack,
-  });
+app.get("/api/health", (req, res) => {
+  const user = getAuthUserFromRequest(req);
+  if (user?.isAdmin) {
+    const aiStack = describeAiStack();
+    res.json({
+      ok: true,
+      service: "pineapple-toolbox-api",
+      mode: API_ONLY || !hasOut ? "api-only" : "full",
+      features: {
+        auth: true,
+        memory: true,
+        imageVision: aiStack.vision.configured,
+      },
+      aiStack,
+    });
+    return;
+  }
+  res.json({ ok: true, service: "pineapple-toolbox-api" });
 });
 
-app.use("/api/chat", chatRouter);
-app.use("/api/audio", audioRouter);
-app.use("/api/video", videoRouter);
-app.use("/api/media", mediaRouter);
-app.use("/api/spider", spiderRouter);
-app.use("/api/trends", trendsRouter);
-app.use("/api/assets", assetsRouter);
-app.use("/api/documents", documentsRouter);
-app.use("/api/subtitle", subtitleRouter);
-app.use("/api/gif", gifRouter);
-app.use("/api/ark-image", arkImageRouter);
-app.use("/api/ai-search", aiSearchRouter);
-app.use("/api/feedback", feedbackRouter);
-app.use("/api/auth", authRouter);
+app.use("/api/auth", authRateLimit, authRouter);
+app.use("/api/feedback", apiRateLimit, feedbackRouter);
+app.use("/api/trends", apiRateLimit, trendsRouter);
+app.use("/api/assets", apiRateLimit, assetsRouter);
 app.use("/api/memory", memoryRouter);
-app.use("/api/chat-history", chatHistoryRouter);
+app.use("/api/home-background", apiRateLimit, homeBackgroundRouter);
 app.use("/api/admin", adminRouter);
-app.use("/api/app-builder", appBuilderRouter);
-app.use("/api/ai-writer", aiWriterRouter);
-app.use("/api/ai-workflow", aiWorkflowRouter);
-app.use("/api/ai-video-edit", aiVideoEditRouter);
-app.use("/api/social-publish", socialPublishRouter);
+
+app.use("/api/audio", requireAuthIfPublic, heavyApiRateLimit, audioRouter);
+app.use("/api/video", requireAuthIfPublic, heavyApiRateLimit, videoRouter);
+app.use("/api/media", requireAuthIfPublic, heavyApiRateLimit, mediaRouter);
+app.use("/api/spider", requireAuthIfPublic, heavyApiRateLimit, spiderRouter);
+app.use("/api/documents", requireAuthIfPublic, heavyApiRateLimit, documentsRouter);
+app.use("/api/subtitle", requireAuthIfPublic, heavyApiRateLimit, subtitleRouter);
+app.use("/api/gif", requireAuthIfPublic, heavyApiRateLimit, gifRouter);
+app.use("/api/ark-image", requireAuthIfPublic, heavyApiRateLimit, arkImageRouter);
+app.use("/api/mlsharp-3d", requireAuthIfPublic, heavyApiRateLimit, mlsharp3dRouter);
+app.use("/api/ai-search", requireAuthIfPublic, heavyApiRateLimit, aiSearchRouter);
+app.use("/api/chat", requireAuthIfPublic, heavyApiRateLimit, chatRouter);
+app.use("/api/app-builder", requireAuthIfPublic, heavyApiRateLimit, appBuilderRouter);
+app.use("/api/ai-writer", requireAuthIfPublic, heavyApiRateLimit, aiWriterRouter);
+app.use("/api/ai-workflow", requireAuthIfPublic, heavyApiRateLimit, aiWorkflowRouter);
+app.use("/api/ai-video-edit", requireAuthIfPublic, heavyApiRateLimit, aiVideoEditRouter);
+app.use("/api/social-publish", requireAuthIfPublic, heavyApiRateLimit, socialPublishRouter);
 
 if (hasOut && !API_ONLY) {
   app.use((req, res) => {
@@ -139,7 +170,7 @@ if (hasOut && !API_ONLY) {
       return;
     }
     const file = resolveFile(req.path);
-    if (!file.startsWith(OUT_DIR)) {
+    if (!file) {
       res.status(403).end("Forbidden");
       return;
     }
@@ -174,7 +205,7 @@ try {
   const adminPass = env("ADMIN_PASSWORD", "123456");
   const admin = ensureAdminUser(adminName, adminPass);
   if (admin.created) {
-    console.log(`✓ 已创建管理员账号: ${adminName} / ${adminPass}`);
+    console.log(`✓ 已创建管理员账号: ${adminName}`);
   } else if (admin.promoted) {
     console.log(`✓ 已将 ${adminName} 设为管理员（保留原密码）`);
   }
@@ -183,6 +214,7 @@ try {
 }
 
 app.listen(PORT, HOST, () => {
+  startUserMediaCleanupInterval();
   const stack = describeAiStack();
   if (API_ONLY || !hasOut) {
     console.log(`🍍 API 开发服务: http://${HOST}:${PORT}/api/health`);
@@ -191,9 +223,9 @@ app.listen(PORT, HOST, () => {
     console.log(`   API: http://${HOST}:${PORT}/api/health`);
   }
   console.log(
-    `   AI 对话: ${stack.chat.configured ? stack.chat.label : "未配置"} (${stack.chat.envKey ?? "—"})`,
+    `   AI 文案: ${stack.chat.configured ? stack.chat.label : "未配置"} (${stack.chat.envKey ?? "—"})`,
   );
   console.log(
-    `   AI 识图: ${stack.vision.configured ? stack.vision.label : "未配置"} (${stack.vision.envKey ?? "—"})`,
+    `   图像识别: ${stack.vision.configured ? stack.vision.label : "未配置"} (${stack.vision.envKey ?? "—"})`,
   );
 });

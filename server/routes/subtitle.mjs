@@ -4,6 +4,8 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { HttpError, sendError } from "../lib/http-error.mjs";
+import { getAuthUserFromRequest } from "../lib/user-auth.mjs";
+import { recordUserMediaUploads } from "../lib/user-media-library.mjs";
 import { runFfmpeg, runFfprobe } from "../lib/ffmpeg-run.mjs";
 import {
   getTranscribeStatus,
@@ -58,6 +60,8 @@ router.post("/extract", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) throw new HttpError(400, "请上传视频或字幕文件");
 
+    recordUserMediaUploads(getAuthUserFromRequest(req)?.id, req.file, "subtitle-extract");
+
     const result = await withTmpDir(async (tmpDir) => {
       const ext = path.extname(req.file.originalname) || ".mp4";
       const inputPath = path.join(tmpDir, `input${ext}`);
@@ -111,6 +115,8 @@ router.post("/transcribe", upload.single("file"), async (req, res) => {
       );
     }
     if (!req.file) throw new HttpError(400, "请上传视频或音频");
+
+    recordUserMediaUploads(getAuthUserFromRequest(req)?.id, req.file, "subtitle-transcribe");
 
     const format = String(req.body.format || "srt").toLowerCase();
     if (!["srt", "vtt", "text"].includes(format)) {

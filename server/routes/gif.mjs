@@ -4,6 +4,8 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { HttpError, sendError } from "../lib/http-error.mjs";
+import { getAuthUserFromRequest } from "../lib/user-auth.mjs";
+import { recordUserMediaUploads } from "../lib/user-media-library.mjs";
 import { runFfmpeg } from "../lib/ffmpeg-run.mjs";
 
 const router = Router();
@@ -20,6 +22,8 @@ router.post("/from-video", upload.single("file"), async (req, res) => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pineapple-gif-"));
   try {
     if (!req.file) throw new HttpError(400, "请上传视频文件");
+
+    recordUserMediaUploads(getAuthUserFromRequest(req)?.id, req.file, "gif-maker");
 
     const start = clamp(Number(req.body.start) || 0, 0, 36000);
     const duration = clamp(Number(req.body.duration) || 3, 0.5, 30);

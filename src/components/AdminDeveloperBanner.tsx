@@ -10,7 +10,7 @@ export default function AdminDeveloperBanner() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-      <div className="mt-2 rounded-xl border border-sky-500/25 bg-sky-500/10 px-4 py-3 text-sm text-sky-100/90">
+      <div className="mt-2 rounded-xl banner-notice px-4 py-3 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p>
             管理员模式已开启。部署、环境变量、开发命令与项目结构请查看
@@ -18,7 +18,7 @@ export default function AdminDeveloperBanner() {
           </p>
           <Link
             href="/tools/developer"
-            className="shrink-0 rounded-full bg-sky-500/20 px-4 py-1.5 text-xs font-medium text-sky-100 hover:bg-sky-500/30 transition-colors"
+            className="shrink-0 rounded-full bg-accent-muted px-4 py-1.5 text-xs font-medium text-accent-soft hover:bg-accent/15 transition-colors"
           >
             打开开发者手册
           </Link>

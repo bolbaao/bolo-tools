@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { sendError } from "../lib/http-error.mjs";
+import { requireAdminAlways } from "../lib/security.mjs";
 import {
   MAX_PUBLISH_VIDEO_MB,
   adaptCaptionsForPlatforms,
@@ -51,7 +52,7 @@ router.post("/adapt-captions", async (req, res) => {
   }
 });
 
-router.post("/publish", upload.single("video"), async (req, res) => {
+router.post("/publish", requireAdminAlways, upload.single("video"), async (req, res) => {
   const tmpDir = req.file?.destination;
   try {
     const body = req.body ?? {};
@@ -84,8 +85,8 @@ router.post("/publish", upload.single("video"), async (req, res) => {
   }
 });
 
-/** 仅抖音全自动发布 */
-router.post("/douyin/publish", upload.single("video"), async (req, res) => {
+/** 仅抖音全自动发布（须管理员登录） */
+router.post("/douyin/publish", requireAdminAlways, upload.single("video"), async (req, res) => {
   const tmpDir = req.file?.destination;
   try {
     const body = req.body ?? {};

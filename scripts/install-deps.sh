@@ -106,6 +106,15 @@ else
   python3 -m pip install --user zhconv 2>/dev/null || true
 fi
 
+# MLSharp 3D Maker（3D 工坊，可选，约 5.4 GB 模型包）
+if [ -f ".local/mlsharp-3d-maker/manifest.json" ] && [ -x ".local/mlsharp-venv/bin/sharp" ]; then
+  echo "✓ MLSharp 3D 已就绪（模型 + macOS 运行时）"
+elif [ -f ".local/mlsharp-3d-maker/MLSharp-3D-Maker-by-GemosDodo/model_assets/sharp_2572gikvuh.pt" ]; then
+  echo "○ MLSharp 模型已下载，运行时未安装 → ./scripts/install-mlsharp-mac.sh"
+else
+  echo "○ MLSharp 3D 未安装 → ./scripts/download-mlsharp-3d-maker.sh"
+fi
+
 echo ""
 echo "✅ 完成。启动前请确保 PATH 包含："
 echo "   $(pwd)/.local/bin"

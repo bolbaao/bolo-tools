@@ -4,7 +4,7 @@ import ActionButton from "@/components/ActionButton";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { ApiError, apiGet, apiPost, apiUpload } from "@/lib/api";
 import { AI_SERVICE_UNAVAILABLE } from "@/lib/service-message";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type PlatformInfo = {
   id: string;

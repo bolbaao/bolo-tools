@@ -2,6 +2,7 @@
 
 import {
   checkAuthSession,
+  fetchRegisterCaptcha,
   loginUser,
   logoutUser,
   registerUser,
@@ -18,11 +19,12 @@ type AuthContextValue = {
   login: (username: string, password: string) => Promise<void>;
   register: (
     username: string,
-    email: string,
     password: string,
     confirmPassword: string,
-    verificationCode: string,
+    captchaId: string,
+    captchaCode: string,
   ) => Promise<string | undefined>;
+  fetchRegisterCaptcha: () => Promise<{ captchaId: string; image: string }>;
   sendRegisterCode: (email: string) => Promise<{ message: string; devMode?: boolean; code?: string }>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -72,23 +74,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = useCallback(
     async (
       username: string,
-      email: string,
       password: string,
       confirmPassword: string,
-      verificationCode: string,
+      captchaId: string,
+      captchaCode: string,
     ) => {
-      const data = await registerUser(
-        username,
-        email,
-        password,
-        confirmPassword,
-        verificationCode,
-      );
+      const data = await registerUser(username, password, confirmPassword, captchaId, captchaCode);
       setUser(data.user);
       return data.message;
     },
     [],
   );
+
+  const loadRegisterCaptcha = useCallback(async () => fetchRegisterCaptcha(), []);
 
   const logout = useCallback(async () => {
     await logoutUser();
@@ -116,12 +114,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       login,
       register,
+      fetchRegisterCaptcha: loadRegisterCaptcha,
       sendRegisterCode,
       logout,
       refresh,
       resendVerification,
     }),
-    [user, loading, login, register, sendRegisterCode, logout, refresh, resendVerification],
+    [user, loading, login, register, loadRegisterCaptcha, sendRegisterCode, logout, refresh, resendVerification],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

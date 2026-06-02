@@ -1,6 +1,6 @@
 # 春雨集
 
-面向个人创作者的一站式工具网站：聊天问事、处理图片视频、写文案、搜热点、发社媒……常用能力集中在一个地方，打开浏览器就能用。
+面向个人创作者的一站式工具网站：处理图片视频、写文案、搜热点、发社媒……常用能力集中在一个地方，打开浏览器就能用。
 
 ## 如何开始
 
@@ -22,10 +22,10 @@
 
 | 工具 | 能做什么 | 怎么用 |
 |------|----------|--------|
-| [AI 对话](/tools/ai-chat) | 像和朋友聊天一样问问题、发图片；想下载视频、搜片或写作时，直接说需求就行 | 输入想说的话即可；有具体任务时，用平常话说明你想做什么 |
-| [开始使用](/tools/memory) | 记下你的偏好和常用信息，之后聊天会更懂你、前后更连贯 | 登录并验证邮箱 → 添加几条记忆 → 对话时会自动参考这些内容 |
+| [开始使用](/tools/memory) | 记下你的偏好和常用信息，方便在各工具里保持一致 | 登录并验证邮箱 → 添加几条记忆 → 随时编辑或删除 |
 | [AI 全网搜索](/tools/ai-search) | 有问题直接问，帮你搜遍全网并整理摘要，附带来源链接 | 输入你的问题 → 选好搜索深度 → 阅读摘要并点开感兴趣的来源 |
 | [图像工坊](/tools/image-studio) | 让图片更小、更清晰，一键抠图、美化人像，还能用文字描述生成新图 | 选好要做的效果 → 上传图片或输入描述 → 处理完成即可下载 |
+| [3D 工坊](/tools/mlsharp-3d) | 上传一张照片，快速生成可旋转查看的 3D 模型 | 上传清晰照片 → 选择精细度 → 生成后下载 3D 模型 |
 | [一键做 App](/tools/app-builder) | 说出你想做的小工具或页面，AI 帮你生成、预览并下载 | 选类型或模板 → 用话描述需求 → 生成后预览 → 满意就下载保存 |
 | [AI 写作助手](/tools/ai-writer) | 写文章、改写法、润色、扩写、写摘要、社媒文案、邮件或翻译 | 选择写作模式 → 输入主题或粘贴原文 → 生成后复制或下载 |
 | [AI 工作流](/tools/ai-workflow) | 选一条创作流程，从成稿、社媒文案到视频脚本，可以一步步做，也能一键跑完 | 选择模板 → 填写主题或素材 → 逐步查看结果，或一键完成全流程 |
@@ -48,7 +48,7 @@
 
 | 你想用的功能 | 需要准备什么 |
 |--------------|--------------|
-| AI 对话、写作、做 App、工作流、全网搜索 | [DeepSeek](https://platform.deepseek.com/api_keys) API Key（国内可直接用） |
+| AI 写作、做 App、工作流、全网搜索 | [DeepSeek](https://platform.deepseek.com/api_keys) API Key（国内可直接用） |
 | AI 全网搜索 | 另需 [Tavily](https://tavily.com) 或 [Serper](https://serper.dev) 搜索 Key（二选一，推荐 Tavily） |
 | 图像工坊 · AI 生图 / 人像美化、云端转写 | [火山方舟](https://console.volcengine.com/ark) API Key |
 | 我的素材库 | 访问密码（由站点管理员设置） |
@@ -56,6 +56,7 @@
 | 字幕工坊 · 本地语音转写 | 安装 faster-whisper：`./scripts/install-deps.sh`（首次会自动下载模型，无需 API Key） |
 | PDF ↔ Word | 运行 `./scripts/download-libreoffice.sh` 下载 LibreOffice（PDF 转图片、图片转 PDF 不需要） |
 | 酷狗加密歌曲解锁 | 运行 `./scripts/download-kgm-mask.sh` |
+| 3D 工坊 · 单图生成 3D 模型 | 1) `./scripts/download-mlsharp-3d-maker.sh` 下载模型包；2) macOS 再运行 `./scripts/install-mlsharp-mac.sh` 安装运行时 |
 | 部分视频平台解析 | 可选安装 yt-dlp：`brew install yt-dlp`；抖音等需保持浏览器登录，详见 [cookies/README.md](cookies/README.md) |
 
 ### 配置方式
@@ -67,8 +68,6 @@ cp .env.example .env
 ```
 
 填好后重新运行 `./start.sh` 即可生效。
-
-**AI 对话**采用合并栈：文字由 **DeepSeek** 生成，上传图片由 **火山方舟** 识图后注入上下文（同一轮对话自动完成，无需手选模型）。请在 `.env` 同时配置 `DEEPSEEK_API_KEY` 与 `ARK_API_KEY`（或 `ARK_VISION_API_KEY`）。仅在没有 DeepSeek 时可设 `CHAT_PROVIDER=ark` 改用方舟聊天。
 
 ## 常见问题
 

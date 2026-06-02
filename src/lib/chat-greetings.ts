@@ -13,12 +13,6 @@ const greetings = [
   "说说看，想让我帮你搞定什么？",
 ];
 
-const greetingSet = new Set(greetings);
-
 export function pickRandomGreeting(): string {
   return greetings[Math.floor(Math.random() * greetings.length)];
-}
-
-export function isGreetingMessage(text: string): boolean {
-  return greetingSet.has(text);
 }

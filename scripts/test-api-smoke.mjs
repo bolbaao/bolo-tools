@@ -64,7 +64,7 @@ async function main() {
     ["AI 视频剪辑 capabilities", "/api/ai-video-edit/capabilities", (d) => d.ok !== false],
     ["社媒分发 capabilities", "/api/social-publish/capabilities", (d) => d.ok !== false],
     ["字幕工坊 status", "/api/subtitle/status", (d) => typeof d === "object"],
-    ["AI 对话 models", "/api/chat/models", (d) => Array.isArray(d.models) || d.ok !== false],
+    ["3D 工坊 status", "/api/mlsharp-3d/status", (d) => typeof d === "object"],
   ]) {
     const res = await get(path);
     if (res.status === 200 && check(res.data)) ok(name);

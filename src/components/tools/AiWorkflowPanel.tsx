@@ -26,7 +26,6 @@ export default function AiWorkflowPanel() {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<StepResult[]>([]);
   const [completed, setCompleted] = useState(false);
-  const [provider, setProvider] = useState<string | null>(null);
 
   const outputsMap = useMemo(() => {
     const m: Record<string, string> = {};
@@ -75,8 +74,6 @@ export default function AiWorkflowPanel() {
           setResults((prev) => [...prev, ...(data.results || [])]);
         }
         setCompleted(Boolean(data.completed));
-        const p = data.results?.find((r) => r.provider)?.provider;
-        if (p) setProvider(p);
       } catch (e) {
         setError(e instanceof ApiError ? e.message : "执行失败");
       } finally {

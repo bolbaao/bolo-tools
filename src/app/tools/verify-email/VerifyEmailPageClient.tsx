@@ -42,21 +42,19 @@ export default function VerifyEmailPageClient() {
         {status === "ok" && (
           <>
             <p className="text-lg font-medium text-emerald-300">{message}</p>
-            <p className="mt-3 text-sm text-white/45">
-              对话历史、记忆库与自动记忆提取已解锁。
-            </p>
+            <p className="mt-3 text-sm text-white/45">记忆库等功能已解锁。</p>
             <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center sm:gap-3">
               <Link
-                href="/tools/ai-chat"
+                href="/tools/memory"
                 className="rounded-full bg-white px-5 py-2.5 text-sm font-medium text-[#0a0b14] hover:bg-white/92"
               >
-                去 AI 对话
+                记忆库
               </Link>
               <Link
-                href="/tools/memory"
+                href="/"
                 className="rounded-full border border-white/15 px-5 py-2.5 text-sm text-white/75 hover:bg-white/5"
               >
-                记忆库
+                返回首页
               </Link>
             </div>
           </>
@@ -66,10 +64,10 @@ export default function VerifyEmailPageClient() {
             <p className="text-lg font-medium text-red-300/90">{message}</p>
             <p className="mt-3 text-sm text-white/45">登录后可在页面顶部重新发送验证邮件。</p>
             <Link
-              href="/tools/ai-chat"
+              href="/"
               className="mt-6 inline-block rounded-full bg-white/10 px-5 py-2.5 text-sm text-white/80 hover:bg-white/15"
             >
-              返回
+              返回首页
             </Link>
           </>
         )}

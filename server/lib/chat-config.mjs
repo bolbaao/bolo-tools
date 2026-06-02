@@ -61,7 +61,7 @@ export function isMergedAiStack() {
   return Boolean(deepseekConfig() && resolveArkVisionConfig());
 }
 
-/** Hero / Agent 默认对话路由（与 chat-provider-routing 保持一致） */
+/** 默认文字模型路由（DeepSeek 优先，可 CHAT_PROVIDER=ark 强制方舟） */
 function resolveHeroChatProvider() {
   const forced = env("CHAT_PROVIDER").toLowerCase();
   if (forced === "deepseek" && deepseekConfig()) return "deepseek";
@@ -130,33 +130,6 @@ export function resolveChatConfig() {
   }
 
   return deepseekConfig() || resolveArkConfig();
-}
-
-/** @returns {{ id: string, label: string, model: string }[]} */
-export function listAvailableChatModels() {
-  const ds = deepseekConfig();
-  const ark = resolveArkConfig();
-  const vision = resolveArkVisionConfig();
-
-  if (ds) {
-    return [
-      {
-        id: "deepseek",
-        label: vision ? "DeepSeek · 火山方舟识图" : "DeepSeek",
-        model: ds.model,
-      },
-    ];
-  }
-  if (ark) {
-    return [
-      {
-        id: "ark",
-        label: getChatProviderLabel("ark"),
-        model: ark.model,
-      },
-    ];
-  }
-  return [];
 }
 
 /** @returns {{ provider: string, apiKey: string, baseURL: string, model: string } | null} */

@@ -177,12 +177,11 @@ export async function sendRegistrationVerificationCode(email) {
   const mailResult = await sendRegistrationCodeEmail({ to: mail, code });
   if (mailResult.devMode) {
     const message = mailResult.smtpError
-      ? `邮件发送失败，已显示开发验证码（${mailResult.smtpError}）`
-      : "未配置邮件服务，验证码见下方或服务器控制台";
+      ? `邮件发送失败，请检查 SMTP 配置或查看服务器控制台（${mailResult.smtpError}）`
+      : "未配置邮件服务，验证码已输出至服务器控制台";
     return {
       message,
       devMode: true,
-      code: process.env.NODE_ENV !== "production" ? mailResult.code : undefined,
     };
   }
   return { message: "验证码已发送，请查收邮箱", devMode: false };
@@ -218,12 +217,9 @@ function consumeRegistrationVerificationCode(email, code) {
   savePendingCodes(pending);
 }
 
-export async function registerUser(username, email, password, confirmPassword, verificationCode) {
+export async function registerUser(username, password, confirmPassword) {
   const nameError = validateUsername(username);
   if (nameError) throw Object.assign(new Error(nameError), { status: 400 });
-
-  const emailError = validateEmail(email);
-  if (emailError) throw Object.assign(new Error(emailError), { status: 400 });
 
   const passError = validatePassword(password);
   if (passError) throw Object.assign(new Error(passError), { status: 400 });
@@ -232,24 +228,17 @@ export async function registerUser(username, email, password, confirmPassword, v
     throw Object.assign(new Error("两次输入的密码不一致"), { status: 400 });
   }
 
-  consumeRegistrationVerificationCode(email, verificationCode);
-
   const name = String(username).trim();
-  const mail = normalizeEmail(email);
   const users = loadUsers().map(migrateUser);
 
   if (users.some((u) => u.username.toLowerCase() === name.toLowerCase())) {
     throw Object.assign(new Error("用户名已被占用"), { status: 409 });
-  }
-  if (users.some((u) => u.email?.toLowerCase() === mail)) {
-    throw Object.assign(new Error("邮箱已被注册"), { status: 409 });
   }
 
   const salt = crypto.randomBytes(16).toString("hex");
   const user = {
     id: randomUUID(),
     username: name,
-    email: mail,
     emailVerified: true,
     salt,
     passwordHash: hashPassword(password, salt),
@@ -377,8 +366,7 @@ export async function resendVerificationEmail(userId) {
     return {
       user: publicUser,
       devMode: true,
-      code: process.env.NODE_ENV !== "production" ? mailResult.code : undefined,
-      verifyUrl: process.env.NODE_ENV !== "production" ? mailResult.verifyUrl : undefined,
+      message: "未配置邮件服务或发送失败，验证信息已输出至服务器控制台",
     };
   }
   return { user: publicUser, devMode: false };

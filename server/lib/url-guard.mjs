@@ -1,3 +1,5 @@
+import dns from "dns/promises";
+import net from "net";
 import { URL } from "url";
 
 const BLOCKED_HOSTS = new Set([
@@ -5,7 +7,12 @@ const BLOCKED_HOSTS = new Set([
   "127.0.0.1",
   "0.0.0.0",
   "[::1]",
+  "::1",
+  "metadata.google.internal",
+  "metadata.goog",
 ]);
+
+const BLOCKED_HOST_SUFFIXES = [".local", ".internal", ".localhost"];
 
 const DOMAIN_PREFIX_RULES = [
   /channels\.weixin\.qq\.com|finder\.video\.qq\.com/i,
@@ -99,6 +106,94 @@ export function normalizeBilibiliInput(raw) {
   return fromUrl;
 }
 
+function normalizeHostname(raw) {
+  let host = String(raw ?? "").trim().toLowerCase();
+  if (host.startsWith("[") && host.endsWith("]")) {
+    host = host.slice(1, -1);
+  }
+  return host;
+}
+
+/** 将 hostname 解析为 IP 字面量（含十进制/十六进制编码） */
+function parseIpLiteral(host) {
+  const h = normalizeHostname(host);
+  if (!h) return null;
+
+  const ipVersion = net.isIP(h);
+  if (ipVersion === 4 || ipVersion === 6) return h;
+
+  if (/^\d+$/.test(h)) {
+    const num = Number(h);
+    if (Number.isFinite(num) && num >= 0 && num <= 0xffffffff) {
+      return `${(num >>> 24) & 255}.${(num >>> 16) & 255}.${(num >>> 8) & 255}.${num & 255}`;
+    }
+  }
+
+  if (/^0x[0-9a-f]+$/i.test(h)) {
+    const num = Number.parseInt(h, 16);
+    if (Number.isFinite(num) && num >= 0 && num <= 0xffffffff) {
+      return `${(num >>> 24) & 255}.${(num >>> 16) & 255}.${(num >>> 8) & 255}.${num & 255}`;
+    }
+  }
+
+  return null;
+}
+
+function isPrivateOrReservedIp(ip) {
+  if (!ip) return false;
+
+  if (net.isIPv4(ip)) {
+    const [a, b] = ip.split(".").map(Number);
+    if (a === 0 || a === 10 || a === 127) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a >= 224) return true;
+    return false;
+  }
+
+  if (net.isIPv6(ip)) {
+    const lower = ip.toLowerCase();
+    if (lower === "::1" || lower === "::") return true;
+    if (lower.startsWith("fe80:")) return true;
+    if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
+    if (lower.startsWith("::ffff:")) {
+      return isPrivateOrReservedIp(lower.slice(7));
+    }
+  }
+
+  return false;
+}
+
+function assertHostnameAllowed(hostname) {
+  const host = normalizeHostname(hostname);
+  if (!host) throw new Error("URL 格式无效");
+
+  if (BLOCKED_HOSTS.has(host)) {
+    throw new Error("不允许访问内网地址");
+  }
+  for (const suffix of BLOCKED_HOST_SUFFIXES) {
+    if (host.endsWith(suffix)) {
+      throw new Error("不允许访问内网地址");
+    }
+  }
+
+  const ip = parseIpLiteral(host);
+  if (ip && isPrivateOrReservedIp(ip)) {
+    throw new Error("不允许访问内网地址");
+  }
+
+  if (
+    /^10\./.test(host) ||
+    /^192\.168\./.test(host) ||
+    /^127\./.test(host) ||
+    /^169\.254\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+  ) {
+    throw new Error("不允许访问内网地址");
+  }
+}
+
 export function parseVideoUrl(raw) {
   const text = String(raw ?? "").trim();
   const isBilibiliHint =
@@ -144,16 +239,28 @@ export function assertPublicHttpUrl(raw) {
   if (!["http:", "https:"].includes(parsed.protocol)) {
     throw new Error("仅支持 http/https 链接");
   }
-  const host = parsed.hostname.toLowerCase();
-  if (BLOCKED_HOSTS.has(host) || host.endsWith(".local")) {
-    throw new Error("不允许访问内网地址");
-  }
-  if (
-    /^10\./.test(host) ||
-    /^192\.168\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
-  ) {
-    throw new Error("不允许访问内网地址");
-  }
+  assertHostnameAllowed(parsed.hostname);
   return parsed.toString();
+}
+
+/** 同步校验 + DNS 解析，防止域名指向内网 */
+export async function assertPublicHttpUrlResolved(raw) {
+  const safe = assertPublicHttpUrl(raw);
+  const parsed = new URL(safe);
+  const literal = parseIpLiteral(parsed.hostname);
+  if (literal) return safe;
+
+  let records;
+  try {
+    records = await dns.lookup(parsed.hostname, { all: true });
+  } catch {
+    throw new Error("无法解析目标域名");
+  }
+
+  for (const { address } of records) {
+    if (isPrivateOrReservedIp(address)) {
+      throw new Error("不允许访问内网地址");
+    }
+  }
+  return safe;
 }

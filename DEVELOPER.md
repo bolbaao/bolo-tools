@@ -41,21 +41,15 @@ cp .env.example .env
 
 | 变量 | 用途 | 是否必需 |
 |------|------|----------|
-| `DEEPSEEK_API_KEY` | AI 对话、全网搜索摘要、做 App、写作、工作流 | 使用该功能时必需 |
+| `DEEPSEEK_API_KEY` | 全网搜索摘要、做 App、写作、工作流 | 使用该功能时必需 |
 | `TAVILY_API_KEY` | AI 全网搜索（推荐） | 搜索时二选一 |
 | `SERPER_API_KEY` | AI 全网搜索（Google） | 搜索时二选一 |
 | `DEEPSEEK_BASE_URL` | DeepSeek API（默认 `https://api.deepseek.com/v1`） | 可选 |
 | `DEEPSEEK_MODEL` | 模型（默认 `deepseek-chat`） | 可选 |
-| `ARK_API_KEY` | AI 对话（可选）、图片识别、图像工坊 · AI 生图、云端转写 | 使用对应功能时必需 |
+| `ARK_API_KEY` | 图片识别、图像工坊 · AI 生图、云端转写 | 使用对应功能时必需 |
 | `WHISPER_MODEL` | 字幕工坊 · 本地转写模型（默认 `base`） | 可选 |
 | `ASSETS_PASSWORD` | 素材库访问密码 | 使用素材库时必需 |
 | `CONVERTAPI_SECRET` | PDF ↔ Word（ConvertAPI） | PDF↔Word 时必需 |
-
-### AI 对话
-
-默认 **合并栈**：文字 **DeepSeek** + 识图 **火山方舟**（`DEEPSEEK_API_KEY` + `ARK_API_KEY` 或 `ARK_VISION_API_KEY`）。前端不再提供「方舟 / DeepSeek」切换，路由在 `chat-provider-routing.mjs` 固定。仅无 DeepSeek 时可用 `CHAT_PROVIDER=ark` 退回方舟聊天。
-
-云端 `.env` 须包含识图 Key，且部署须运行 `server/`（`./start.sh` 或 `npm run start`），不能只上传静态 `out/`。可用 `GET /api/health` 查看 `aiStack.merged` 与 `imageVision`。
 
 ### Cookie 与视频解析
 
@@ -112,7 +106,6 @@ node scripts/create-admin-user.mjs [用户名] [密码]
 | 工具 | 路径 | 实现方式 |
 |------|------|----------|
 | 图像工坊 | `/tools/image-studio` | 本地处理 + 火山方舟 Seedream |
-| AI 对话 | `/tools/ai-chat` | DeepSeek / 火山方舟 |
 | 一键做 App | `/tools/app-builder` | DeepSeek 生成单页 HTML |
 | AI 写作助手 | `/tools/ai-writer` | DeepSeek |
 | AI 工作流 | `/tools/ai-workflow` | DeepSeek 多步流水线 |

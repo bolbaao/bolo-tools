@@ -4,6 +4,8 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { HttpError, sendError } from "../lib/http-error.mjs";
+import { getAuthUserFromRequest } from "../lib/user-auth.mjs";
+import { recordUserMediaUploads } from "../lib/user-media-library.mjs";
 import { resolveChatConfig } from "../lib/chat-config.mjs";
 import {
   MAX_VIDEO_EDIT_COUNT,
@@ -53,6 +55,10 @@ function getUploadedFiles(req) {
   }
   if (req.file) list.push(req.file);
   return list;
+}
+
+function recordVideoUploads(req) {
+  recordUserMediaUploads(getAuthUserFromRequest(req)?.id, getUploadedFiles(req), "ai-video-edit");
 }
 
 async function saveUploads(files, tmpDir) {
@@ -121,6 +127,7 @@ router.get("/capabilities", (_req, res) => {
 
 router.post("/plan", uploadFields, async (req, res) => {
   try {
+    recordVideoUploads(req);
     const instruction = req.body?.instruction ?? req.body?.prompt;
     const uploads = getUploadedFiles(req);
     const result = await withTmpDir(async (tmpDir) => {
@@ -156,6 +163,7 @@ router.post("/plan", uploadFields, async (req, res) => {
 
 router.post("/render", uploadFields, async (req, res) => {
   try {
+    recordVideoUploads(req);
     let planRaw = req.body?.plan;
     if (typeof planRaw === "string") {
       try {
@@ -194,6 +202,7 @@ router.post("/render", uploadFields, async (req, res) => {
 /** 一步完成：生成方案并渲染（适合简单流程） */
 router.post("/edit", uploadFields, async (req, res) => {
   try {
+    recordVideoUploads(req);
     const instruction = req.body?.instruction ?? req.body?.prompt;
     const uploads = getUploadedFiles(req);
     await withTmpDir(async (tmpDir) => {
@@ -226,6 +235,7 @@ router.post("/edit", uploadFields, async (req, res) => {
 
 router.post("/voiceover/plan", uploadFields, async (req, res) => {
   try {
+    recordVideoUploads(req);
     const script = getScriptFromRequest(req);
     if (!script) throw new HttpError(400, "请粘贴或上传口播文稿");
     const instruction = req.body?.instruction ?? req.body?.prompt;
@@ -256,6 +266,7 @@ router.post("/voiceover/plan", uploadFields, async (req, res) => {
 
 router.post("/voiceover/render", uploadFields, async (req, res) => {
   try {
+    recordVideoUploads(req);
     const script = getScriptFromRequest(req);
     let planRaw = req.body?.plan;
     if (typeof planRaw === "string") {
@@ -290,6 +301,7 @@ router.post("/voiceover/render", uploadFields, async (req, res) => {
 
 router.post("/voiceover/edit", uploadFields, async (req, res) => {
   try {
+    recordVideoUploads(req);
     const script = getScriptFromRequest(req);
     if (!script) throw new HttpError(400, "请粘贴或上传口播文稿");
     const instruction = req.body?.instruction ?? req.body?.prompt;

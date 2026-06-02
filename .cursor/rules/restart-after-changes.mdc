@@ -1,0 +1,20 @@
+---
+description: 修改可运行代码后自动重启 ./start.sh
+alwaysApply: true
+---
+
+# 改代码后重启项目
+
+当本次对话中**修改了会影响运行的文件**（如 `src/`、`server/`、`shared/`、`start.sh`、`.env.example` 等）并完成相关改动后：
+
+1. 在回复用户前，于项目根目录后台执行 `./start.sh`（`block_until_ms: 0`，`required_permissions: ["full_network"]`）
+2. 若同一轮已执行过 `./start.sh`，不要重复启动
+3. 用一句话告知用户已重启，地址 http://127.0.0.1:3000
+
+以下情况**不必**重启：
+
+- 仅回答问题、读代码、改文档（如 README）且未动运行时代码
+- 用户明确说不要重启
+- 仅格式化或注释，逻辑与构建产物无影响
+
+本项目 `start.sh` 会重新 build，前端与 API 变更均需重启后才能在 http://127.0.0.1:3000 生效。

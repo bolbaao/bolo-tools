@@ -157,48 +157,46 @@ export default function VideoExtractForm() {
   const best = result?.formats?.[0];
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4 space-y-3">
-        <p className="text-xs font-medium text-white/50">已支持平台</p>
-        <div className="flex flex-wrap gap-1.5">
-          {SUPPORTED_PLATFORMS.map((p) => (
-            <span
-              key={p.id}
-              className={`rounded-full px-2.5 py-0.5 text-[10px] ring-1 ${
-                detected === p.id
-                  ? "bg-blue-500/20 text-blue-200 ring-blue-500/35"
-                  : "bg-white/5 text-white/40 ring-white/10"
-              }`}
-            >
-              {p.label}
-            </span>
-          ))}
-        </div>
-        <p className="text-[11px] text-white/30 leading-relaxed">
-          粘贴分享链接或整段文案即可。抖音、B 站、YouTube、X、微信视频号、Telegram、Instagram 等均支持多清晰度与本页直接下载。部分平台需登录或权限，解析失败时请换链接重试或联系客服。
-        </p>
-      </div>
-
+    <>
       <div>
-        <label htmlFor="video-url" className="block text-sm text-white/60 mb-2">
+        <label htmlFor="video-url" className="mb-2 block text-sm text-white/60">
           视频链接
+          <span className="ml-2 text-xs font-normal text-white/30">视频号链接可在手机端分享处查看</span>
         </label>
         <input
           id="video-url"
-          type="text"
+          type="url"
+          data-tool-primary-input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && url.trim() && !loading) {
+              e.preventDefault();
+              void handleExtract();
+            }
+          }}
           placeholder="YouTube / 视频号 / X / 抖音 / B 站 等分享链接…"
           className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/30"
         />
-        {detected && (
+        {detected ? (
           <p className="mt-2 text-xs text-blue-300/70">
             已识别为 {platformLabel[detected] || detected}
           </p>
-        )}
+        ) : null}
       </div>
 
-      <div className="rounded-xl bg-white/[0.02] border border-white/8 p-4">
+      <ActionButton
+        label="解析并提取"
+        loading={loading}
+        loadingLabel="正在解析…"
+        disabled={!url.trim()}
+        onClick={() => void handleExtract()}
+      />
+
+      <div
+        className="rounded-xl bg-white/[0.02] border border-white/8 p-4"
+        data-tool-result={result ? "" : undefined}
+      >
         {result ? (
           <div className="space-y-3">
             {result.platform && (
@@ -269,18 +267,37 @@ export default function VideoExtractForm() {
         )}
       </div>
 
-      {error && <p className="text-sm text-red-400/90 text-center leading-relaxed">{error}</p>}
+      {error ? <p className="text-center text-sm leading-relaxed text-red-400/90">{error}</p> : null}
 
-      <ActionButton
-        label="解析并提取"
-        loading={loading}
-        loadingLabel="正在解析…"
-        disabled={!url.trim()}
-        onClick={() => void handleExtract()}
-      />
-      <p className="text-center text-xs text-white/25 leading-relaxed">
+      <details className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
+        <summary className="cursor-pointer text-xs font-medium text-white/50 marker:content-none [&::-webkit-details-marker]:hidden">
+          已支持平台与说明
+        </summary>
+        <div className="mt-3 space-y-3">
+          <div className="flex flex-wrap gap-1.5">
+            {SUPPORTED_PLATFORMS.map((p) => (
+              <span
+                key={p.id}
+                className={`rounded-full px-2.5 py-0.5 text-[10px] ring-1 ${
+                  detected === p.id
+                    ? "bg-blue-500/20 text-blue-200 ring-blue-500/35"
+                    : "bg-white/5 text-white/40 ring-white/10"
+                }`}
+              >
+                {p.label}
+              </span>
+            ))}
+          </div>
+          <p className="text-[11px] leading-relaxed text-white/30">
+            粘贴分享链接或整段文案即可。抖音、B 站、YouTube、X、微信视频号、Telegram、Instagram
+            等均支持多清晰度与本页直接下载。部分平台需登录或权限，解析失败时请换链接重试。
+          </p>
+        </div>
+      </details>
+
+      <p className="text-center text-xs leading-relaxed text-white/25">
         下载经本机处理，请遵守各平台使用条款与版权规定
       </p>
-    </div>
+    </>
   );
 }

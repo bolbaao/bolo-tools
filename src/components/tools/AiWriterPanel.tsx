@@ -46,7 +46,6 @@ export default function AiWriterPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [output, setOutput] = useState<string | null>(null);
-  const [provider, setProvider] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const handleGenerate = useCallback(
@@ -81,7 +80,6 @@ export default function AiWriterPanel() {
           { timeoutMs: 120000 },
         );
         setOutput(data.text);
-        setProvider(data.provider || null);
       } catch (e) {
         setError(e instanceof ApiError ? e.message : "生成失败");
       } finally {

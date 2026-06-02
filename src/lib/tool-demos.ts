@@ -27,10 +27,10 @@ export const TOOL_DEMO_VIDEOS: Record<string, ToolDemoSource> = {
     remoteUrl: "https://cdn.coverr.co/videos/coverr-taking-photos-of-orchids-3595/1080p.mp4",
     poster: "https://cdn.coverr.co/videos/coverr-taking-photos-of-orchids-3595/thumbnail?width=640",
   },
-  "ai-chat": {
-    localPath: "/demos/ai-chat.mp4",
-    remoteUrl: "https://cdn.coverr.co/videos/coverr-woman-texting-and-smiling-3838/1080p.mp4",
-    poster: "https://cdn.coverr.co/videos/coverr-woman-texting-and-smiling-3838/thumbnail?width=640",
+  "mlsharp-3d": {
+    localPath: "/demos/mlsharp-3d.mp4",
+    remoteUrl: "https://cdn.coverr.co/videos/coverr-taking-photos-of-orchids-3595/1080p.mp4",
+    poster: "https://cdn.coverr.co/videos/coverr-taking-photos-of-orchids-3595/thumbnail?width=640",
   },
   "ai-search": {
     localPath: "/demos/ai-search.mp4",

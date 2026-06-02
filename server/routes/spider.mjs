@@ -2,7 +2,7 @@ import { Router } from "express";
 import axios from "axios";
 import * as cheerio from "cheerio";
 import { HttpError, sendError } from "../lib/http-error.mjs";
-import { assertPublicHttpUrl } from "../lib/url-guard.mjs";
+import { assertPublicHttpUrlResolved } from "../lib/url-guard.mjs";
 
 const router = Router();
 const MAX_ITEMS = 50;
@@ -34,7 +34,7 @@ router.post("/run", async (req, res) => {
   try {
     const { url, listSelector, itemSelector, limit = 30 } = req.body ?? {};
     if (!url?.trim()) throw new HttpError(400, "请提供目标网址");
-    const safeUrl = assertPublicHttpUrl(url.trim());
+    const safeUrl = await assertPublicHttpUrlResolved(url.trim());
     const listSelectors = splitSelectors(listSelector);
     const itemSelectors = splitSelectors(itemSelector);
     if (!listSelectors.length || !itemSelectors.length) {

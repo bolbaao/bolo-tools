@@ -5,6 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { randomUUID } from "crypto";
 import { HttpError, sendError } from "../lib/http-error.mjs";
+import { authRateLimit } from "../lib/security.mjs";
 import {
   clearSessionCookie,
   createSessionToken,
@@ -56,7 +57,7 @@ function fileKind(mime) {
   return "file";
 }
 
-router.post("/login", (req, res) => {
+router.post("/login", authRateLimit, (req, res) => {
   try {
     const { password } = req.body ?? {};
     if (!password) throw new HttpError(400, "请输入密码");

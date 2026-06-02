@@ -1,4 +1,4 @@
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 
 const cred = { credentials: "include" as const };
 
@@ -10,7 +10,6 @@ export type AdminUserSummary = {
   isAdmin?: boolean;
   createdAt?: string;
   memoryCount: number;
-  chatSessionCount: number;
 };
 
 export type AdminMemoryItem = {
@@ -21,22 +20,18 @@ export type AdminMemoryItem = {
   updatedAt: string;
 };
 
-export type AdminChatSessionSummary = {
+export type AdminMediaItem = {
   id: string;
-  title: string;
-  createdAt: string;
-  updatedAt: string;
-  messageCount: number;
-};
-
-export type AdminChatMessage = {
-  role: "user" | "ai";
-  text: string;
-  createdAt: string;
-};
-
-export type AdminChatSession = AdminChatSessionSummary & {
-  messages: AdminChatMessage[];
+  userId: string | null;
+  username: string;
+  name: string;
+  kind: "image" | "video";
+  mime: string;
+  size: number;
+  source: string;
+  uploadedAt: string;
+  saved: boolean;
+  expiresAt: string | null;
 };
 
 export async function getAdminDeveloperDocs() {
@@ -54,15 +49,37 @@ export async function getAdminUserArchive(userId: string) {
     ok: boolean;
     user: AdminUserSummary;
     memories: AdminMemoryItem[];
-    chatSessions: AdminChatSessionSummary[];
   }>(`/api/admin/users/${encodeURIComponent(userId)}/archive`, cred);
   return data;
 }
 
-export async function getAdminChatSession(userId: string, sessionId: string) {
-  const data = await apiGet<{ ok: boolean; session: AdminChatSession }>(
-    `/api/admin/users/${encodeURIComponent(userId)}/chat-history/${encodeURIComponent(sessionId)}`,
+export async function listAdminMedia(opts?: {
+  userId?: string;
+  kind?: "image" | "video";
+  saved?: boolean;
+}) {
+  const params = new URLSearchParams();
+  if (opts?.userId) params.set("userId", opts.userId);
+  if (opts?.kind) params.set("kind", opts.kind);
+  if (opts?.saved === true) params.set("saved", "1");
+  if (opts?.saved === false) params.set("saved", "0");
+  const qs = params.toString();
+  const data = await apiGet<{ ok: boolean; items: AdminMediaItem[] }>(
+    `/api/admin/media${qs ? `?${qs}` : ""}`,
     cred,
   );
-  return data.session;
+  return data.items;
+}
+
+export async function setAdminMediaSaved(id: string, saved: boolean) {
+  const data = await apiPost<{ ok: boolean; item: AdminMediaItem }>(
+    `/api/admin/media/${encodeURIComponent(id)}/save`,
+    { saved },
+    cred,
+  );
+  return data.item;
+}
+
+export function adminMediaFileUrl(id: string) {
+  return `/api/admin/media/${encodeURIComponent(id)}/file`;
 }

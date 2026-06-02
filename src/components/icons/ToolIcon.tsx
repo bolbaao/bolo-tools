@@ -17,9 +17,9 @@ function GradDefs({ id }: { id: string }) {
   return (
     <defs>
       <linearGradient id={id} x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#a5c4ff" />
-        <stop offset="50%" stopColor="#c4b5fd" />
-        <stop offset="100%" stopColor="#e9d5ff" stopOpacity="0.9" />
+        <stop offset="0%" stopColor="#a5b0ff" />
+        <stop offset="50%" stopColor="#c4b8e8" />
+        <stop offset="100%" stopColor="#ddd6f0" stopOpacity="0.9" />
       </linearGradient>
     </defs>
   );
@@ -127,18 +127,6 @@ function AiSearchIcon({ gradId }: IconProps) {
       <path d="M16 16l4.5 4.5" {...stroke} stroke={g} />
       <path d="M8 11h6M11 8v6" {...stroke} stroke={g} strokeWidth={1.25} />
       <path d="M14.5 7.5l1.5-1.5M14.5 7.5l1 2" {...stroke} stroke={g} strokeWidth={1.1} />
-    </>
-  );
-}
-
-function AiChatIcon({ gradId }: IconProps) {
-  const g = `url(#${gradId})`;
-  return (
-    <>
-      <path d="M5 6.5h11a2 2 0 0 1 2 2v4.5a2 2 0 0 1-2 2H10l-3.5 2.5V15H5a2 2 0 0 1-2-2V8.5a2 2 0 0 1 2-2z" {...stroke} stroke={g} />
-      <circle cx="9" cy="11" r="0.75" fill={g} stroke="none" />
-      <circle cx="12" cy="11" r="0.75" fill={g} stroke="none" />
-      <circle cx="15" cy="11" r="0.75" fill={g} stroke="none" />
     </>
   );
 }
@@ -251,6 +239,17 @@ function AiWorkflowIcon({ gradId }: IconProps) {
   );
 }
 
+function Mlsharp3DIcon({ gradId }: IconProps) {
+  const g = `url(#${gradId})`;
+  return (
+    <>
+      <path d="M12 4.5l6.5 3.75v7.5L12 19.5 5.5 15.75v-7.5L12 4.5z" {...stroke} stroke={g} />
+      <path d="M12 4.5v15M5.5 8.25 12 12l6.5-3.75" {...stroke} stroke={g} strokeWidth={1.1} />
+      <circle cx="12" cy="12" r="1.5" fill={g} />
+    </>
+  );
+}
+
 function DefaultIcon({ gradId }: IconProps) {
   const g = `url(#${gradId})`;
   return (
@@ -265,10 +264,10 @@ const ICONS: Record<string, (props: IconProps) => ReactNode> = {
   "music-convert": MusicConvertIcon,
   "video-extract": VideoExtractIcon,
   "image-studio": ImageStudioIcon,
+  "mlsharp-3d": Mlsharp3DIcon,
   "doc-convert": DocConvertIcon,
   "hot-trends": HotTrendsIcon,
   toolkit: ToolkitIcon,
-  "ai-chat": AiChatIcon,
   memory: MemoryIcon,
   "ai-search": AiSearchIcon,
   "app-builder": AppBuilderIcon,

@@ -126,7 +126,7 @@ async function testChatApiCachedOnly() {
   const body = {
     messages: [{ role: "user", content: "图里写的什么？" }],
     pageContext: {
-      path: "/tools/ai-chat",
+      path: "/",
       chatImages: [
         {
           name: "memo.jpg",
@@ -187,7 +187,7 @@ async function testChatApi() {
   const body = {
     messages: [{ role: "user", content: "请根据图片告诉我主要颜色。" }],
     pageContext: {
-      path: "/tools/ai-chat",
+      path: "/",
       chatImages: [
         {
           name: "test.jpg",
@@ -255,7 +255,7 @@ async function testChatApi() {
       { role: "user", content: "再确认一次颜色。" },
     ],
     pageContext: {
-      path: "/tools/ai-chat",
+      path: "/",
       chatImages: [
         {
           name: "test.jpg",

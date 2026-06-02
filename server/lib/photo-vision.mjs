@@ -142,21 +142,19 @@ export function formatPhotoSnapshotForPrompt(snapshot) {
  * @param {object} img
  * @param {string} [userContext]
  */
-async function describeOneImage(img, userContext) {
-  if (img.visionDescription) {
-    return {
-      description: img.visionDescription,
-      error: img.visionError ?? null,
-      visionProvider: img.visionProvider ?? null,
-    };
-  }
+function isAllowedImageDataUrl(url) {
+  return /^data:image\/(jpeg|jpg|png|webp|gif);base64,/i.test(String(url ?? "").trim());
+}
 
+async function describeOneImage(img, userContext) {
   let description = null;
   let error = null;
   let visionProvider = null;
 
   if (img.previewDataUrl) {
-    if (!photoVisionConfigured()) {
+    if (!isAllowedImageDataUrl(img.previewDataUrl)) {
+      error = "图片格式无效，请重新上传";
+    } else if (!photoVisionConfigured()) {
       error = IMAGE_VISION_UNAVAILABLE;
     } else {
       try {
@@ -185,7 +183,7 @@ export async function resolveChatImagesSnapshot(chatImages, opts = {}) {
 
   const userContext = opts.userContext;
   const withPreview = chatImages
-    .filter((i) => i?.previewDataUrl || i?.visionDescription)
+    .filter((i) => i?.previewDataUrl && isAllowedImageDataUrl(i.previewDataUrl))
     .slice(0, 6);
   if (!withPreview.length) {
     return { error: "图片未包含可识别数据" };
