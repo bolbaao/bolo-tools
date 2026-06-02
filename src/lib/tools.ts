@@ -142,20 +142,9 @@ export const tools: Tool[] = [
     demoHint: "选平台 · 看榜单 · 跟热点",
   },
   {
-    id: "media-search",
-    title: "影视搜索",
-    description: "汁源导航入口，一键打开多个搜索站；①打不开可换②③。",
-    usageGuide: "打开页面 → 点击蓝色入口 → 在对应站点搜索片名",
-    href: "/tools/media-search",
-    gradient: "from-blue-500/20 to-indigo-500/10",
-    tag: "影视",
-    bento: "wide",
-    demoHint: "点蓝色链接 · 多入口备用",
-  },
-  {
     id: "media-download",
     title: "影视资源下载",
-    description: "按片名从 2厅、3厅、3&4厅、5厅 找网盘资源，找到就能复制分享。",
+    description: "输入片名，从多个资源库检索百度、迅雷、夸克等网盘链接，找到即可一键复制。",
     usageGuide: "输入片名 → 浏览搜索结果 → 展开条目并复制需要的链接",
     href: "/tools/media-download",
     gradient: "from-amber-500/20 to-orange-500/10",
@@ -243,7 +232,7 @@ export function getToolById(id: string): Tool | undefined {
 }
 
 /** 不出现在实用工具箱 */
-const TOOLKIT_EXTRA_EXCLUDED = ["ai-chat", "media-search"] as const;
+const TOOLKIT_EXTRA_EXCLUDED = ["ai-chat"] as const;
 
 const toolkitExcludedIds = new Set<string>([
   ...homepageFeaturedToolIds,

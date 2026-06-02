@@ -143,18 +143,6 @@ function AiChatIcon({ gradId }: IconProps) {
   );
 }
 
-function MediaSearchIcon({ gradId }: IconProps) {
-  const g = `url(#${gradId})`;
-  return (
-    <>
-      <rect x="4" y="6" width="13" height="10" rx="1.5" {...stroke} stroke={g} />
-      <path d="M4 9.5h13" {...stroke} stroke={g} strokeWidth={1.25} />
-      <circle cx="15.5" cy="15.5" r="3" {...stroke} stroke={g} />
-      <path d="M17.5 17.5l2 2" {...stroke} stroke={g} />
-    </>
-  );
-}
-
 function MediaDownloadIcon({ gradId }: IconProps) {
   const g = `url(#${gradId})`;
   return (
@@ -286,7 +274,6 @@ const ICONS: Record<string, (props: IconProps) => ReactNode> = {
   "app-builder": AppBuilderIcon,
   "ai-writer": AiWriterIcon,
   "ai-workflow": AiWorkflowIcon,
-  "media-search": MediaSearchIcon,
   "media-download": MediaDownloadIcon,
   "spider-builder": SpiderBuilderIcon,
   "subtitle-workshop": SubtitleWorkshopIcon,

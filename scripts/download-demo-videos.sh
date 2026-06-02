@@ -38,7 +38,6 @@ declare -a ITEMS=(
   "image-studio|https://cdn.coverr.co/videos/coverr-taking-photos-of-orchids-3595/1080p.mp4"
   "ai-chat|https://cdn.coverr.co/videos/coverr-woman-texting-and-smiling-3838/1080p.mp4"
   "hot-trends|https://cdn.coverr.co/videos/coverr-scrolling-through-coronavirus-news-6170/1080p.mp4"
-  "media-search|https://cdn.coverr.co/videos/coverr-film-director-s-pov-7972/1080p.mp4"
   "spider-builder|https://cdn.coverr.co/videos/coverr-developing-coding-sequences-3909/1080p.mp4"
   "assets|https://cdn.coverr.co/videos/coverr-timelapse-working-from-home-3951/1080p.mp4"
 )

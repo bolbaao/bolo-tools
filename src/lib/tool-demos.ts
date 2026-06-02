@@ -44,11 +44,6 @@ export const TOOL_DEMO_VIDEOS: Record<string, ToolDemoSource> = {
     poster:
       "https://cdn.coverr.co/videos/coverr-scrolling-through-coronavirus-news-6170/thumbnail?width=640",
   },
-  "media-search": {
-    localPath: "/demos/media-search.mp4",
-    remoteUrl: "https://cdn.coverr.co/videos/coverr-film-director-s-pov-7972/1080p.mp4",
-    poster: "https://cdn.coverr.co/videos/coverr-film-director-s-pov-7972/thumbnail?width=640",
-  },
   "media-download": {
     localPath: "/demos/media-download.mp4",
     remoteUrl: "https://cdn.coverr.co/videos/coverr-downloading-files-on-a-laptop-1566/1080p.mp4",

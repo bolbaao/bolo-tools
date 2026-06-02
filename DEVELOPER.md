@@ -116,7 +116,7 @@ node scripts/create-admin-user.mjs [用户名] [密码]
 | AI 工作流 | `/tools/ai-workflow` | DeepSeek 多步流水线 |
 | 社媒一键分发 | `/tools/social-publish` | Playwright + Cookie |
 | 热点中心 | `/tools/hot-trends` | 抖音 / 小红书抓取 |
-| 影视搜索 | `/tools/media-search` | 导航 `/api/media/nav` |
+| 影视资源下载 | `/tools/media-download` | 网盘资源检索 `/api/media/resource-search` |
 | 制作爬虫 | `/tools/spider-builder` | Cheerio |
 | 音乐工坊 | `/tools/music-convert` | 本地解锁 + ffmpeg |
 | 视频链接提取 | `/tools/video-extract` | yt-dlp |

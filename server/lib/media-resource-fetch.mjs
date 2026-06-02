@@ -16,13 +16,31 @@ const BLOCKED_KEYWORDS = [
   "性爱",
 ];
 
-/** 2厅、3厅、3&4厅、5厅并行检索（网盘链接，不含综合大厅 sortWeb） */
+/** 多路 API 并行检索，按分组合并后面向用户展示 */
 const SOURCE_DEFS = [
-  { id: "dyfx", label: "2厅", path: "/api/getDyfx", kind: "simple" },
-  { id: "juzi", label: "3&4厅", path: "/api/getJuzi", kind: "simple" },
-  { id: "ttzjb", label: "3厅", path: "/api/getTTZJB", kind: "simple" },
-  { id: "girls", label: "5厅", path: "/api/getGirls", kind: "simple" },
+  { id: "dyfx", group: "primary", groupLabel: "主资源库", path: "/api/getDyfx", kind: "simple" },
+  { id: "ttzjb", group: "primary", groupLabel: "主资源库", path: "/api/getTTZJB", kind: "simple" },
+  { id: "juzi", group: "extended", groupLabel: "扩展资源库", path: "/api/getJuzi", kind: "simple" },
+  { id: "girls", group: "more", groupLabel: "更多资源", path: "/api/getGirls", kind: "simple" },
 ];
+
+const GROUP_ORDER = ["primary", "extended", "more"];
+
+function mergeSectionsByGroup(sections) {
+  const map = new Map();
+  for (const section of sections) {
+    const def = SOURCE_DEFS.find((s) => s.id === section.sourceId);
+    const group = def?.group ?? section.sourceId;
+    const label = def?.groupLabel ?? section.source;
+    const existing = map.get(group);
+    if (existing) {
+      existing.items.push(...section.items);
+    } else {
+      map.set(group, { source: label, sourceId: group, items: [...section.items] });
+    }
+  }
+  return GROUP_ORDER.filter((g) => map.has(g)).map((g) => map.get(g));
+}
 
 const LINK_PATTERNS = [
   { platform: "baidu", label: "百度网盘", re: /https?:\/\/(?:pan\.)?baidu\.com\/[^\s<>"']+/gi },
@@ -155,12 +173,12 @@ async function postSource(source, token, query) {
   });
 
   if (data?.status === false) {
-    return { source: source.label, sourceId: source.id, items: [], error: data.msg || null };
+    return { source: source.groupLabel, sourceId: source.id, items: [], error: data.msg || null };
   }
 
   const list = Array.isArray(data?.list) ? data.list : [];
   return {
-    source: source.label,
+    source: source.groupLabel,
     sourceId: source.id,
     items: normalizeItems(list, source.id),
     error: null,
@@ -183,15 +201,16 @@ export async function searchMediaResources(query) {
     const result = settled[i];
     const def = SOURCE_DEFS[i];
     if (result.status === "rejected") {
-      errors.push(`${def.label}: ${result.reason?.message || "请求失败"}`);
+      errors.push(`${def.groupLabel}: ${result.reason?.message || "请求失败"}`);
       continue;
     }
     const section = result.value;
-    if (section.error) errors.push(`${section.source}: ${section.error}`);
+    if (section.error) errors.push(`${def.groupLabel}: ${section.error}`);
     if (section.items.length > 0) sections.push(section);
   }
 
-  const flatItems = sections.flatMap((s) => s.items);
+  const mergedSections = mergeSectionsByGroup(sections);
+  const flatItems = mergedSections.flatMap((s) => s.items);
   const uniqueLinks = new Map();
   for (const item of flatItems) {
     for (const link of item.links) {
@@ -202,9 +221,9 @@ export async function searchMediaResources(query) {
   return {
     ok: true,
     query: check.query,
-    sections,
+    sections: mergedSections,
     stats: {
-      sections: sections.length,
+      sections: mergedSections.length,
       items: flatItems.length,
       links: uniqueLinks.size,
     },

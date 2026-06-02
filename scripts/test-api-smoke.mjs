@@ -80,13 +80,6 @@ async function main() {
     }
   }
 
-  const nav = await get("/api/media/nav");
-  if (nav.status === 200 && nav.data?.portals?.length) {
-    ok("影视搜索 · 导航", `${nav.data.portals.length} 个入口`);
-  } else {
-    skip("影视搜索 · 导航", nav.data?.error || `status=${nav.status}`);
-  }
-
   const resource = await get("/api/media/resource-search?q=肖申克");
   if (resource.status === 200 && resource.data?.sections) {
     const items = resource.data.sections?.reduce((n, s) => n + (s.items?.length ?? 0), 0) ?? 0;

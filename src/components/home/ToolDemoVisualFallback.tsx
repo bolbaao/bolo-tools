@@ -117,16 +117,6 @@ export default function ToolDemoVisualFallback({ toolId, large }: Props) {
         </div>
       );
 
-    case "media-search":
-      return (
-        <div className={`${stage} flex-col gap-2 p-4`}>
-          <div className="w-full max-w-[120px] h-2 rounded bg-amber-500/30" />
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-2 w-full max-w-[100px] rounded bg-sky-500/40" />
-          ))}
-        </div>
-      );
-
     case "assets":
       return (
         <div className={`${stage} p-4 flex-col gap-2`}>
