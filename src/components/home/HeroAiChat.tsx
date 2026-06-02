@@ -3,6 +3,7 @@
 import AiChatPanel from "@/components/tools/AiChatPanel";
 import ChatAttachButton from "@/components/chat/ChatAttachButton";
 import { pickRandomGreeting } from "@/lib/chat-greetings";
+import { heroCollapsedModelHint } from "@/lib/hero-ai";
 import { useEffect, useRef, useState } from "react";
 
 export default function HeroAiChat() {
@@ -47,8 +48,13 @@ export default function HeroAiChat() {
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-sm text-white/70 ring-1 ring-white/[0.08] transition-colors group-hover:ring-violet-400/20">
               ✦
             </span>
-            <span className="flex-1 truncate text-sm text-white/35 transition-colors group-hover:text-white/45">
-              {greeting}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm text-white/35 transition-colors group-hover:text-white/45">
+                {greeting}
+              </span>
+              <span className="mt-0.5 block text-[10px] text-white/25">
+                {heroCollapsedModelHint}
+              </span>
             </span>
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/40 ring-1 ring-white/[0.08] transition-all group-hover:bg-white/[0.09] group-hover:text-white/60">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>

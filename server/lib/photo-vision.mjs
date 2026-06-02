@@ -1,9 +1,15 @@
-import { IMAGE_VISION_UNAVAILABLE } from "../../shared/public-error.mjs";
+import { IMAGE_VISION_UNAVAILABLE, sanitizeVisionApiError } from "../../shared/public-error.mjs";
 import { resolveArkConfig } from "./chat-config.mjs";
 import { env } from "./env.mjs";
 
 const ARK_VISION_MODEL_DEFAULT = "doubao-1-5-vision-pro-32k-250115";
 const VISION_PROVIDER_LABEL = "火山方舟";
+
+/** 对外展示的识图错误（内部 snapshot 仍保留原始 error） */
+function visionErrorForUser(raw) {
+  if (raw == null || String(raw).trim() === "") return undefined;
+  return sanitizeVisionApiError(raw);
+}
 
 const DESCRIBE_BASE =
   "用中文简要描述这张照片的内容、场景和主要物体（3～5 句），不要编造看不清的细节。";
@@ -215,7 +221,7 @@ export function formatChatImagesForPrompt(snapshot) {
       const via = item.visionProvider ? `（${item.visionProvider}）` : "";
       lines.push(`  识别${via}: ${item.description}`);
     } else if (item.error) {
-      lines.push(`  识别失败: ${item.error}`);
+      lines.push(`  识别失败: ${visionErrorForUser(item.error)}`);
     }
   }
 
@@ -233,7 +239,7 @@ export function chatImageVisionPayload(snapshot) {
     lastModified: item.lastModified,
     size: item.size,
     description: item.description ?? undefined,
-    error: item.error ?? undefined,
+    error: visionErrorForUser(item.error),
     visionProvider: item.visionProvider ?? undefined,
   }));
 }
@@ -266,7 +272,7 @@ export async function resolvePhotoSnapshot(pageContext, opts = {}) {
             height: primary.height,
             lastModified: primary.lastModified,
           },
-          error: `图像识别失败: ${error}`,
+          error: `图像识别失败: ${visionErrorForUser(error)}`,
         };
       }
 
@@ -293,6 +299,6 @@ export async function resolvePhotoSnapshot(pageContext, opts = {}) {
       },
     };
   } catch (e) {
-    return { error: e.message || "处理照片失败" };
+    return { error: visionErrorForUser(e.message) ?? "处理照片失败" };
   }
 }

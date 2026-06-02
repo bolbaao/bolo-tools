@@ -9,6 +9,21 @@ export const FEATURE_UNAVAILABLE =
 export const IMAGE_VISION_UNAVAILABLE =
   "图片识别暂不可用，请稍后再试。如需开通请联系客服。";
 
+const VISION_API_HINT =
+  /401|403|invalid.*key|authentication|api key|密钥|未配置|额度|credit|spending limit/i;
+
+/**
+ * 视觉 API 失败原因：不向用户/对话模型暴露密钥、鉴权等运维细节
+ * @param {string | null | undefined} raw
+ * @returns {string | null}
+ */
+export function sanitizeVisionApiError(raw) {
+  const msg = String(raw ?? "").trim();
+  if (!msg) return null;
+  if (VISION_API_HINT.test(msg)) return IMAGE_VISION_UNAVAILABLE;
+  return toUserFacingErrorMessage(msg);
+}
+
 const DEV_HINT =
   /(?:\.env(?:\.example)?|start\.sh|环境变量|API[_\s]?Key|ARK_API_KEY|DEEPSEEK_API_KEY|TAVILY_API_KEY|SERPER_API_KEY|CONVERTAPI|HTTPS?_PROXY|NODE_ENV|pip install|faster-whisper|LIBREOFFICE|未配置|请运行:|cookies\/|YTDLP|yt-dlp)/i;
 

@@ -9,6 +9,7 @@ type ChatAttachButtonProps = {
   busy?: boolean;
   className?: string;
   title?: string;
+  accept?: string;
 };
 
 export default function ChatAttachButton({
@@ -17,6 +18,7 @@ export default function ChatAttachButton({
   busy,
   className = "",
   title = "上传图片、PDF 或 Word",
+  accept,
 }: ChatAttachButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -25,7 +27,7 @@ export default function ChatAttachButton({
       <input
         ref={inputRef}
         type="file"
-        accept={CHAT_FILE_ACCEPT}
+        accept={accept ?? CHAT_FILE_ACCEPT}
         multiple
         className="hidden"
         onChange={(e) => {

@@ -1,5 +1,5 @@
 import type { AgentResponse, ChatImageVisionItem, ClientPhotoItem } from "@/lib/agent-types";
-import { IMAGE_VISION_UNAVAILABLE, toUserFacingErrorMessage } from "@/lib/service-message";
+import { IMAGE_VISION_UNAVAILABLE, sanitizeVisionApiError } from "@/lib/service-message";
 
 export { imageNeedsVisionApi } from "../../shared/chat-image-vision.mjs";
 
@@ -13,12 +13,7 @@ export function summarizeChatImageVisionErrors(
   if (!failed.length) return null;
   const first = failed.find((v) => v.error)?.error;
   if (!first) return IMAGE_VISION_UNAVAILABLE;
-  const msg = toUserFacingErrorMessage(first);
-  // 视觉 API 鉴权/配置类错误与对话模型错误区分，避免误报「AI 服务不可用」
-  if (/401|403|invalid.*key|authentication|api key|未配置|额度|credit|spending limit/i.test(first)) {
-    return IMAGE_VISION_UNAVAILABLE;
-  }
-  return msg;
+  return sanitizeVisionApiError(first) ?? IMAGE_VISION_UNAVAILABLE;
 }
 
 export function photoItemKey(p: Pick<ClientPhotoItem, "name" | "lastModified" | "size">) {

@@ -35,6 +35,11 @@ import {
   prepareChatImagesForApi,
   summarizeChatImageVisionErrors,
 } from "@/lib/chat-image-vision";
+import {
+  HERO_CHAT_MODEL,
+  HERO_INPUT_PLACEHOLDER,
+  HERO_VISION_MODEL,
+} from "@/lib/hero-ai";
 import { IMAGE_VISION_UNAVAILABLE } from "@/lib/service-message";
 import { filesToChatImages } from "@/lib/image-compress";
 import {
@@ -669,6 +674,8 @@ export default function AiChatPanel({
     }
   };
 
+  const inputHint = isHero ? HERO_INPUT_PLACEHOLDER : inputPlaceholder;
+
   return (
     <div className="space-y-4">
       {!isHero && !isDock && (
@@ -703,7 +710,27 @@ export default function AiChatPanel({
         }`}
       >
         <div className="flex items-center gap-2 border-b border-white/8 px-4 py-2.5 justify-between">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2 flex-wrap">
+            {isHero && (
+              <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                <span className="rounded-full border border-violet-400/25 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-200/80">
+                  对话 · {HERO_CHAT_MODEL}
+                </span>
+                <span
+                  className={`rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-200/80 ${
+                    imageVisionAvailable === false ? "opacity-50" : ""
+                  }`}
+                  title={
+                    imageVisionAvailable === false
+                      ? "图片识图暂不可用，请稍后再试"
+                      : "上传图片时由火山方舟视觉模型识别"
+                  }
+                >
+                  识图 · {HERO_VISION_MODEL}
+                  {imageVisionAvailable === false ? " · 未配置" : ""}
+                </span>
+              </div>
+            )}
             {!isHero && !isDock && (
               <div className="flex shrink-0 items-center gap-3">
                 <span className="text-xs text-white/40">Agent</span>
@@ -977,7 +1004,7 @@ export default function AiChatPanel({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void send()}
-              placeholder={inputPlaceholder}
+              placeholder={inputHint}
               disabled={loading || permissionBusy || imageBusy || fileBusy}
               className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-violet-500/50 disabled:opacity-50"
             />
