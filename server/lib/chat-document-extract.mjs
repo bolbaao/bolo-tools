@@ -1,6 +1,23 @@
 import JSZip from "jszip";
+import path from "path";
+import { fileURLToPath } from "url";
 import { HttpError } from "./http-error.mjs";
 import { isLibreOfficeAvailable, libreConvert } from "./document-convert-local.mjs";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+let pdfjsServerReady = false;
+
+async function loadPdfjsServer() {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  if (!pdfjsServerReady) {
+    pdfjs.GlobalWorkerOptions.workerSrc = path.join(
+      __dirname,
+      "../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+    );
+    pdfjsServerReady = true;
+  }
+  return pdfjs;
+}
 
 const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;
 const MAX_EXTRACTED_CHARS = 80_000;
@@ -48,7 +65,7 @@ async function extractDocxText(buffer) {
 }
 
 async function extractPdfText(buffer) {
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const pdfjs = await loadPdfjsServer();
   const doc = await pdfjs.getDocument({ data: new Uint8Array(buffer), useSystemFonts: true }).promise;
   const pageCount = Math.min(doc.numPages, MAX_PDF_PAGES);
   const chunks = [];

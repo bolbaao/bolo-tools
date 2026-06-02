@@ -93,7 +93,7 @@ function truncateExtracted(text: string): string {
 }
 
 async function extractPdfText(file: File): Promise<string> {
-  const pdfjs = await import("pdfjs-dist/legacy/webpack.mjs");
+  const pdfjs = await import("@/lib/pdfjs-client").then((m) => m.loadPdfjsClient());
   const doc = await pdfjs.getDocument({
     data: new Uint8Array(await file.arrayBuffer()),
     useSystemFonts: true,

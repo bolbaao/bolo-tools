@@ -70,6 +70,13 @@ if [ ! -d "node_modules" ]; then
   npm install || exit 1
 fi
 
+# PDF.js worker（对话附件 / 文档解析）
+PDF_WORKER_SRC="node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs"
+PDF_WORKER_DST="public/static/pdf.worker.min.mjs"
+if [ -f "$PDF_WORKER_SRC" ]; then
+  cp -f "$PDF_WORKER_SRC" "$PDF_WORKER_DST"
+fi
+
 # 默认管理员 bolo / 123456（已存在则重置密码并确保管理员权限）
 if node scripts/create-admin-user.mjs bolo 123456 2>/dev/null; then
   echo "✓ 管理员账号: bolo / 123456"

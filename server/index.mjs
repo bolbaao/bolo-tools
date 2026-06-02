@@ -35,6 +35,7 @@ const MIME = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
+  ".mjs": "application/javascript; charset=utf-8",
   ".json": "application/json",
   ".png": "image/png",
   ".jpg": "image/jpeg",
@@ -109,7 +110,7 @@ if (hasOut && !API_ONLY) {
       res.status(404).json({ ok: false, error: "接口不存在" });
       return;
     }
-    if (req.method !== "GET") {
+    if (req.method !== "GET" && req.method !== "HEAD") {
       res.status(404).json({ ok: false, error: "Not Found" });
       return;
     }
@@ -119,13 +120,19 @@ if (hasOut && !API_ONLY) {
       return;
     }
     const ext = path.extname(file);
-    fs.readFile(file, (err, data) => {
+    const contentType = MIME[ext] || "application/octet-stream";
+    fs.stat(file, (err, stat) => {
       if (err) {
         res.status(404).end("Not Found");
         return;
       }
-      res.setHeader("Content-Type", MIME[ext] || "application/octet-stream");
-      res.end(data);
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Length", stat.size);
+      if (req.method === "HEAD") {
+        res.end();
+        return;
+      }
+      fs.createReadStream(file).pipe(res);
     });
   });
 } else {

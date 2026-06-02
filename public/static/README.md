@@ -10,3 +10,11 @@ chmod +x scripts/download-kgm-mask.sh
 ```
 
 网易云 `.ncm`、酷我 `.kwm`、虾米 `.xm` 无需此文件。
+
+## `pdf.worker.min.mjs`
+
+PDF 文本提取（首页对话上传 PDF）所需。`./start.sh` 会从 `node_modules/pdfjs-dist` 自动同步；若缺失可手动执行：
+
+```bash
+cp node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs public/static/pdf.worker.min.mjs
+```
