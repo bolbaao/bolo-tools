@@ -177,7 +177,7 @@ export const tools: Tool[] = [
   {
     id: "subtitle-workshop",
     title: "字幕工坊",
-    description: "语音转字幕、提取内嵌字幕轨，支持 SRT 编辑与 VTT 导出。",
+    description: "本地/云端语音转字幕、提取内嵌字幕轨，支持 SRT 编辑与 VTT 导出。",
     usageGuide: "选择转写/提取/编辑 → 上传媒资文件 → 处理 → 下载或编辑字幕",
     href: "/tools/subtitle-workshop",
     gradient: "from-cyan-500/20 to-teal-500/10",

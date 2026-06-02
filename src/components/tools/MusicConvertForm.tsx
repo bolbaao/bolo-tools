@@ -18,6 +18,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 
 const PLATFORMS = [
   { label: "网易云", tone: "from-rose-500/20 to-pink-500/5 text-rose-200/90 ring-rose-500/25" },
+  { label: "QQ音乐", tone: "from-green-500/20 to-lime-500/5 text-green-200/90 ring-green-500/25" },
   { label: "酷狗", tone: "from-amber-500/20 to-orange-500/5 text-amber-200/90 ring-amber-500/25" },
   { label: "酷我", tone: "from-sky-500/20 to-cyan-500/5 text-sky-200/90 ring-sky-500/25" },
   { label: "虾米", tone: "from-emerald-500/20 to-teal-500/5 text-emerald-200/90 ring-emerald-500/25" },
@@ -226,8 +227,8 @@ export default function MusicConvertForm() {
             批量：建议 ≤50 首
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-1 w-1 rounded-full bg-amber-400/80" />
-            不支持 QQ QMC
+            <span className="h-1 w-1 rounded-full bg-green-400/80" />
+            支持 QQ 音乐 QMC / mflac / mgg
           </span>
         </div>
       </section>
@@ -299,7 +300,7 @@ export default function MusicConvertForm() {
               {dragActive ? "松开即可添加" : "拖入音乐文件，或点击选择"}
             </p>
             <p className="mt-1.5 text-xs text-white/35 max-w-sm">
-              支持网易云、酷狗、酷我、虾米及 MP3、WAV、FLAC 等常见格式
+              支持网易云、QQ 音乐、酷狗、酷我、虾米及 MP3、WAV、FLAC 等常见格式
             </p>
           </div>
           <button

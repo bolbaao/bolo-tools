@@ -17,7 +17,7 @@
 | 音乐工坊 | `/tools/music-convert` | 本地解锁 NCM/KGM/KWM/XM · 批量转码 · ZIP |
 | 视频链接提取 | `/tools/video-extract` | 抖音 / B 站 / YouTube / X / Telegram / Instagram 等 |
 | 文档转换 | `/tools/doc-convert` | PDF↔Word（需 LibreOffice）· PDF→图片 · 图片→PDF |
-| 字幕工坊 | `/tools/subtitle-workshop` | 本地 faster-whisper 语音转写 · 提取内嵌字幕 · 时间平移 |
+| 字幕工坊 | `/tools/subtitle-workshop` | 本地 faster-whisper / 云端转写 · 提取内嵌字幕 · 时间平移 |
 | GIF 动图 | `/tools/gif-maker` | 视频片段 → GIF（ffmpeg） |
 | 文本工具箱 | `/tools/text-toolbox` | 字数统计 · 去重 · JSON · Markdown 预览（本地） |
 | 我的素材库（隐藏入口） | `/tools/assets` | 双击导航栏「菠」+ 密码 |

@@ -8,6 +8,7 @@ import { runFfmpeg, runFfprobe } from "../lib/ffmpeg-run.mjs";
 import {
   getTranscribeStatus,
   isTranscribeAvailable,
+  resolveTranscribeMode,
   transcribeAudioFile,
 } from "../lib/transcribe.mjs";
 import { toSimplifiedChinese } from "../lib/zh-simplify.mjs";
@@ -90,10 +91,20 @@ router.post("/extract", upload.single("file"), async (req, res) => {
   }
 });
 
-/** 语音转字幕（本地 faster-whisper，或可选 Whisper 兼容 API） */
+/** 语音转字幕（本地 faster-whisper 或云端 Whisper 兼容 API） */
 router.post("/transcribe", upload.single("file"), async (req, res) => {
   try {
-    if (!isTranscribeAvailable()) {
+    const transcribeMode = String(req.body.mode || "auto").toLowerCase();
+    if (!["auto", "local", "api"].includes(transcribeMode)) {
+      throw new HttpError(400, "mode 须为 local / api / auto");
+    }
+    if (!isTranscribeAvailable(transcribeMode === "auto" ? undefined : transcribeMode)) {
+      if (transcribeMode === "api") {
+        throw new HttpError(
+          503,
+          "未配置云端转写。请在 .env 填入 ARK_API_KEY（火山方舟），详见 .env.example。",
+        );
+      }
       throw new HttpError(
         503,
         "未安装本地转写引擎。请运行: python3 -m pip install --user faster-whisper（或 ./scripts/install-deps.sh）。也可在 .env 配置 ARK_API_KEY 使用云端转写。",
@@ -133,7 +144,7 @@ router.post("/transcribe", upload.single("file"), async (req, res) => {
         wavPath,
       ]);
 
-      const content = await transcribeAudioFile(wavPath, format);
+      const content = await transcribeAudioFile(wavPath, format, transcribeMode);
       const trimmed = String(content ?? "").trim();
       if (!trimmed) {
         throw new HttpError(
@@ -150,18 +161,34 @@ router.post("/transcribe", upload.single("file"), async (req, res) => {
 
     const base = path.basename(req.file.originalname, path.extname(req.file.originalname));
     const outExt = format === "text" ? "txt" : format;
+    const usedMode =
+      transcribeMode === "auto" ? resolveTranscribeMode() : transcribeMode;
+
     res.json({
       ok: true,
       format,
       content: payload.content,
       filename: `${base}.${outExt}`,
       truncated: payload.truncated,
+      mode: usedMode,
       message: payload.truncated
         ? `仅转写前 ${MAX_TRANSCRIBE_SEC} 秒，可在 .env 调整 MAX_TRANSCRIBE_SEC`
-        : undefined,
+        : usedMode === "api"
+          ? "云端转写完成"
+          : undefined,
     });
   } catch (err) {
-    if (err.message === "TRANSCRIBE_KEYS_MISSING" || err.message === "LOCAL_WHISPER_MISSING") {
+    if (err.message === "TRANSCRIBE_KEYS_MISSING") {
+      sendError(
+        res,
+        new HttpError(
+          503,
+          "未配置云端转写。请在 .env 填入 ARK_API_KEY（火山方舟），详见 .env.example。",
+        ),
+      );
+      return;
+    }
+    if (err.message === "LOCAL_WHISPER_MISSING") {
       sendError(
         res,
         new HttpError(

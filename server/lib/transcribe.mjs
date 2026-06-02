@@ -25,25 +25,59 @@ export function resolveTranscribeConfig() {
   };
 }
 
-export function isTranscribeAvailable() {
-  return isLocalWhisperAvailable() || Boolean(resolveTranscribeConfig());
+export function isLocalTranscribeAvailable() {
+  return isLocalWhisperAvailable();
 }
 
+export function isApiTranscribeAvailable() {
+  return Boolean(resolveTranscribeConfig());
+}
+
+export function isTranscribeAvailable(preferredMode) {
+  if (preferredMode === "local") return isLocalTranscribeAvailable();
+  if (preferredMode === "api") return isApiTranscribeAvailable();
+  return isLocalTranscribeAvailable() || isApiTranscribeAvailable();
+}
+
+/** 默认转写方式：本地优先，否则云端 */
 export function getTranscribeMode() {
-  if (isLocalWhisperAvailable()) return "local";
-  if (resolveTranscribeConfig()) return "api";
+  if (isLocalTranscribeAvailable()) return "local";
+  if (isApiTranscribeAvailable()) return "api";
   return null;
 }
 
+export function resolveTranscribeMode(requested) {
+  const raw = String(requested || "auto").toLowerCase();
+  if (raw === "local" || raw === "api") return raw;
+  return getTranscribeMode() || "local";
+}
+
 export function getTranscribeStatus() {
-  const mode = getTranscribeMode();
+  const localAvailable = isLocalTranscribeAvailable();
+  const apiAvailable = isApiTranscribeAvailable();
+  const defaultMode = getTranscribeMode();
   const localHint = getLocalWhisperHint();
+  const apiCfg = resolveTranscribeConfig();
+
+  let hint = null;
+  if (!localAvailable && !apiAvailable) {
+    hint = localHint || "可在 .env 配置 ARK_API_KEY 使用云端转写";
+  } else if (!localAvailable && apiAvailable) {
+    hint = "当前仅云端转写可用（已配置 ARK_API_KEY）";
+  } else if (localAvailable && !apiAvailable) {
+    hint = "可选：在 .env 配置 ARK_API_KEY 后使用云端转写";
+  }
+
   return {
-    available: Boolean(mode),
-    mode,
+    available: localAvailable || apiAvailable,
+    localAvailable,
+    apiAvailable,
+    mode: defaultMode,
+    defaultMode,
     model: getWhisperModel(),
     modelPath: getWhisperModelPath(),
-    hint: mode ? null : localHint || "可在 .env 配置 ARK_API_KEY 使用云端转写",
+    apiModel: apiCfg?.model ?? null,
+    hint,
   };
 }
 
@@ -83,10 +117,14 @@ async function transcribeWithApi(audioPath, format = "srt") {
 /**
  * @param {string} audioPath - wav/mp3 等
  * @param {"srt"|"vtt"|"text"} format
+ * @param {"local"|"api"|"auto"} [mode]
  */
-export async function transcribeAudioFile(audioPath, format = "srt") {
-  if (isLocalWhisperAvailable()) {
+export async function transcribeAudioFile(audioPath, format = "srt", mode = "auto") {
+  const resolved = resolveTranscribeMode(mode === "auto" ? undefined : mode);
+  if (resolved === "local") {
+    if (!isLocalTranscribeAvailable()) throw new Error("LOCAL_WHISPER_MISSING");
     return transcribeWithLocalWhisper(audioPath, format);
   }
+  if (!isApiTranscribeAvailable()) throw new Error("TRANSCRIBE_KEYS_MISSING");
   return transcribeWithApi(audioPath, format);
 }

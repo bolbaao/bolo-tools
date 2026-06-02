@@ -8,9 +8,15 @@ import { useEffect, useState } from "react";
 type Tab = "transcribe" | "extract" | "edit";
 type SubFormat = "srt" | "vtt" | "text";
 
+type TranscribeMode = "local" | "api";
+
 type TranscribeStatus = {
   available: boolean;
+  localAvailable?: boolean;
+  apiAvailable?: boolean;
+  defaultMode?: TranscribeMode | null;
   mode?: string | null;
+  apiModel?: string | null;
   hint?: string | null;
 };
 
@@ -30,6 +36,7 @@ export default function SubtitleWorkshopForm() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [transcribeStatus, setTranscribeStatus] = useState<TranscribeStatus | null>(null);
+  const [transcribeMode, setTranscribeMode] = useState<TranscribeMode>("local");
 
   useEffect(() => {
     let cancelled = false;
@@ -37,7 +44,20 @@ export default function SubtitleWorkshopForm() {
       try {
         const data = await apiGet<TranscribeStatus & { ok?: boolean }>("/api/subtitle/status");
         if (!cancelled) {
-          setTranscribeStatus({ available: data.available, mode: data.mode, hint: data.hint });
+          const status: TranscribeStatus = {
+            available: data.available,
+            localAvailable: data.localAvailable,
+            apiAvailable: data.apiAvailable,
+            defaultMode: (data.defaultMode ?? data.mode) as TranscribeMode | null,
+            mode: data.mode,
+            apiModel: data.apiModel,
+            hint: data.hint,
+          };
+          setTranscribeStatus(status);
+          const preferred =
+            status.defaultMode ??
+            (status.apiAvailable ? "api" : status.localAvailable ? "local" : "local");
+          setTranscribeMode(preferred);
         }
       } catch {
         if (!cancelled) {
@@ -53,6 +73,11 @@ export default function SubtitleWorkshopForm() {
     };
   }, []);
 
+  const selectedModeAvailable =
+    transcribeMode === "api"
+      ? Boolean(transcribeStatus?.apiAvailable)
+      : Boolean(transcribeStatus?.localAvailable);
+
   const downloadContent = (content: string, filename: string) => {
     downloadText(content, filename);
   };
@@ -63,6 +88,14 @@ export default function SubtitleWorkshopForm() {
       setError(transcribeStatus.hint || "语音转写暂不可用，请先安装依赖并重启服务");
       return;
     }
+    if (transcribeStatus && !selectedModeAvailable) {
+      setError(
+        transcribeMode === "api"
+          ? "云端转写未配置。请在服务器 .env 填入 ARK_API_KEY 后重启。"
+          : "本地转写未就绪。请安装 faster-whisper 或改用云端转写。",
+      );
+      return;
+    }
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -70,6 +103,7 @@ export default function SubtitleWorkshopForm() {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("format", format);
+      fd.append("mode", transcribeMode);
       const data = await apiUpload<{
         ok: boolean;
         content: string;
@@ -157,9 +191,50 @@ export default function SubtitleWorkshopForm() {
         </p>
       )}
 
-      {tab === "transcribe" && transcribeStatus?.available && (
-        <p className="text-xs text-center text-emerald-400/70">✓ 语音转写服务已就绪</p>
+      {tab === "transcribe" && transcribeStatus?.hint && transcribeStatus.available && (
+        <p className="text-xs text-center text-white/35 leading-relaxed">{transcribeStatus.hint}</p>
       )}
+
+      {tab === "transcribe" &&
+        transcribeStatus?.available &&
+        (transcribeStatus.localAvailable || transcribeStatus.apiAvailable) && (
+          <div>
+            <label className="block text-sm text-white/60 mb-2">转写方式</label>
+            <div className="flex flex-wrap gap-2">
+              {transcribeStatus.localAvailable && (
+                <button
+                  type="button"
+                  onClick={() => setTranscribeMode("local")}
+                  className={`rounded-lg px-3 py-2 text-sm text-left ${
+                    transcribeMode === "local"
+                      ? "bg-cyan-600/25 text-cyan-200 border border-cyan-500/35"
+                      : "bg-white/5 text-white/50 border border-white/8"
+                  }`}
+                >
+                  <span className="block font-medium">本地转写</span>
+                  <span className="block text-[10px] opacity-60 mt-0.5">faster-whisper · 无需 API</span>
+                </button>
+              )}
+              {transcribeStatus.apiAvailable && (
+                <button
+                  type="button"
+                  onClick={() => setTranscribeMode("api")}
+                  className={`rounded-lg px-3 py-2 text-sm text-left ${
+                    transcribeMode === "api"
+                      ? "bg-violet-600/25 text-violet-200 border border-violet-500/35"
+                      : "bg-white/5 text-white/50 border border-white/8"
+                  }`}
+                >
+                  <span className="block font-medium">云端转写</span>
+                  <span className="block text-[10px] opacity-60 mt-0.5">
+                    火山方舟
+                    {transcribeStatus.apiModel ? ` · ${transcribeStatus.apiModel}` : ""}
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
       {tab !== "edit" && (
         <>
@@ -263,14 +338,19 @@ export default function SubtitleWorkshopForm() {
         <ActionButton
           label={tab === "transcribe" ? "开始转写" : "提取字幕"}
           loading={loading}
-          disabled={!file || (tab === "transcribe" && transcribeStatus !== null && !transcribeStatus.available)}
+          disabled={
+            !file ||
+            (tab === "transcribe" &&
+              transcribeStatus !== null &&
+              (!transcribeStatus.available || !selectedModeAvailable))
+          }
           onClick={primaryAction}
         />
       )}
 
       <p className="text-center text-xs text-white/25 leading-relaxed">
         {tab === "transcribe"
-          ? "上传音视频即可生成字幕，支持 SRT、VTT、纯文本导出"
+          ? "本地转写无需 API Key；云端转写需在服务器配置 ARK_API_KEY。支持 SRT、VTT、纯文本"
           : "提取内嵌字幕需视频本身带有字幕轨"}
       </p>
     </div>
