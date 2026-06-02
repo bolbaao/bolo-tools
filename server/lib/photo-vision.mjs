@@ -53,6 +53,9 @@ function ensureArkNoProxy() {
   }
 }
 
+// 云端若配置了 HTTP(S)_PROXY，须在首次请求前排除火山方舟域名
+ensureArkNoProxy();
+
 async function describeWithProvider(cfg, dataUrl, userContext) {
   ensureArkNoProxy();
   const response = await fetch(`${cfg.baseURL}/chat/completions`, {
@@ -165,6 +168,7 @@ async function describeOneImage(img, userContext) {
         }
       } catch (e) {
         error = e.message;
+        console.warn("[photo-vision] describe failed:", e.message);
       }
     }
   }

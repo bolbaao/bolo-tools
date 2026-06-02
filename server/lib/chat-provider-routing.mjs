@@ -31,6 +31,13 @@ export function pickChatProviderForRequest({
     return providerConfigured(forced) ? forced : null;
   }
 
+  const hasDeepseek = providerConfigured("deepseek");
+  const hasArk = providerConfigured("ark");
+  if (!hasDeepseek && !hasArk) return null;
+
+  // 合并栈：有 DeepSeek 时文字对话固定走 DeepSeek；识图由 photo-vision 走火山方舟
+  if (hasDeepseek) return "deepseek";
+
   const explicit = String(requestedProvider ?? "")
     .trim()
     .toLowerCase();
@@ -38,17 +45,9 @@ export function pickChatProviderForRequest({
     return explicit;
   }
 
-  const hasDeepseek = providerConfigured("deepseek");
-  const hasArk = providerConfigured("ark");
-  if (!hasDeepseek && !hasArk) return null;
-  if (hasDeepseek && !hasArk) return "deepseek";
-  if (hasArk && !hasDeepseek) return "ark";
+  if (hasArk) return "ark";
 
   const userText = lastUserText(messages);
-
-  // 附图识图由 photo-vision.mjs 单独调用火山方舟视觉 API，结果以文字注入 system prompt；
-  // 对话生成仍优先 DeepSeek，避免方舟聊天模型不可用时整段请求失败。
-
   if (mode === "agent" || TASK_HINT.test(userText)) {
     return "deepseek";
   }

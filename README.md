@@ -68,7 +68,7 @@ cp .env.example .env
 
 填好后重新运行 `./start.sh` 即可生效。
 
-**AI 对话**默认走 DeepSeek，轻松闲聊为主；你说清楚想做什么时，也会帮你跳转工具、预填链接。上传图片时，**识图**单独走火山方舟视觉 API，对话回复仍由 DeepSeek 生成；全屏对话页可手动切换模型。若需固定单一提供商，可在 `.env` 设置 `CHAT_PROVIDER=deepseek` 或 `ark`。
+**AI 对话**采用合并栈：文字由 **DeepSeek** 生成，上传图片由 **火山方舟** 识图后注入上下文（同一轮对话自动完成，无需手选模型）。请在 `.env` 同时配置 `DEEPSEEK_API_KEY` 与 `ARK_API_KEY`（或 `ARK_VISION_API_KEY`）。仅在没有 DeepSeek 时可设 `CHAT_PROVIDER=ark` 改用方舟聊天。
 
 ## 常见问题
 

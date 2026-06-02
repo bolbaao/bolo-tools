@@ -56,18 +56,20 @@ export function resolveArkVisionConfig() {
   };
 }
 
+/** 文字 DeepSeek + 识图火山方舟（双密钥合并栈） */
+export function isMergedAiStack() {
+  return Boolean(deepseekConfig() && resolveArkVisionConfig());
+}
+
 /** Hero / Agent 默认对话路由（与 chat-provider-routing 保持一致） */
 function resolveHeroChatProvider() {
   const forced = env("CHAT_PROVIDER").toLowerCase();
   if (forced === "deepseek" && deepseekConfig()) return "deepseek";
   if (forced === "ark" && resolveArkConfig()) return "ark";
 
-  const hasDeepseek = Boolean(deepseekConfig());
-  const hasArk = Boolean(resolveArkConfig());
-  if (!hasDeepseek && !hasArk) return null;
-  if (hasDeepseek && !hasArk) return "deepseek";
-  if (hasArk && !hasDeepseek) return "ark";
-  return "deepseek";
+  if (deepseekConfig()) return "deepseek";
+  if (resolveArkConfig()) return "ark";
+  return null;
 }
 
 /** 对话 + 识图双密钥栈（供 API / 启动日志 / UI 强关联展示） */
@@ -88,11 +90,16 @@ export function describeAiStack() {
         ? "ARK_API_KEY"
         : null;
 
+  const merged = isMergedAiStack();
+
   return {
+    merged,
     chat: {
       role: "chat",
       provider: heroProvider ?? chatCfg?.provider ?? null,
-      label: getChatProviderLabel(heroProvider ?? chatCfg?.provider),
+      label: merged
+        ? "DeepSeek"
+        : getChatProviderLabel(heroProvider ?? chatCfg?.provider),
       model: chatCfg?.model ?? null,
       configured: Boolean(chatCfg),
       envKey: chatEnvKey,
@@ -127,17 +134,29 @@ export function resolveChatConfig() {
 
 /** @returns {{ id: string, label: string, model: string }[]} */
 export function listAvailableChatModels() {
-  const models = [];
-  for (const fn of Object.values(PROVIDERS)) {
-    const cfg = fn();
-    if (!cfg) continue;
-    models.push({
-      id: cfg.provider,
-      label: getChatProviderLabel(cfg.provider),
-      model: cfg.model,
-    });
+  const ds = deepseekConfig();
+  const ark = resolveArkConfig();
+  const vision = resolveArkVisionConfig();
+
+  if (ds) {
+    return [
+      {
+        id: "deepseek",
+        label: vision ? "DeepSeek · 火山方舟识图" : "DeepSeek",
+        model: ds.model,
+      },
+    ];
   }
-  return models;
+  if (ark) {
+    return [
+      {
+        id: "ark",
+        label: getChatProviderLabel("ark"),
+        model: ark.model,
+      },
+    ];
+  }
+  return [];
 }
 
 /** @returns {{ provider: string, apiKey: string, baseURL: string, model: string } | null} */

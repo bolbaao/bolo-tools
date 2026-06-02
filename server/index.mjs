@@ -91,6 +91,7 @@ app.use((err, req, res, next) => {
 });
 
 app.get("/api/health", (_req, res) => {
+  const aiStack = describeAiStack();
   res.json({
     ok: true,
     service: "pineapple-toolbox-api",
@@ -98,7 +99,9 @@ app.get("/api/health", (_req, res) => {
     features: {
       auth: true,
       memory: true,
+      imageVision: aiStack.vision.configured,
     },
+    aiStack,
   });
 });
 

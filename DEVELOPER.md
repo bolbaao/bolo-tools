@@ -53,9 +53,9 @@ cp .env.example .env
 
 ### AI 对话
 
-默认优先 **DeepSeek**（大陆可直接用），也支持 **火山方舟**（`.env` 中 `CHAT_PROVIDER=ark`）。
+默认 **合并栈**：文字 **DeepSeek** + 识图 **火山方舟**（`DEEPSEEK_API_KEY` + `ARK_API_KEY` 或 `ARK_VISION_API_KEY`）。前端不再提供「方舟 / DeepSeek」切换，路由在 `chat-provider-routing.mjs` 固定。仅无 DeepSeek 时可用 `CHAT_PROVIDER=ark` 退回方舟聊天。
 
-首页与 AI 对话的**图片识别**单独依赖火山方舟视觉 API，云端 `.env` 需配置 `ARK_API_KEY`（可与对话共用；仅配 `DEEPSEEK_API_KEY` 时文字对话可用，但识图不可用）。部署须运行 `server/`（`./start.sh` 或 `npm run start`），不能只上传静态 `out/`。
+云端 `.env` 须包含识图 Key，且部署须运行 `server/`（`./start.sh` 或 `npm run start`），不能只上传静态 `out/`。可用 `GET /api/health` 查看 `aiStack.merged` 与 `imageVision`。
 
 ### Cookie 与视频解析
 

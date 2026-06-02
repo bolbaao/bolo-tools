@@ -14,14 +14,24 @@ export type AiStackSlot = {
 };
 
 export type AiStack = {
+  /** 文字 DeepSeek + 识图火山方舟 */
+  merged?: boolean;
   chat: AiStackSlot;
   vision: AiStackSlot;
 };
 
 export function formatAiStackHint(stack: AiStack | null | undefined): string {
+  if (stack?.merged) {
+    return `文字 ${HERO_CHAT_MODEL} · 识图 ${HERO_VISION_MODEL}`;
+  }
   const chat = stack?.chat?.label || HERO_CHAT_MODEL;
   const vision = stack?.vision?.label || HERO_VISION_MODEL;
   return `对话 ${chat} · 识图 ${vision}`;
+}
+
+/** 是否启用合并栈（自动路由，无需手选对话模型） */
+export function isMergedAiStackActive(stack: AiStack | null | undefined): boolean {
+  return Boolean(stack?.merged);
 }
 
 export function heroChatLabel(stack: AiStack | null | undefined): string {

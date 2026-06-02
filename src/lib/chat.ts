@@ -57,8 +57,8 @@ export function pickInitialChatProvider(
   defaultProvider: string | null,
 ): string | null {
   if (!models.length) return null;
-  const stored = readStoredChatProvider();
-  if (stored && models.some((m) => m.id === stored)) return stored;
+  const deepseek = models.find((m) => m.id === "deepseek");
+  if (deepseek) return deepseek.id;
   if (defaultProvider && models.some((m) => m.id === defaultProvider)) return defaultProvider;
   return models[0].id;
 }

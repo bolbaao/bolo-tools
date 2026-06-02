@@ -39,6 +39,7 @@ import {
   HERO_INPUT_PLACEHOLDER,
   heroChatLabel,
   heroVisionLabel,
+  isMergedAiStackActive,
   type AiStack,
 } from "@/lib/hero-ai";
 import { IMAGE_VISION_UNAVAILABLE } from "@/lib/service-message";
@@ -123,8 +124,9 @@ export default function AiChatPanel({
 }: AiChatPanelProps) {
   const isHero = variant === "hero";
   const isDock = variant === "dock";
-  /** 主页对话由服务端按问题类型自动选模型，不展示提供商下拉框 */
-  const autoPickProvider = isHero;
+  /** 合并栈：文字 DeepSeek + 识图火山方舟，由服务端自动路由 */
+  const [mergedStack, setMergedStack] = useState(false);
+  const autoPickProvider = isHero || mergedStack;
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
@@ -225,9 +227,11 @@ export default function AiChatPanel({
   useEffect(() => {
     fetchChatModels()
       .then((data) => {
-        setAiStack(data.aiStack ?? null);
-        setImageVisionAvailable(Boolean(data.aiStack?.vision.configured ?? data.imageVision));
-        if (autoPickProvider) {
+        const stack = data.aiStack ?? null;
+        setAiStack(stack);
+        setMergedStack(isMergedAiStackActive(stack));
+        setImageVisionAvailable(Boolean(stack?.vision.configured ?? data.imageVision));
+        if (isHero || isMergedAiStackActive(stack)) {
           setChatModels([]);
           setSelectedProvider(null);
           return;
@@ -240,13 +244,14 @@ export default function AiChatPanel({
       })
       .catch(() => {
         setAiStack(null);
+        setMergedStack(false);
         setImageVisionAvailable(null);
-        if (!autoPickProvider) {
+        if (!isHero) {
           setChatModels([]);
           setSelectedProvider(null);
         }
       });
-  }, [autoPickProvider]);
+  }, [isHero]);
 
   const persistableMessages = useCallback((history: ChatMessage[]) => {
     return history
@@ -684,7 +689,9 @@ export default function AiChatPanel({
     <div className="space-y-4">
       {!isHero && !isDock && (
         <p className="text-sm text-white/45 leading-relaxed">
-          可发文字、图片和常见文档；上传图片能让 AI 看懂画面，授权定位或相册后，也方便回答「这边」「当地」一类问题。
+          {mergedStack
+            ? "文字由 DeepSeek 回复，上传图片由火山方舟识图后一并理解；也可发 PDF、Word 等文档。"
+            : "可发文字、图片和常见文档；上传图片能让 AI 看懂画面，授权定位或相册后，也方便回答「这边」「当地」一类问题。"}
           有具体任务时，会帮你打开对应工具并填好内容。
           {user?.emailVerified ? (
             <>
@@ -715,7 +722,7 @@ export default function AiChatPanel({
       >
         <div className="flex items-center gap-2 border-b border-white/8 px-4 py-2.5 justify-between">
           <div className="flex min-w-0 flex-1 items-center gap-2 flex-wrap">
-            {isHero && (
+            {(isHero || mergedStack) && (
               <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                 <span className="rounded-full border border-violet-400/25 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-200/80">
                   对话 · {heroChatLabel(aiStack)}

@@ -26,6 +26,14 @@ const cases = [
     opts: { mode: "agent", messages: [{ role: "user", content: "帮我搜一部电影" }] },
     expect: "deepseek",
   },
+  {
+    name: "合并栈：客户端指定 ark 仍走 DeepSeek 文字",
+    opts: {
+      requestedProvider: "ark",
+      messages: [{ role: "user", content: "你好" }],
+    },
+    expect: "deepseek",
+  },
 ];
 
 let failed = 0;

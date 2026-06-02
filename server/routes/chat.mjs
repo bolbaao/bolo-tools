@@ -122,12 +122,11 @@ router.post("/extract-document", documentUpload.single("file"), async (req, res)
 
 router.get("/models", (_req, res) => {
   const models = listAvailableChatModels();
-  const defaultCfg = resolveChatConfig();
   const aiStack = describeAiStack();
   res.json({
     ok: true,
     models,
-    defaultProvider: defaultCfg?.provider ?? null,
+    defaultProvider: models[0]?.id ?? null,
     imageVision: aiStack.vision.configured,
     aiStack,
   });
