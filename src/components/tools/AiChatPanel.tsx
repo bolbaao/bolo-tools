@@ -35,13 +35,7 @@ import {
   prepareChatImagesForApi,
   summarizeChatImageVisionErrors,
 } from "@/lib/chat-image-vision";
-import {
-  HERO_INPUT_PLACEHOLDER,
-  heroChatLabel,
-  heroVisionLabel,
-  isMergedAiStackActive,
-  type AiStack,
-} from "@/lib/hero-ai";
+import { heroChatLabel, heroVisionLabel, isMergedAiStackActive, type AiStack } from "@/lib/hero-ai";
 import { IMAGE_VISION_UNAVAILABLE } from "@/lib/service-message";
 import { filesToChatImages } from "@/lib/image-compress";
 import {
@@ -64,9 +58,12 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+const heroWelcomeMessage =
+  "嗨～想聊什么都可以。可上传或粘贴图片让我识别；也可申请定位、相册等权限。";
 const inputPlaceholder = "描述任务或随便聊聊，可附带图片、PDF、Word 或文本文件…";
+const heroInputPlaceholder = "输入文字，或粘贴/上传图片…";
 
 const MAX_IMAGES_PER_SEND = 4;
 const MAX_SESSION_IMAGES = 6;
@@ -124,9 +121,9 @@ export default function AiChatPanel({
 }: AiChatPanelProps) {
   const isHero = variant === "hero";
   const isDock = variant === "dock";
-  /** 合并栈：文字 DeepSeek + 识图火山方舟，由服务端自动路由 */
+  /** 合并栈：文字 DeepSeek + 识图火山方舟，由服务端自动路由（全屏页） */
   const [mergedStack, setMergedStack] = useState(false);
-  const autoPickProvider = isHero || mergedStack;
+  const autoPickProvider = mergedStack;
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
@@ -138,7 +135,10 @@ export default function AiChatPanel({
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       role: "ai",
-      text: initialWelcome ?? pickRandomGreeting(),
+      text:
+        variant === "hero"
+          ? heroWelcomeMessage
+          : (initialWelcome ?? pickRandomGreeting()),
     },
   ]);
   const [loading, setLoading] = useState(false);
@@ -157,14 +157,22 @@ export default function AiChatPanel({
   const [aiStack, setAiStack] = useState<AiStack | null>(null);
   const [imageVisionAvailable, setImageVisionAvailable] = useState<boolean | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addChatFiles = useCallback(async (files: File[]) => {
     if (!files.length) return;
     setError(null);
-    setPendingRawFiles((prev) => [...prev, ...files].slice(0, 8));
 
     const imageFiles = files.filter(isImageChatFile);
-    const textFiles = files.filter(isReadableChatFile);
+    const textFiles = isHero ? [] : files.filter(isReadableChatFile);
+    if (isHero) {
+      const nonImages = files.filter((f) => !isImageChatFile(f));
+      if (nonImages.length) {
+        setError("主页对话仅支持图片附件");
+      }
+    } else {
+      setPendingRawFiles((prev) => [...prev, ...files].slice(0, 8));
+    }
     const skipped = files.filter((f) => !isImageChatFile(f) && !isReadableChatFile(f));
 
     if (skipped.length) {
@@ -217,21 +225,22 @@ export default function AiChatPanel({
         setFileBusy(false);
       }
     }
-  }, [imageVisionAvailable, pendingImages.length, pendingTextFiles.length]);
+  }, [imageVisionAvailable, isHero, pendingImages.length, pendingTextFiles.length]);
 
   useEffect(() => {
-    if (!incomingFiles?.length) return;
+    if (isHero || !incomingFiles?.length) return;
     void addChatFiles(incomingFiles).finally(() => onIncomingFilesConsumed?.());
-  }, [incomingFiles, addChatFiles, onIncomingFilesConsumed]);
+  }, [incomingFiles, addChatFiles, onIncomingFilesConsumed, isHero]);
 
   useEffect(() => {
+    if (isHero) return;
     fetchChatModels()
       .then((data) => {
         const stack = data.aiStack ?? null;
         setAiStack(stack);
         setMergedStack(isMergedAiStackActive(stack));
         setImageVisionAvailable(Boolean(stack?.vision.configured ?? data.imageVision));
-        if (isHero || isMergedAiStackActive(stack)) {
+        if (isMergedAiStackActive(stack)) {
           setChatModels([]);
           setSelectedProvider(null);
           return;
@@ -246,10 +255,8 @@ export default function AiChatPanel({
         setAiStack(null);
         setMergedStack(false);
         setImageVisionAvailable(null);
-        if (!isHero) {
-          setChatModels([]);
-          setSelectedProvider(null);
-        }
+        setChatModels([]);
+        setSelectedProvider(null);
       });
   }, [isHero]);
 
@@ -266,7 +273,7 @@ export default function AiChatPanel({
 
   const maybeExtractMemories = useCallback(
     async (history: ChatMessage[]) => {
-      if (!user?.emailVerified) return;
+      if (isHero || !user?.emailVerified) return;
       const visible = history.filter((m) => !m.hidden);
       const lastUser = [...visible].reverse().find((m) => m.role === "user");
       const lastAi = [...visible].reverse().find((m) => m.role === "ai");
@@ -281,10 +288,17 @@ export default function AiChatPanel({
         /* 静默失败，不影响对话 */
       }
     },
-    [user?.emailVerified],
+    [isHero, user?.emailVerified],
   );
 
   useEffect(() => {
+    if (isHero) {
+      setSessionId(null);
+      setSessions([]);
+      setHistoryReady(true);
+      return;
+    }
+
     if (!user?.emailVerified) {
       setSessionId(null);
       setSessions([]);
@@ -326,10 +340,10 @@ export default function AiChatPanel({
     return () => {
       cancelled = true;
     };
-  }, [user?.id, user?.emailVerified]);
+  }, [isHero, user?.id, user?.emailVerified]);
 
   useEffect(() => {
-    if (!user?.emailVerified || !sessionId || !historyReady) return;
+    if (isHero || !user?.emailVerified || !sessionId || !historyReady) return;
     const payload = persistableMessages(messages);
     if (payload.length === 0) return;
 
@@ -428,7 +442,7 @@ export default function AiChatPanel({
       perms: ClientPermissions,
       chatImages: ClientPhotoItem[],
       rawFilesForTools: File[] = [],
-      provider: string | null = autoPickProvider ? null : selectedProvider,
+      provider: string | null = isHero ? null : autoPickProvider ? null : selectedProvider,
     ) => {
       const apiMessages = buildApiMessages(history);
       if (!apiMessages.some((m) => m.role === "user")) {
@@ -442,13 +456,13 @@ export default function AiChatPanel({
         {
           messages: apiMessages,
           pageContext: getPageContext(perms, apiImages),
-          ...(!autoPickProvider && provider ? { provider } : {}),
+          ...(!isHero && !autoPickProvider && provider ? { provider } : {}),
           mode: "agent",
         },
         { timeoutMs: needsVision ? 120000 : 65000, credentials: "include" },
       );
 
-      if (!autoPickProvider && data.provider && data.provider !== provider) {
+      if (!isHero && !autoPickProvider && data.provider && data.provider !== provider) {
         setSelectedProvider(data.provider);
         writeStoredChatProvider(data.provider);
       }
@@ -463,7 +477,7 @@ export default function AiChatPanel({
 
       return appendAiFromResponse(data, history, rawFilesForTools);
     },
-    [appendAiFromResponse, autoPickProvider, buildApiMessages, getPageContext, selectedProvider],
+    [appendAiFromResponse, autoPickProvider, buildApiMessages, getPageContext, isHero, selectedProvider],
   );
 
   const handleProviderChange = (provider: string) => {
@@ -474,7 +488,7 @@ export default function AiChatPanel({
   const send = async () => {
     const text = input.trim();
     const hasImages = pendingImages.length > 0;
-    const hasFiles = pendingTextFiles.length > 0;
+    const hasFiles = !isHero && pendingTextFiles.length > 0;
     if ((!text && !hasImages && !hasFiles) || loading || permissionBusy || imageBusy || fileBusy) return;
 
     const msgImages = hasImages ? [...pendingImages] : undefined;
@@ -615,12 +629,15 @@ export default function AiChatPanel({
   };
 
   const resetChatState = () => {
-    setMessages([{ role: "ai", text: pickRandomGreeting() }]);
+    setMessages([
+      { role: "ai", text: isHero ? heroWelcomeMessage : pickRandomGreeting() },
+    ]);
     setInput("");
     setError(null);
     setClientPermissions({});
     setPendingImages([]);
     setPendingTextFiles([]);
+    setPendingRawFiles([]);
     setSessionChatImages([]);
     setMemorySaved(null);
     setAutoMemoryNotice(null);
@@ -664,6 +681,10 @@ export default function AiChatPanel({
   };
 
   const clearChat = () => {
+    if (isHero) {
+      resetChatState();
+      return;
+    }
     void startNewChat();
   };
 
@@ -683,7 +704,7 @@ export default function AiChatPanel({
     }
   };
 
-  const inputHint = isHero ? HERO_INPUT_PLACEHOLDER : inputPlaceholder;
+  const inputHint = isHero ? heroInputPlaceholder : inputPlaceholder;
 
   return (
     <div className="space-y-4">
@@ -720,95 +741,8 @@ export default function AiChatPanel({
           isDock ? "h-[300px]" : isHero ? "h-[320px] sm:h-[380px]" : "h-[360px] sm:h-[420px]"
         }`}
       >
-        <div className="flex items-center gap-2 border-b border-white/8 px-4 py-2.5 justify-between">
-          <div className="flex min-w-0 flex-1 items-center gap-2 flex-wrap">
-            {(isHero || mergedStack) && (
-              <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                <span className="rounded-full border border-violet-400/25 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-200/80">
-                  对话 · {heroChatLabel(aiStack)}
-                </span>
-                <span
-                  className={`rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-200/80 ${
-                    imageVisionAvailable === false ? "opacity-50" : ""
-                  }`}
-                  title={
-                    imageVisionAvailable === false
-                      ? "图片识图暂不可用，请稍后再试"
-                      : "上传图片时由火山方舟视觉模型识别"
-                  }
-                >
-                  识图 · {heroVisionLabel(aiStack)}
-                  {imageVisionAvailable === false ? " · 未配置" : ""}
-                </span>
-              </div>
-            )}
-            {!isHero && !isDock && (
-              <div className="flex shrink-0 items-center gap-3">
-                <span className="text-xs text-white/40">Agent</span>
-                {user?.emailVerified && (
-                  <Link
-                    href="/tools/memory"
-                    className="text-xs text-emerald-400/70 hover:text-emerald-300 transition-colors"
-                  >
-                    记忆库
-                  </Link>
-                )}
-              </div>
-            )}
-            {isHero && user?.emailVerified && (
-              <Link
-                href="/tools/memory"
-                className="shrink-0 text-xs text-emerald-400/70 hover:text-emerald-300 transition-colors"
-              >
-                记忆库
-              </Link>
-            )}
-            {!autoPickProvider &&
-              (chatModels.length > 0 ? (
-                <select
-                  value={selectedProvider ?? chatModels[0].id}
-                  onChange={(e) => handleProviderChange(e.target.value)}
-                  disabled={loading || permissionBusy || chatModels.length <= 1}
-                  title="切换对话模型"
-                  className="max-w-[min(100%,240px)] truncate rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs text-white/70 focus:border-violet-500/40 focus:outline-none disabled:opacity-60"
-                >
-                  {chatModels.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {formatChatModelLabel(m)}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <span className="text-xs text-white/30">暂无可用模型</span>
-              ))}
-            {user?.emailVerified && sessions.length > 0 && !isDock && (
-              <select
-                value={sessionId ?? ""}
-                onChange={(e) => void switchSession(e.target.value)}
-                disabled={loading || permissionBusy}
-                title="历史对话"
-                className="max-w-[min(100%,180px)] truncate rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs text-white/70 focus:border-emerald-500/40 focus:outline-none disabled:opacity-60"
-              >
-                {sessions.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.title}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-          <div className="flex shrink-0 items-center gap-3">
-            {user?.emailVerified && !isDock && (
-              <button
-                type="button"
-                onClick={() => void startNewChat()}
-                disabled={loading || permissionBusy}
-                className="text-xs text-emerald-400/60 hover:text-emerald-300 disabled:opacity-40"
-              >
-                新对话
-              </button>
-            )}
-            {!isDock && (
+        {isHero ? (
+          <div className="flex items-center border-b border-white/8 px-4 py-2.5 justify-end">
             <button
               type="button"
               onClick={clearChat}
@@ -816,11 +750,102 @@ export default function AiChatPanel({
             >
               清空对话
             </button>
-            )}
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-2 border-b border-white/8 px-4 py-2.5 justify-between">
+            <div className="flex min-w-0 flex-1 items-center gap-2 flex-wrap">
+              {mergedStack && (
+                <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                  <span className="rounded-full border border-violet-400/25 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-200/80">
+                    对话 · {heroChatLabel(aiStack)}
+                  </span>
+                  <span
+                    className={`rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-200/80 ${
+                      imageVisionAvailable === false ? "opacity-50" : ""
+                    }`}
+                    title={
+                      imageVisionAvailable === false
+                        ? "图片识图暂不可用，请稍后再试"
+                        : "上传图片时由火山方舟视觉模型识别"
+                    }
+                  >
+                    识图 · {heroVisionLabel(aiStack)}
+                    {imageVisionAvailable === false ? " · 未配置" : ""}
+                  </span>
+                </div>
+              )}
+              {!isDock && (
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-xs text-white/40">Agent</span>
+                  {user?.emailVerified && (
+                    <Link
+                      href="/tools/memory"
+                      className="text-xs text-emerald-400/70 hover:text-emerald-300 transition-colors"
+                    >
+                      记忆库
+                    </Link>
+                  )}
+                </div>
+              )}
+              {!autoPickProvider &&
+                (chatModels.length > 0 ? (
+                  <select
+                    value={selectedProvider ?? chatModels[0].id}
+                    onChange={(e) => handleProviderChange(e.target.value)}
+                    disabled={loading || permissionBusy || chatModels.length <= 1}
+                    title="切换对话模型"
+                    className="max-w-[min(100%,240px)] truncate rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs text-white/70 focus:border-violet-500/40 focus:outline-none disabled:opacity-60"
+                  >
+                    {chatModels.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {formatChatModelLabel(m)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-xs text-white/30">暂无可用模型</span>
+                ))}
+              {user?.emailVerified && sessions.length > 0 && !isDock && (
+                <select
+                  value={sessionId ?? ""}
+                  onChange={(e) => void switchSession(e.target.value)}
+                  disabled={loading || permissionBusy}
+                  title="历史对话"
+                  className="max-w-[min(100%,180px)] truncate rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs text-white/70 focus:border-emerald-500/40 focus:outline-none disabled:opacity-60"
+                >
+                  {sessions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.title}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              {user?.emailVerified && !isDock && (
+                <button
+                  type="button"
+                  onClick={() => void startNewChat()}
+                  disabled={loading || permissionBusy}
+                  className="text-xs text-emerald-400/60 hover:text-emerald-300 disabled:opacity-40"
+                >
+                  新对话
+                </button>
+              )}
+              {!isDock && (
+                <button
+                  type="button"
+                  onClick={clearChat}
+                  className="text-xs text-white/35 hover:text-white/60 transition-colors"
+                >
+                  清空对话
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
-        {autoMemoryNotice && (
+        {!isHero && autoMemoryNotice && (
           <p className="border-b border-white/8 px-4 py-2 text-xs text-violet-300/80">
             {autoMemoryNotice}
           </p>
@@ -899,7 +924,7 @@ export default function AiChatPanel({
                     {msg.text}
                   </div>
                 )}
-                {user?.emailVerified && msg.role === "user" && msg.text.trim() && (
+                {!isHero && user?.emailVerified && msg.role === "user" && msg.text.trim() && (
                   <button
                     type="button"
                     disabled={memoryBusy === i}
@@ -932,9 +957,13 @@ export default function AiChatPanel({
           })}
           {loading && (
             <p className="text-xs text-white/30 animate-pulse">
-              {pendingImages.length > 0 || sessionChatImages.some(imageNeedsVisionApi)
-                ? "Agent 正在识别图片并规划操作…"
-                : "Agent 正在规划并执行…"}
+              {isHero
+                ? pendingImages.length > 0 || sessionChatImages.length > 0
+                  ? "正在识别图片并回复…"
+                  : "正在回复…"
+                : pendingImages.length > 0 || sessionChatImages.some(imageNeedsVisionApi)
+                  ? "Agent 正在识别图片并规划操作…"
+                  : "Agent 正在规划并执行…"}
             </p>
           )}
         </div>
@@ -944,14 +973,15 @@ export default function AiChatPanel({
           onPaste={(e) => {
             const files = [...e.clipboardData.items]
               .map((item) => (item.kind === "file" ? item.getAsFile() : null))
-              .filter((f): f is File => f !== null);
+              .filter((f): f is File => f !== null)
+              .filter((f) => !isHero || f.type.startsWith("image/"));
             if (files.length) {
               e.preventDefault();
               void addChatFiles(files);
             }
           }}
         >
-          {(pendingImages.length > 0 || pendingTextFiles.length > 0) && (
+          {(pendingImages.length > 0 || (!isHero && pendingTextFiles.length > 0)) && (
             <div className="flex flex-wrap gap-2 items-center">
               {pendingImages.map((img, j) => (
                 <div
@@ -978,38 +1008,67 @@ export default function AiChatPanel({
                   </button>
                 </div>
               ))}
-              {pendingTextFiles.map((f, j) => (
-                <div
-                  key={`file-${f.name}-${j}`}
-                  className="relative flex max-w-[200px] items-center gap-1.5 rounded-lg border border-white/12 bg-white/5 px-2.5 py-2 pr-7"
-                >
-                  <span className="text-sm" aria-hidden>
-                    📎
-                  </span>
-                  <span className="min-w-0 truncate text-[11px] text-white/75">{f.name}</span>
-                  <button
-                    type="button"
-                    aria-label="移除文件"
-                    onClick={() =>
-                      setPendingTextFiles((prev) => prev.filter((_, idx) => idx !== j))
-                    }
-                    className="absolute top-0 right-0 bg-black/70 text-white text-[10px] leading-none px-1 py-0.5 rounded-bl"
+              {!isHero &&
+                pendingTextFiles.map((f, j) => (
+                  <div
+                    key={`file-${f.name}-${j}`}
+                    className="relative flex max-w-[200px] items-center gap-1.5 rounded-lg border border-white/12 bg-white/5 px-2.5 py-2 pr-7"
                   >
-                    ×
-                  </button>
-                </div>
-              ))}
+                    <span className="text-sm" aria-hidden>
+                      📎
+                    </span>
+                    <span className="min-w-0 truncate text-[11px] text-white/75">{f.name}</span>
+                    <button
+                      type="button"
+                      aria-label="移除文件"
+                      onClick={() =>
+                        setPendingTextFiles((prev) => prev.filter((_, idx) => idx !== j))
+                      }
+                      className="absolute top-0 right-0 bg-black/70 text-white text-[10px] leading-none px-1 py-0.5 rounded-bl"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
               <span className="text-[10px] text-white/35 w-full">
-                图片最多 {MAX_IMAGES_PER_SEND} 张 · 文件最多 {MAX_TEXT_FILES_PER_SEND} 个
+                {isHero
+                  ? `最多 ${MAX_IMAGES_PER_SEND} 张图片`
+                  : `图片最多 ${MAX_IMAGES_PER_SEND} 张 · 文件最多 ${MAX_TEXT_FILES_PER_SEND} 个`}
               </span>
             </div>
           )}
           <div className="flex gap-2">
-            <ChatAttachButton
-              onFiles={addChatFiles}
-              disabled={loading || permissionBusy}
-              busy={imageBusy || fileBusy}
-            />
+            {isHero ? (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = e.target.files;
+                    if (files?.length) void addChatFiles([...files]);
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  title="上传图片"
+                  disabled={loading || permissionBusy || imageBusy}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white/70 hover:text-white hover:border-violet-500/40 disabled:opacity-40 transition-colors"
+                >
+                  🖼
+                </button>
+              </>
+            ) : (
+              <ChatAttachButton
+                onFiles={addChatFiles}
+                disabled={loading || permissionBusy}
+                busy={imageBusy || fileBusy}
+              />
+            )}
             <input
               type="text"
               value={input}
@@ -1027,7 +1086,9 @@ export default function AiChatPanel({
                 permissionBusy ||
                 imageBusy ||
                 fileBusy ||
-                (!input.trim() && !pendingImages.length && !pendingTextFiles.length)
+                (!input.trim() &&
+                  !pendingImages.length &&
+                  (isHero || !pendingTextFiles.length))
               }
               className="rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-[#0a0b14] disabled:opacity-40 hover:bg-white/92 transition-colors"
             >
