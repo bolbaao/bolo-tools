@@ -119,15 +119,10 @@ export default function ToolDemoVisualFallback({ toolId, large }: Props) {
 
     case "media-search":
       return (
-        <div className={`${stage} gap-2 p-3`}>
+        <div className={`${stage} flex-col gap-2 p-4`}>
+          <div className="w-full max-w-[120px] h-2 rounded bg-amber-500/30" />
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex gap-2 w-full max-w-[140px]">
-              <div className="h-8 w-6 shrink-0 rounded bg-gradient-to-br from-blue-600/40 to-indigo-600/30" />
-              <div className="flex-1 space-y-1 py-0.5">
-                <div className="h-1.5 rounded bg-white/20 w-full" />
-                <div className="h-1 rounded bg-white/10 w-2/3" />
-              </div>
-            </div>
+            <div key={i} className="h-2 w-full max-w-[100px] rounded bg-sky-500/40" />
           ))}
         </div>
       );

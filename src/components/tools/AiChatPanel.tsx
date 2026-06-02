@@ -125,6 +125,8 @@ export default function AiChatPanel({
 }: AiChatPanelProps) {
   const isHero = variant === "hero";
   const isDock = variant === "dock";
+  /** 主页对话由服务端按问题类型自动选模型，不展示提供商下拉框 */
+  const autoPickProvider = isHero;
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
@@ -219,6 +221,11 @@ export default function AiChatPanel({
   }, [incomingFiles, addChatFiles, onIncomingFilesConsumed]);
 
   useEffect(() => {
+    if (autoPickProvider) {
+      setChatModels([]);
+      setSelectedProvider(null);
+      return;
+    }
     fetchChatModels()
       .then((data) => {
         setChatModels(data.models);
@@ -231,7 +238,7 @@ export default function AiChatPanel({
         setChatModels([]);
         setSelectedProvider(null);
       });
-  }, []);
+  }, [autoPickProvider]);
 
   const persistableMessages = useCallback((history: ChatMessage[]) => {
     return history
@@ -408,7 +415,7 @@ export default function AiChatPanel({
       perms: ClientPermissions,
       chatImages: ClientPhotoItem[],
       rawFilesForTools: File[] = [],
-      provider: string | null = selectedProvider,
+      provider: string | null = autoPickProvider ? null : selectedProvider,
       mode: ChatMode = chatMode,
     ) => {
       const apiMessages = buildApiMessages(history);
@@ -423,13 +430,13 @@ export default function AiChatPanel({
         {
           messages: apiMessages,
           pageContext: getPageContext(perms, apiImages),
-          ...(provider ? { provider } : {}),
+          ...(!autoPickProvider && provider ? { provider } : {}),
           mode,
         },
         { timeoutMs: needsVision ? 120000 : 65000, credentials: "include" },
       );
 
-      if (data.provider && data.provider !== provider) {
+      if (!autoPickProvider && data.provider && data.provider !== provider) {
         setSelectedProvider(data.provider);
         writeStoredChatProvider(data.provider);
       }
@@ -441,7 +448,7 @@ export default function AiChatPanel({
 
       return appendAiFromResponse(data, history, rawFilesForTools);
     },
-    [appendAiFromResponse, buildApiMessages, chatMode, getPageContext, selectedProvider],
+    [appendAiFromResponse, autoPickProvider, buildApiMessages, chatMode, getPageContext, selectedProvider],
   );
 
   const handleModeChange = (mode: ChatMode) => {
@@ -765,23 +772,24 @@ export default function AiChatPanel({
                 记忆库
               </Link>
             )}
-            {chatModels.length > 0 ? (
-              <select
-                value={selectedProvider ?? chatModels[0].id}
-                onChange={(e) => handleProviderChange(e.target.value)}
-                disabled={loading || permissionBusy || chatModels.length <= 1}
-                title="切换对话模型"
-                className="max-w-[min(100%,240px)] truncate rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs text-white/70 focus:border-violet-500/40 focus:outline-none disabled:opacity-60"
-              >
-                {chatModels.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {formatChatModelLabel(m)}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <span className="text-xs text-white/30">暂无可用模型</span>
-            )}
+            {!autoPickProvider &&
+              (chatModels.length > 0 ? (
+                <select
+                  value={selectedProvider ?? chatModels[0].id}
+                  onChange={(e) => handleProviderChange(e.target.value)}
+                  disabled={loading || permissionBusy || chatModels.length <= 1}
+                  title="切换对话模型"
+                  className="max-w-[min(100%,240px)] truncate rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs text-white/70 focus:border-violet-500/40 focus:outline-none disabled:opacity-60"
+                >
+                  {chatModels.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {formatChatModelLabel(m)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-xs text-white/30">暂无可用模型</span>
+              ))}
             {user?.emailVerified && sessions.length > 0 && !isDock && (
               <select
                 value={sessionId ?? ""}

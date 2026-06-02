@@ -8,8 +8,8 @@ import {
   getChatProviderLabel,
   listAvailableChatModels,
   resolveChatConfig,
-  resolveChatConfigByProvider,
 } from "../lib/chat-config.mjs";
+import { resolveChatConfigForRequest } from "../lib/chat-provider-routing.mjs";
 import { env } from "../lib/env.mjs";
 import { HttpError, sendError } from "../lib/http-error.mjs";
 import {
@@ -139,7 +139,20 @@ router.post("/", async (req, res) => {
       throw new HttpError(400, "messages 不能为空");
     }
 
-    chatConfig = resolveChatConfigByProvider(provider);
+    const normalizedMessages = messages
+      .map((m) => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: String(m.content ?? "").trim().slice(0, 8000),
+      }))
+      .filter((m) => m.content.length > 0)
+      .slice(-20);
+
+    chatConfig = resolveChatConfigForRequest({
+      requestedProvider: provider,
+      mode: chatMode,
+      messages: normalizedMessages,
+      pageContext,
+    });
     if (!chatConfig) {
       throw new HttpError(
         503,
@@ -155,14 +168,6 @@ router.post("/", async (req, res) => {
       timeout: timeoutMs,
       maxRetries: 0,
     });
-
-    const normalizedMessages = messages
-      .map((m) => ({
-        role: m.role === "user" ? "user" : "assistant",
-        content: String(m.content ?? "").trim().slice(0, 8000),
-      }))
-      .filter((m) => m.content.length > 0)
-      .slice(-20);
 
     const weatherResult = await resolveWeatherSnapshot({
       messages: normalizedMessages,

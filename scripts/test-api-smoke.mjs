@@ -80,18 +80,11 @@ async function main() {
     }
   }
 
-  const hot = await get("/api/media/hot");
-  if (hot.status === 200 && (hot.data?.items?.length || hot.data?.ok !== false)) {
-    ok("影视搜索 · 热门", `${hot.data?.items?.length ?? 0} 条`);
+  const nav = await get("/api/media/nav");
+  if (nav.status === 200 && nav.data?.portals?.length) {
+    ok("影视搜索 · 导航", `${nav.data.portals.length} 个入口`);
   } else {
-    skip("影视搜索 · 热门", hot.data?.error || `status=${hot.status}`);
-  }
-
-  const search = await get("/api/media/search?q=肖申克的救赎&category=电影");
-  if (search.status === 200 && search.data?.results) {
-    ok("影视搜索", `${search.data.results?.length ?? 0} 条`);
-  } else {
-    skip("影视搜索", search.data?.error || `status=${search.status}`);
+    skip("影视搜索 · 导航", nav.data?.error || `status=${nav.status}`);
   }
 
   const resource = await get("/api/media/resource-search?q=肖申克");

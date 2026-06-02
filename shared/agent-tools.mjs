@@ -11,8 +11,8 @@ export const AGENT_TOOLS = [
     id: "media-search",
     title: "影视搜索",
     href: "/tools/media-search",
-    description: "搜索电影剧集，查看 TMDB 评分、简介与详情",
-    fields: { keyword: "片名或关键词" },
+    description: "打开汁源导航，选择搜索①②③等外部入口",
+    fields: {},
   },
   {
     id: "media-download",

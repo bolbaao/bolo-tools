@@ -5,7 +5,7 @@ const DEEPSEEK_DEFAULT_MODEL = "deepseek-chat";
 const ARK_DEFAULT_BASE = "https://ark.cn-beijing.volces.com/api/v3";
 const ARK_DEFAULT_MODEL = "doubao-1-5-pro-32k-250115";
 
-function deepseekConfig() {
+export function deepseekConfig() {
   const apiKey = env("DEEPSEEK_API_KEY");
   if (!apiKey) return null;
   return {

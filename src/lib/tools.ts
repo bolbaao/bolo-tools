@@ -144,13 +144,13 @@ export const tools: Tool[] = [
   {
     id: "media-search",
     title: "影视搜索",
-    description: "搜索电影、剧集、综艺与动画，查看评分、简介与 TMDB 详情。",
-    usageGuide: "输入片名 → 选择类型 → 搜索 → 查看详情或复制信息",
+    description: "汁源导航入口，一键打开多个搜索站；①打不开可换②③。",
+    usageGuide: "打开页面 → 点击蓝色入口 → 在对应站点搜索片名",
     href: "/tools/media-search",
     gradient: "from-blue-500/20 to-indigo-500/10",
     tag: "影视",
     bento: "wide",
-    demoHint: "片名搜索 · 热门推荐 · TMDB",
+    demoHint: "点蓝色链接 · 多入口备用",
   },
   {
     id: "media-download",
