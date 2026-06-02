@@ -116,7 +116,8 @@ router.get("/models", (_req, res) => {
 router.post("/", async (req, res) => {
   let chatConfig = null;
   try {
-    const { messages, pageContext, provider } = req.body ?? {};
+    const { messages, pageContext, provider, mode: rawMode } = req.body ?? {};
+    const chatMode = rawMode === "agent" ? "agent" : "chat";
     if (!Array.isArray(messages) || messages.length === 0) {
       throw new HttpError(400, "messages 不能为空");
     }
@@ -167,7 +168,7 @@ router.post("/", async (req, res) => {
       userMemorySnapshot,
     };
 
-    let systemPrompt = buildAgentSystemPrompt(enrichedContext);
+    let systemPrompt = buildAgentSystemPrompt(enrichedContext, chatMode);
     if (userMemorySnapshot) {
       systemPrompt = `${systemPrompt}\n\n${userMemorySnapshot}`;
     }

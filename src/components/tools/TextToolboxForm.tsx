@@ -7,6 +7,7 @@ import {
   formatJson,
   markdownToHtml,
 } from "@/lib/text-tools";
+import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { useMemo, useState } from "react";
 
 type Tab = "stats" | "dedupe" | "json" | "markdown";
@@ -24,6 +25,32 @@ export default function TextToolboxForm() {
   const [jsonMinify, setJsonMinify] = useState(false);
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [jsonOut, setJsonOut] = useState("");
+
+  useAgentPrefill("text-toolbox", {
+    apply: (fields) => {
+      const nextTab = fields.tab as Tab | undefined;
+      if (nextTab && TABS.some((t) => t.id === nextTab)) setTab(nextTab);
+      if (fields.input) setInput(fields.input);
+    },
+    canSubmit: (fields) => Boolean(fields.input?.trim()),
+    submit: (fields) => {
+      const nextTab = fields.tab as Tab | undefined;
+      const effectiveTab =
+        nextTab && TABS.some((t) => t.id === nextTab) ? nextTab : tab;
+      if (effectiveTab === "dedupe") {
+        setInput(dedupeLines(fields.input));
+      } else if (effectiveTab === "json") {
+        const r = formatJson(fields.input, jsonMinify);
+        if (r.ok) {
+          setJsonOut(r.result);
+          setJsonError(null);
+        } else {
+          setJsonError(r.error);
+          setJsonOut("");
+        }
+      }
+    },
+  });
 
   const stats = useMemo(() => countTextStats(input), [input]);
   const mdHtml = useMemo(() => (tab === "markdown" ? markdownToHtml(input) : ""), [input, tab]);

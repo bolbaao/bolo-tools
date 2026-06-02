@@ -12,7 +12,10 @@ export type ChatModelsResponse = {
   defaultProvider: string | null;
 };
 
+export type ChatMode = "chat" | "agent";
+
 export const CHAT_PROVIDER_STORAGE_KEY = "pineapple-chat-provider";
+export const CHAT_MODE_STORAGE_KEY = "pineapple-chat-mode";
 
 export function readStoredChatProvider(): string | null {
   if (typeof window === "undefined") return null;
@@ -28,6 +31,25 @@ export function writeStoredChatProvider(provider: string) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(CHAT_PROVIDER_STORAGE_KEY, provider);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function readStoredChatMode(): ChatMode {
+  if (typeof window === "undefined") return "chat";
+  try {
+    const value = localStorage.getItem(CHAT_MODE_STORAGE_KEY);
+    return value === "agent" ? "agent" : "chat";
+  } catch {
+    return "chat";
+  }
+}
+
+export function writeStoredChatMode(mode: ChatMode) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(CHAT_MODE_STORAGE_KEY, mode);
   } catch {
     /* ignore */
   }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ToolIconBox } from "@/components/icons/ToolIcon";
+import ToolAgentDock from "@/components/ToolAgentDock";
 import type { Tool } from "@/lib/tools";
 
 type Props = {
@@ -48,6 +49,7 @@ export default function ToolPageLayout({ tool, children }: Props) {
 
         <div className="glass-panel p-6 sm:p-8">{children}</div>
       </div>
+      <ToolAgentDock toolId={tool.id} />
     </div>
   );
 }

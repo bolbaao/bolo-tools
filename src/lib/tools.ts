@@ -66,7 +66,7 @@ export const tools: Tool[] = [
   },
   {
     id: "memory",
-    title: "记忆库",
+    title: "开始使用",
     description: "保存你的偏好与重要信息，让 AI 对话更懂你、更连贯。",
     usageGuide: "登录并验证邮箱 → 添加记忆条目 → 对话时自动参考你的专属记忆",
     href: "/tools/memory",
@@ -89,8 +89,8 @@ export const tools: Tool[] = [
   {
     id: "app-builder",
     title: "一键做 App",
-    description: "用自然语言描述需求，AI 生成可独立运行的单页应用，预览并下载。",
-    usageGuide: "填写应用名称与类型 → 描述功能需求 → 生成 → 预览或下载 HTML",
+    description: "用模板或自然语言生成单页 Web 应用；支持快捷指令配套页（URL API）",
+    usageGuide: "选类型或内置模板 → 填写/调整需求 → 生成 → 预览下载；快捷指令需部署 HTML 后填 URL",
     href: "/tools/app-builder",
     gradient: "from-cyan-500/20 via-teal-500/15 to-emerald-500/10",
     tag: "AI",
@@ -118,6 +118,17 @@ export const tools: Tool[] = [
     tag: "AI",
     bento: "wide",
     demoHint: "选模板 · 填主题 · 串联执行",
+  },
+  {
+    id: "social-publish",
+    title: "社媒一键分发",
+    description: "一条视频或文案多平台分发；抖音默认全自动上传并发布，其它平台可辅助或实验性自动。",
+    usageGuide: "上传视频+填写文案 →「仅发布到抖音」或选多平台分发 → 需 cookies/douyin.txt 与 playwright",
+    href: "/tools/social-publish",
+    gradient: "from-rose-500/20 via-orange-500/15 to-amber-500/10",
+    tag: "运营",
+    bento: "wide",
+    demoHint: "写一次 · 多平台 · 一键分发",
   },
   {
     id: "hot-trends",
@@ -188,8 +199,8 @@ export const tools: Tool[] = [
   {
     id: "ai-video-edit",
     title: "AI 视频剪辑",
-    description: "用自然语言描述剪辑需求，AI 生成方案并由 ffmpeg 本地渲染导出。",
-    usageGuide: "上传视频 → 描述剪辑（裁剪、画幅、变速、淡入淡出等）→ 预览方案 → 渲染下载",
+    description: "自然语言智能剪辑，或 AI 剪口播：文稿匹配素材并合成人声。",
+    usageGuide: "智能剪辑：上传视频+描述需求；剪口播：上传素材+文稿，AI 匹配画面并 TTS 合成",
     href: "/tools/ai-video-edit",
     gradient: "from-fuchsia-500/20 via-violet-500/15 to-cyan-500/10",
     tag: "视频",

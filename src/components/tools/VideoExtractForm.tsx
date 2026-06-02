@@ -84,11 +84,6 @@ function detectClientPlatform(text: string): string | null {
 
 export default function VideoExtractForm() {
   const [url, setUrl] = useState("");
-
-  const applyPrefill = useCallback((fields: Record<string, string>) => {
-    if (fields.url) setUrl(fields.url);
-  }, []);
-  useAgentPrefill("video-extract", applyPrefill);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,20 +91,30 @@ export default function VideoExtractForm() {
 
   const detected = useMemo(() => detectClientPlatform(url), [url]);
 
-  const handleExtract = async () => {
-    if (!url.trim()) return;
+  const handleExtract = useCallback(async (urlOverride?: string) => {
+    const target = (urlOverride ?? url).trim();
+    if (!target) return;
+    if (urlOverride) setUrl(urlOverride);
     setLoading(true);
     setError(null);
     setResult(null);
     try {
-      const data = await apiPost<ExtractResult>("/api/video/extract", { url: url.trim() });
+      const data = await apiPost<ExtractResult>("/api/video/extract", { url: target });
       setResult(data);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "解析失败");
     } finally {
       setLoading(false);
     }
-  };
+  }, [url]);
+
+  useAgentPrefill("video-extract", {
+    apply: (fields) => {
+      if (fields.url) setUrl(fields.url);
+    },
+    canSubmit: (fields) => Boolean(fields.url?.trim()),
+    submit: (fields) => handleExtract(fields.url),
+  });
 
   const handleDownload = async (fmt: VideoFormat, title: string) => {
     const downloadPath =
@@ -265,7 +270,7 @@ export default function VideoExtractForm() {
         loading={loading}
         loadingLabel="正在解析…"
         disabled={!url.trim()}
-        onClick={handleExtract}
+        onClick={() => void handleExtract()}
       />
       <p className="text-center text-xs text-white/25 leading-relaxed">
         基于 yt-dlp / 视频号专用解析 · 视频经本机 API 代理下载 · 请遵守各平台条款与版权规定

@@ -14,7 +14,7 @@ export default function Footer() {
             <Link href="/" className="hover:text-white/60 transition-colors">
               首页
             </Link>
-            <Link href="/tools/ai-tools" className="hover:text-white/60 transition-colors">
+            <Link href="/tools/ai-chat" className="hover:text-white/60 transition-colors">
               AI工具
             </Link>
             <Link href="/#toolkit" className="hover:text-white/60 transition-colors">

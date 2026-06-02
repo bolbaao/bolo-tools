@@ -11,7 +11,7 @@ const assetsTool: Tool = {
   gradient: "from-rose-500/20 to-pink-500/10",
   tag: "管理",
   bento: "default",
-  demoHint: "双击导航栏菠萝图标进入",
+  demoHint: "双击导航栏图标进入",
 };
 
 export default function AssetsPage() {

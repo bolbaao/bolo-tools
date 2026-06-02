@@ -45,18 +45,7 @@ export default function AiSearchPanel() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SearchResponse | null>(null);
 
-  const applyPrefill = useCallback((fields: Record<string, string>) => {
-    if (fields.query) setQuery(fields.query);
-  }, []);
-  useAgentPrefill("ai-search", applyPrefill);
-
-  useEffect(() => {
-    apiGet<Capabilities>("/api/ai-search/capabilities")
-      .then(setCaps)
-      .catch(() => setCaps(null));
-  }, []);
-
-  const runSearch = async (q?: string) => {
+  const runSearch = useCallback(async (q?: string) => {
     const term = (q ?? query).trim();
     if (!term) return;
     setQuery(term);
@@ -75,7 +64,21 @@ export default function AiSearchPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [query, depth]);
+
+  useAgentPrefill("ai-search", {
+    apply: (fields) => {
+      if (fields.query) setQuery(fields.query);
+    },
+    canSubmit: (fields) => Boolean(fields.query?.trim()),
+    submit: (fields) => runSearch(fields.query),
+  });
+
+  useEffect(() => {
+    apiGet<Capabilities>("/api/ai-search/capabilities")
+      .then(setCaps)
+      .catch(() => setCaps(null));
+  }, []);
 
   return (
     <div className="space-y-6">

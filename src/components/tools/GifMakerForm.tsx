@@ -2,6 +2,7 @@
 
 import ActionButton from "@/components/ActionButton";
 import { ApiError, apiUpload, downloadBlob } from "@/lib/api";
+import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { useState } from "react";
 
 export default function GifMakerForm() {
@@ -12,6 +13,15 @@ export default function GifMakerForm() {
   const [width, setWidth] = useState("480");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useAgentPrefill("gif-maker", {
+    apply: (fields) => {
+      if (fields.start) setStart(fields.start);
+      if (fields.duration) setDuration(fields.duration);
+      if (fields.fps) setFps(fields.fps);
+      if (fields.width) setWidth(fields.width);
+    },
+  });
 
   const handleGenerate = async () => {
     if (!file) return;

@@ -28,11 +28,76 @@ export default function AiWorkflowPanel() {
   const [completed, setCompleted] = useState(false);
   const [provider, setProvider] = useState<string | null>(null);
 
-  const applyPrefill = useCallback((fields: Record<string, string>) => {
-    if (fields.workflowId) setWorkflowId(fields.workflowId);
-    if (fields.input) setInput(fields.input);
-  }, []);
-  useAgentPrefill("ai-workflow", applyPrefill);
+  const outputsMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const r of results) m[r.stepId] = r.output;
+    return m;
+  }, [results]);
+
+  const nextStepIndex = results.length;
+
+  const runWorkflow = useCallback(
+    async (
+      runAll: boolean,
+      overrides?: { workflowId?: string; input?: string },
+    ) => {
+      const wfId = overrides?.workflowId ?? workflowId;
+      const inputVal = (overrides?.input ?? input).trim();
+      if (!inputVal || !wfId) return;
+      if (overrides?.workflowId) setWorkflowId(overrides.workflowId);
+      if (overrides?.input) setInput(overrides.input);
+      setLoading(true);
+      setError(null);
+      if (runAll) {
+        setResults([]);
+        setCompleted(false);
+      }
+      try {
+        const data = await apiPost<{
+          ok: boolean;
+          results: StepResult[];
+          completed: boolean;
+          message?: string;
+        }>(
+          "/api/ai-workflow/run",
+          {
+            workflowId: wfId,
+            input: inputVal,
+            runAll,
+            stepIndex: runAll ? undefined : nextStepIndex,
+            previousOutputs: runAll ? undefined : outputsMap,
+          },
+          { timeoutMs: runAll ? 360000 : 120000 },
+        );
+        if (runAll) {
+          setResults(data.results || []);
+        } else {
+          setResults((prev) => [...prev, ...(data.results || [])]);
+        }
+        setCompleted(Boolean(data.completed));
+        const p = data.results?.find((r) => r.provider)?.provider;
+        if (p) setProvider(p);
+      } catch (e) {
+        setError(e instanceof ApiError ? e.message : "执行失败");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [workflowId, input, nextStepIndex, outputsMap],
+  );
+
+  useAgentPrefill("ai-workflow", {
+    apply: (fields) => {
+      if (fields.workflowId) setWorkflowId(fields.workflowId);
+      if (fields.input) setInput(fields.input);
+    },
+    canSubmit: (fields) => Boolean(fields.input?.trim()),
+    submit: (fields) =>
+      runWorkflow(true, {
+        workflowId: fields.workflowId,
+        input: fields.input,
+      }),
+  });
 
   useEffect(() => {
     apiGet<{ ok: boolean; aiConfigured: boolean; workflows: Workflow[] }>(
@@ -51,54 +116,6 @@ export default function AiWorkflowPanel() {
     () => workflows.find((w) => w.id === workflowId),
     [workflows, workflowId],
   );
-
-  const outputsMap = useMemo(() => {
-    const m: Record<string, string> = {};
-    for (const r of results) m[r.stepId] = r.output;
-    return m;
-  }, [results]);
-
-  const nextStepIndex = results.length;
-
-  const runWorkflow = async (runAll: boolean) => {
-    if (!input.trim() || !workflowId) return;
-    setLoading(true);
-    setError(null);
-    if (runAll) {
-      setResults([]);
-      setCompleted(false);
-    }
-    try {
-      const data = await apiPost<{
-        ok: boolean;
-        results: StepResult[];
-        completed: boolean;
-        message?: string;
-      }>(
-        "/api/ai-workflow/run",
-        {
-          workflowId,
-          input: input.trim(),
-          runAll,
-          stepIndex: runAll ? undefined : nextStepIndex,
-          previousOutputs: runAll ? undefined : outputsMap,
-        },
-        { timeoutMs: runAll ? 360000 : 120000 },
-      );
-      if (runAll) {
-        setResults(data.results || []);
-      } else {
-        setResults((prev) => [...prev, ...(data.results || [])]);
-      }
-      setCompleted(Boolean(data.completed));
-      const p = data.results?.find((r) => r.provider)?.provider;
-      if (p) setProvider(p);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "执行失败");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const reset = () => {
     setResults([]);

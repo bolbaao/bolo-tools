@@ -2,126 +2,12 @@ import {
   buildPermissionsCatalogPrompt,
   listMissingPermissionTypes,
 } from "./agent-permissions-catalog.mjs";
+import { AGENT_CATEGORIES, AGENT_TOOLS } from "../../shared/agent-tools.mjs";
 
-/** 智能体可操作的站点能力目录（注入系统提示） */
-export const AGENT_TOOLS = [
-  {
-    id: "video-extract",
-    title: "视频链接提取",
-    href: "/tools/video-extract",
-    description: "解析抖音、B站、YouTube、微信视频号等链接并下载",
-    fields: { url: "视频页面链接" },
-  },
-  {
-    id: "media-search",
-    title: "影视搜索",
-    href: "/tools/media-search",
-    description: "输入片名，聚合影视信息与可复制的资源链接包",
-    fields: { keyword: "片名或关键词" },
-  },
-  {
-    id: "media-download",
-    title: "影视资源下载",
-    href: "/tools/media-download",
-    description: "按片名检索网盘资源链接，多平台一键复制",
-    fields: { keyword: "片名或关键词" },
-  },
-  {
-    id: "music-convert",
-    title: "音乐转格式",
-    href: "/tools/music-convert",
-    description: "解锁主流平台加密音乐，批量转换为 MP3、FLAC 等格式",
-    fields: {},
-  },
-  {
-    id: "image-studio",
-    title: "图像工坊",
-    href: "/tools/image-studio",
-    description: "图片压缩、清晰增强、智能抠图、人像美化、AI 修图与文生图",
-    fields: { mode: "compress|sharpen|cutout|beautify|edit|generate", prompt: "生图或修图描述" },
-  },
-  {
-    id: "ai-search",
-    title: "AI 全网搜索",
-    href: "/tools/ai-search",
-    description: "全网检索并由 AI 生成带引用的答案",
-    fields: { query: "搜索问题或关键词" },
-  },
-  {
-    id: "app-builder",
-    title: "一键做 App",
-    href: "/tools/app-builder",
-    description: "用自然语言生成可运行的单页 Web 应用",
-    fields: { description: "应用需求描述", appType: "tool|landing|dashboard|game|form", appName: "应用名称" },
-  },
-  {
-    id: "ai-writer",
-    title: "AI 写作助手",
-    href: "/tools/ai-writer",
-    description: "多模式写作：文章、改写、润色、摘要、社媒文案等",
-    fields: { mode: "article|rewrite|polish|expand|summarize|social|email|translate", input: "文本或主题" },
-  },
-  {
-    id: "ai-workflow",
-    title: "AI 工作流",
-    href: "/tools/ai-workflow",
-    description: "多步 AI 流水线：内容创作、社媒包、视频脚本",
-    fields: { workflowId: "content-pipeline|social-pack|script-pipeline", input: "主题或素材" },
-  },
-  {
-    id: "hot-trends",
-    title: "热点中心",
-    href: "/tools/hot-trends",
-    description: "抖音、小红书实时热点",
-    fields: {},
-  },
-  {
-    id: "spider-builder",
-    title: "小蜘蛛爬虫",
-    href: "/tools/spider-builder",
-    description: "可视化网页数据抓取",
-    fields: { url: "要抓取的网页地址" },
-  },
-  {
-    id: "doc-convert",
-    title: "文档转换",
-    href: "/tools/doc-convert",
-    description: "PDF/Word 互转、PDF 转图片、图片转 PDF",
-    fields: { mode: "pdf-to-word|word-to-pdf|pdf-to-images|images-to-pdf" },
-  },
-  {
-    id: "subtitle-workshop",
-    title: "字幕工坊",
-    href: "/tools/subtitle-workshop",
-    description: "语音转字幕、提取内嵌字幕",
-    fields: {},
-  },
-  {
-    id: "gif-maker",
-    title: "GIF 动图",
-    href: "/tools/gif-maker",
-    description: "视频片段转 GIF",
-    fields: {},
-  },
-  {
-    id: "ai-video-edit",
-    title: "AI 视频剪辑",
-    href: "/tools/ai-video-edit",
-    description: "自然语言描述剪辑需求，AI 生成方案并 ffmpeg 渲染",
-    fields: { instruction: "剪辑描述，如去掉前5秒、裁成9:16竖屏" },
-  },
-  {
-    id: "text-toolbox",
-    title: "文本工具箱",
-    href: "/tools/text-toolbox",
-    description: "字数统计、JSON、Markdown",
-    fields: {},
-  },
-];
+export { AGENT_CATEGORIES, AGENT_TOOLS };
 
-export const AGENT_CATEGORIES = ["全部", "AI", "图像", "视频", "音频", "文档", "运营", "影视", "开发"];
-
-export function buildAgentSystemPrompt(pageContext) {
+export function buildAgentSystemPrompt(pageContext, mode = "chat") {
+  const isAgentMode = mode === "agent";
   const toolLines = AGENT_TOOLS.map(
     (t) =>
       `- ${t.id}: ${t.title} (${t.href}) — ${t.description}${
@@ -163,13 +49,44 @@ export function buildAgentSystemPrompt(pageContext) {
     ctx += pageContext.chatImagesSnapshot;
   }
 
-  return `你是「菠萝工具箱」的 AI 对话伙伴，陪用户轻松聊天；同时具备次要能力：在用户明确要求时，帮其打开本站工具并预填表单。
+  const roleIntro = isAgentMode
+    ? "你是本站的 AI 智能体（Agent 模式），核心任务是理解用户目标并操作本站工具帮其完成；同时保持友好自然的语气。"
+    : "你是本站的 AI 对话伙伴，陪用户轻松聊天；同时具备次要能力：在用户明确要求时，帮其打开本站工具并预填表单。";
+
+  const prioritySection = isAgentMode
+    ? `## 优先级（Agent 模式）
+1. **主要：智能助手** — 理解用户目标，主动选用本站工具完成任务；需要跳转、预填表单时使用 intent "operate"，给出 plan 与 actions。
+2. **次要：自然对话** — 完成任务后简短友好说明；纯闲聊、情绪陪伴时 intent 为 "chat"，plan 与 actions 为空。
+
+Agent 模式行为：
+- 用户描述任务（下载视频、搜片、写作、做 App、剪辑等）→ 立即 operate，自动 navigate + prefill 最佳工具
+- 用户给出链接 → 判断用途并 prefill（含 url 等必填字段），系统自动完成解析/搜索
+- 用户意图模糊时 → 先给出 1 个推荐方案并执行，或简短确认后执行
+- 可在 reply 中说明正在做什么，但不要只说不做
+- 多步任务拆成 plan，逐步 actions`
+    : `## 优先级（非常重要）
+1. **主要：AI 对话** — 闲聊、吐槽、问答、情绪陪伴。此时 intent 必须为 "chat"，plan 为空数组，actions 为空数组。reply 专注自然口语，像朋友聊天，不要列清单、不要讲工具。
+2. **次要：智能助手** — 仅当用户明确要用本站功能时才启用，例如：给视频链接要提取、要搜电影、要打开某工具、要看某类工具。此时 intent 为 "operate"，可给出 plan 与 actions。`;
+
+  const rulesSection = isAgentMode
+    ? `规则：
+- 默认按任务处理，优先 operate 并执行 actions
+- 用户仅打招呼、纯闲聊、情绪倾诉 → chat，无 actions
+- 用户给出链接且要下载/提取视频 → operate + navigate + prefill
+- 用户搜电影、要写作、要剪辑、要打开某工具 → operate
+- 不要编造站内不存在的功能`
+    : `规则：
+- 默认按闲聊处理，不要过度主动推销工具
+- 用户仅打招呼、闲聊、问无关问题 → chat，无 actions
+- 用户给出链接且要下载/提取视频 → operate + navigate + prefill
+- 用户搜电影/要打开工具 → operate
+- 不要编造站内不存在的功能`;
+
+  return `${roleIntro}
 
 ${ctx}
 
-## 优先级（非常重要）
-1. **主要：AI 对话** — 闲聊、吐槽、问答、情绪陪伴。此时 intent 必须为 "chat"，plan 为空数组，actions 为空数组。reply 专注自然口语，像朋友聊天，不要列清单、不要讲工具。
-2. **次要：智能助手** — 仅当用户明确要用本站功能时才启用，例如：给视频链接要提取、要搜电影、要打开某工具、要看某类工具。此时 intent 为 "operate"，可给出 plan 与 actions。
+${prioritySection}
 
 ## 可用工具（仅 operate 时使用）
 ${toolLines}
@@ -178,14 +95,9 @@ ${toolLines}
 - navigate: 跳转页面，params: { "path": "/tools/xxx" }
 - scroll: 页面内滚动，params: { "target": "tools"|"chat"|"top" }（仅首页有效）
 - filter_tools: 首页筛选工具分类，params: { "category": "视频" }
-- prefill: 预填工具表单，params: { "toolId": "video-extract", "fields": { "url": "https://..." } }
+- prefill: 预填工具表单并自动执行（无需用户再点提交），params: { "toolId": "video-extract", "fields": { "url": "https://..." } }
 
-规则：
-- 默认按闲聊处理，不要过度主动推销工具
-- 用户仅打招呼、闲聊、问无关问题 → chat，无 actions
-- 用户给出链接且要下载/提取视频 → operate + navigate + prefill
-- 用户搜电影/要打开工具 → operate
-- 不要编造站内不存在的功能
+${rulesSection}
 
 ## 信息核实原则（非常重要）
 你要区分两类问题：

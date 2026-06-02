@@ -79,49 +79,24 @@ export default function SpiderBuilderPanel() {
   const [codeLoading, setCodeLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const applyPrefill = useCallback((fields: Record<string, string>) => {
-    if (fields.url) setUrl(fields.url);
-  }, []);
-  useAgentPrefill("spider-builder", applyPrefill);
-
-  const preset = useMemo(
-    () => SPIDER_PRESETS.find((p) => p.id === presetId) ?? SPIDER_PRESETS[0],
-    [presetId],
-  );
-
-  const mood = useMemo((): keyof typeof SPIDER_MOODS => {
-    if (loading) return "crawling";
-    if (error) return "error";
-    if (items.length > 0) return "success";
-    if (step >= 2 && url.trim()) return "ready";
-    return "idle";
-  }, [loading, error, items.length, step, url]);
-
-  const pushLog = (msg: string) => {
+  const pushLog = useCallback((msg: string) => {
     setLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] ${msg}`]);
-  };
+  }, []);
 
-  const applyPreset = (p: SpiderPreset) => {
-    setPresetId(p.id);
-    setUrl(p.sampleUrl);
-    setListSelector(p.listSelector);
-    setItemSelector(p.itemSelector);
-    setError(null);
-    pushLog(`切换场景：${p.title}`);
-  };
-
-  const runSpider = async () => {
-    if (!url.trim()) {
+  const runSpider = useCallback(async (urlOverride?: string) => {
+    const target = (urlOverride ?? url).trim();
+    if (!target) {
       setError("请先填写目标网址");
       return;
     }
+    if (urlOverride) setUrl(urlOverride);
     setLoading(true);
     setError(null);
     setItems([]);
     setPageTitle(null);
     try {
       const data = await apiPost<CrawlResult>("/api/spider/run", {
-        url: url.trim(),
+        url: target,
         listSelector,
         itemSelector,
         limit: 40,
@@ -144,6 +119,36 @@ export default function SpiderBuilderPanel() {
     } finally {
       setLoading(false);
     }
+  }, [url, listSelector, itemSelector, pushLog]);
+
+  useAgentPrefill("spider-builder", {
+    apply: (fields) => {
+      if (fields.url) setUrl(fields.url);
+    },
+    canSubmit: (fields) => Boolean(fields.url?.trim()),
+    submit: (fields) => runSpider(fields.url),
+  });
+
+  const preset = useMemo(
+    () => SPIDER_PRESETS.find((p) => p.id === presetId) ?? SPIDER_PRESETS[0],
+    [presetId],
+  );
+
+  const mood = useMemo((): keyof typeof SPIDER_MOODS => {
+    if (loading) return "crawling";
+    if (error) return "error";
+    if (items.length > 0) return "success";
+    if (step >= 2 && url.trim()) return "ready";
+    return "idle";
+  }, [loading, error, items.length, step, url]);
+
+  const applyPreset = (p: SpiderPreset) => {
+    setPresetId(p.id);
+    setUrl(p.sampleUrl);
+    setListSelector(p.listSelector);
+    setItemSelector(p.itemSelector);
+    setError(null);
+    pushLog(`切换场景：${p.title}`);
   };
 
   const generateCode = async () => {
@@ -297,7 +302,7 @@ export default function SpiderBuilderPanel() {
               label="出发抓取！"
               loadingLabel="织网中…"
               loading={loading}
-              onClick={runSpider}
+              onClick={() => void runSpider()}
               className="!from-slate-600 !to-zinc-700 !shadow-slate-600/25 sm:flex-1"
             />
             <button

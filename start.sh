@@ -96,7 +96,7 @@ rm -rf .next out
 npm run build || exit 1
 
 echo ""
-echo "🍍 菠萝工具箱 已启动"
+echo "春雨集 已启动"
 echo "   浏览器打开: http://127.0.0.1:3000"
 echo "   按 Ctrl+C 停止"
 echo ""

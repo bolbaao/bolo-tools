@@ -108,14 +108,58 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const applyPrefill = useCallback((fields: Record<string, string>) => {
-    if (fields.mode) setTab(tabFromParam(fields.mode));
-    if (fields.prompt) {
-      setPrompt(fields.prompt);
-      setEditPrompt(fields.prompt);
+  const handleGenerate = useCallback(async (promptOverride?: string) => {
+    const p = (promptOverride ?? prompt).trim();
+    if (!p) return;
+    if (promptOverride) setPrompt(promptOverride);
+    setLoading(true);
+    setError(null);
+    setGenMessage(null);
+    if (genImageUrl?.startsWith("blob:")) URL.revokeObjectURL(genImageUrl);
+    setGenImageUrl(null);
+    try {
+      const data = await apiPost<{
+        ok: boolean;
+        imageUrl?: string;
+        imageBase64?: string;
+        mimeType?: string;
+        message?: string;
+      }>(
+        "/api/ark-image/generate",
+        {
+          prompt: p,
+          style: genStyle,
+          aspectRatio,
+          resolution,
+        },
+        { timeoutMs: 180000 },
+      );
+      if (data.imageBase64) {
+        const mime = data.mimeType || "image/png";
+        setGenImageUrl(`data:${mime};base64,${data.imageBase64}`);
+      } else if (data.imageUrl) {
+        setGenImageUrl(data.imageUrl);
+      }
+      setGenMessage(data.message || "生成完成");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "生成失败");
+    } finally {
+      setLoading(false);
     }
-  }, []);
-  useAgentPrefill("image-studio", applyPrefill);
+  }, [prompt, genStyle, aspectRatio, resolution, genImageUrl]);
+
+  useAgentPrefill("image-studio", {
+    apply: (fields) => {
+      if (fields.mode) setTab(tabFromParam(fields.mode));
+      if (fields.prompt) {
+        setPrompt(fields.prompt);
+        setEditPrompt(fields.prompt);
+      }
+    },
+    canSubmit: (fields) =>
+      (fields.mode === "generate" || !fields.mode) && Boolean(fields.prompt?.trim()),
+    submit: (fields) => handleGenerate(fields.prompt),
+  });
 
   useEffect(() => {
     if (initialTab) setTab(initialTab);
@@ -168,44 +212,6 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
       downloadBlob(blob, `${file.name.replace(/\.[^.]+$/, "")}-sharp.${ext}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "处理失败");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return;
-    setLoading(true);
-    setError(null);
-    setGenMessage(null);
-    if (genImageUrl?.startsWith("blob:")) URL.revokeObjectURL(genImageUrl);
-    setGenImageUrl(null);
-    try {
-      const data = await apiPost<{
-        ok: boolean;
-        imageUrl?: string;
-        imageBase64?: string;
-        mimeType?: string;
-        message?: string;
-      }>(
-        "/api/ark-image/generate",
-        {
-          prompt: prompt.trim(),
-          style: genStyle,
-          aspectRatio,
-          resolution,
-        },
-        { timeoutMs: 180000 },
-      );
-      if (data.imageBase64) {
-        const mime = data.mimeType || "image/png";
-        setGenImageUrl(`data:${mime};base64,${data.imageBase64}`);
-      } else if (data.imageUrl) {
-        setGenImageUrl(data.imageUrl);
-      }
-      setGenMessage(data.message || "生成完成");
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "生成失败");
     } finally {
       setLoading(false);
     }

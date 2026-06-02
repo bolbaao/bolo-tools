@@ -55,25 +55,7 @@ export default function MediaDownloadPanel() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  const applyPrefill = useCallback((fields: Record<string, string>) => {
-    if (fields.keyword) setKeyword(fields.keyword);
-  }, []);
-  useAgentPrefill("media-download", applyPrefill);
-
-  const loadHot = useCallback(async () => {
-    try {
-      const data = await apiGet<{ ok: boolean; keywords: string[] }>("/api/media/hot");
-      setHotKeywords(data.keywords);
-    } catch {
-      setHotKeywords(["星际穿越", "庆余年", "鬼灭之刃", "奥本海默"]);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadHot();
-  }, [loadHot]);
-
-  const runSearch = async (q: string) => {
+  const runSearch = useCallback(async (q: string) => {
     const term = q.trim();
     if (!term) return;
     setLoading(true);
@@ -96,7 +78,28 @@ export default function MediaDownloadPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useAgentPrefill("media-download", {
+    apply: (fields) => {
+      if (fields.keyword) setKeyword(fields.keyword);
+    },
+    canSubmit: (fields) => Boolean(fields.keyword?.trim()),
+    submit: (fields) => runSearch(fields.keyword),
+  });
+
+  const loadHot = useCallback(async () => {
+    try {
+      const data = await apiGet<{ ok: boolean; keywords: string[] }>("/api/media/hot");
+      setHotKeywords(data.keywords);
+    } catch {
+      setHotKeywords(["星际穿越", "庆余年", "鬼灭之刃", "奥本海默"]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadHot();
+  }, [loadHot]);
 
   const copyTextBundle = async (text: string, key: string) => {
     await navigator.clipboard.writeText(text);

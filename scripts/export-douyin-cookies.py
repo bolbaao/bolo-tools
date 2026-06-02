@@ -8,7 +8,14 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "cookies", "douyin.txt")
 
-DOMAINS = (".douyin.com", "douyin.com", "www.douyin.com", ".iesdouyin.com")
+DOMAINS = (
+    ".douyin.com",
+    "douyin.com",
+    "www.douyin.com",
+    ".iesdouyin.com",
+    "creator.douyin.com",
+    ".creator.douyin.com",
+)
 
 CHROME_BASE = os.path.expanduser(
     "~/Library/Application Support/Google/Chrome"

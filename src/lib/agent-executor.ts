@@ -72,14 +72,20 @@ async function runOne(action: AgentAction, router: AppRouterInstance): Promise<A
       const toolId = String(p.toolId ?? "");
       const fields = (p.fields as Record<string, string>) ?? {};
       if (!toolId) return { type: action.type, ok: false, message: "缺少 toolId" };
-      saveAgentPrefill(toolId, fields);
       const tool = getToolById(toolId);
+      const targetPath = tool?.href ?? `/tools/${toolId}`;
+      const needsNavigate =
+        typeof window !== "undefined" && !window.location.pathname.startsWith(targetPath);
+      saveAgentPrefill(toolId, fields, { autoSubmit: true, silent: needsNavigate });
+      if (needsNavigate) {
+        router.push(targetPath);
+      }
       return {
         type: action.type,
         ok: true,
         message: tool
-          ? `已为「${tool.title}」预填 ${Object.keys(fields).join("、") || "参数"}`
-          : "已写入预填数据",
+          ? `已为「${tool.title}」预填并自动执行`
+          : "已写入预填并自动执行",
       };
     }
 

@@ -14,6 +14,7 @@ import {
   type OutputFormat,
 } from "@/lib/music-convert";
 import { ENCRYPTED_ACCEPT } from "@/lib/music-unlock";
+import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 const PLATFORMS = [
@@ -86,6 +87,15 @@ export default function MusicConvertForm() {
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
+
+  useAgentPrefill("music-convert", {
+    apply: (fields) => {
+      const fmt = fields.format?.toUpperCase();
+      if (fmt && OUTPUT_FORMATS.includes(fmt as OutputFormat)) {
+        setTargetFormat(fmt as OutputFormat);
+      }
+    },
+  });
 
   const stats = useMemo(() => {
     const total = items.length;
@@ -178,7 +188,7 @@ export default function MusicConvertForm() {
     setLoading(true);
     try {
       const blob = await buildMusicZip(done.map((i) => i.result!));
-      downloadBlob(blob, `菠萝音乐-${targetFormat}-${Date.now()}.zip`);
+      downloadBlob(blob, `music-${targetFormat}-${Date.now()}.zip`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "打包失败");
     } finally {

@@ -123,7 +123,7 @@ async function runSingleStep(workflow, stepIndex, input, previousOutputs) {
   const completion = await client.chat.completions.create({
     model: chatConfig.model,
     messages: [
-      { role: "system", content: `你是菠萝工具箱 AI 工作流助手。${system}` },
+      { role: "system", content: `你是 AI 工作流助手。${system}` },
       { role: "user", content: user },
     ],
     temperature: 0.6,

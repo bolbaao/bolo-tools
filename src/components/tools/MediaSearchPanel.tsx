@@ -35,11 +35,6 @@ type AggregateResponse = {
 
 export default function MediaSearchPanel() {
   const [keyword, setKeyword] = useState("");
-
-  const applyPrefill = useCallback((fields: Record<string, string>) => {
-    if (fields.keyword) setKeyword(fields.keyword);
-  }, []);
-  useAgentPrefill("media-search", applyPrefill);
   const [results, setResults] = useState<AggregateResult[]>([]);
   const [stats, setStats] = useState<AggregateResponse["stats"] | null>(null);
   const [hotKeywords, setHotKeywords] = useState<string[]>([]);
@@ -47,20 +42,7 @@ export default function MediaSearchPanel() {
   const [error, setError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const loadHot = useCallback(async () => {
-    try {
-      const data = await apiGet<{ ok: boolean; keywords: string[] }>("/api/media/hot");
-      setHotKeywords(data.keywords);
-    } catch {
-      setHotKeywords(["星际穿越", "庆余年", "鬼灭之刃", "奥本海默"]);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadHot();
-  }, [loadHot]);
-
-  const runSearch = async (q: string) => {
+  const runSearch = useCallback(async (q: string) => {
     const term = q.trim();
     if (!term) return;
     setLoading(true);
@@ -78,7 +60,28 @@ export default function MediaSearchPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useAgentPrefill("media-search", {
+    apply: (fields) => {
+      if (fields.keyword) setKeyword(fields.keyword);
+    },
+    canSubmit: (fields) => Boolean(fields.keyword?.trim()),
+    submit: (fields) => runSearch(fields.keyword),
+  });
+
+  const loadHot = useCallback(async () => {
+    try {
+      const data = await apiGet<{ ok: boolean; keywords: string[] }>("/api/media/hot");
+      setHotKeywords(data.keywords);
+    } catch {
+      setHotKeywords(["星际穿越", "庆余年", "鬼灭之刃", "奥本海默"]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadHot();
+  }, [loadHot]);
 
   const copyBundle = async (item: AggregateResult) => {
     await navigator.clipboard.writeText(item.copyText);

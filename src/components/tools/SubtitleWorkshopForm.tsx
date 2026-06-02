@@ -3,7 +3,8 @@
 import ActionButton from "@/components/ActionButton";
 import { ApiError, apiGet, apiUpload, downloadText } from "@/lib/api";
 import { shiftSrt, srtToVtt } from "@/lib/srt";
-import { useEffect, useState } from "react";
+import { useAgentPrefill } from "@/hooks/useAgentPrefill";
+import { useCallback, useEffect, useState } from "react";
 
 type Tab = "transcribe" | "extract" | "edit";
 type SubFormat = "srt" | "vtt" | "text";
@@ -37,6 +38,13 @@ export default function SubtitleWorkshopForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [transcribeStatus, setTranscribeStatus] = useState<TranscribeStatus | null>(null);
   const [transcribeMode, setTranscribeMode] = useState<TranscribeMode>("local");
+
+  useAgentPrefill("subtitle-workshop", {
+    apply: (fields) => {
+      const next = fields.tab as Tab;
+      if (TABS.some((t) => t.id === next)) setTab(next);
+    },
+  });
 
   useEffect(() => {
     let cancelled = false;

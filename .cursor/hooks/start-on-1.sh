@@ -29,7 +29,7 @@ if [ "$PROMPT" != "1" ]; then
 fi
 
 if [ -z "$ROOT" ] || [ ! -x "$ROOT/start.sh" ]; then
-  printf '%s\n' '{"continue": false, "user_message": "未找到可执行的 start.sh，请在菠萝工具箱项目根目录打开本窗口。"}'
+  printf '%s\n' '{"continue": false, "user_message": "未找到可执行的 start.sh，请在项目根目录打开本窗口。"}'
   exit 0
 fi
 
@@ -38,5 +38,5 @@ mkdir -p "$(dirname "$log")"
 nohup bash -c "cd $(printf '%q' "$ROOT") && exec ./start.sh" >>"$log" 2>&1 &
 disown 2>/dev/null || true
 
-printf '%s\n' '{"continue": false, "user_message": "🍍 正在启动菠萝工具箱…\n浏览器: http://127.0.0.1:3000\n构建约需 1–2 分钟，日志: logs/start-on-1.log"}'
+printf '%s\n' '{"continue": false, "user_message": "正在启动…\n浏览器: http://127.0.0.1:3000\n构建约需 1–2 分钟，日志: logs/start-on-1.log"}'
 exit 0

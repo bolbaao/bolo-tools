@@ -49,12 +49,62 @@ export default function AiWriterPanel() {
   const [provider, setProvider] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const applyPrefill = useCallback((fields: Record<string, string>) => {
-    if (fields.mode) setMode(fields.mode);
-    if (fields.input) setInput(fields.input);
-    if (fields.topic) setTopic(fields.topic);
-  }, []);
-  useAgentPrefill("ai-writer", applyPrefill);
+  const handleGenerate = useCallback(
+    async (overrides?: { mode?: string; input?: string; topic?: string }) => {
+      const inputVal = (overrides?.input ?? input).trim();
+      const modeVal = overrides?.mode ?? mode;
+      const topicVal = overrides?.topic ?? topic;
+      if (!inputVal) return;
+      if (overrides?.mode) setMode(overrides.mode);
+      if (overrides?.input) setInput(overrides.input);
+      if (overrides?.topic) setTopic(overrides.topic);
+      setLoading(true);
+      setError(null);
+      setOutput(null);
+      setCopied(false);
+      try {
+        const data = await apiPost<{
+          ok: boolean;
+          text: string;
+          modeLabel?: string;
+          provider?: string;
+        }>(
+          "/api/ai-writer/generate",
+          {
+            mode: modeVal,
+            input: inputVal,
+            topic: topicVal.trim() || undefined,
+            tone,
+            length: modeVal === "article" || modeVal === "social" ? length : undefined,
+            targetLang: modeVal === "translate" ? targetLang || undefined : undefined,
+          },
+          { timeoutMs: 120000 },
+        );
+        setOutput(data.text);
+        setProvider(data.provider || null);
+      } catch (e) {
+        setError(e instanceof ApiError ? e.message : "生成失败");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [input, mode, topic, tone, length, targetLang],
+  );
+
+  useAgentPrefill("ai-writer", {
+    apply: (fields) => {
+      if (fields.mode) setMode(fields.mode);
+      if (fields.input) setInput(fields.input);
+      if (fields.topic) setTopic(fields.topic);
+    },
+    canSubmit: (fields) => Boolean(fields.input?.trim()),
+    submit: (fields) =>
+      handleGenerate({
+        mode: fields.mode,
+        input: fields.input,
+        topic: fields.topic,
+      }),
+  });
 
   useEffect(() => {
     apiGet<{ ok: boolean; aiConfigured: boolean; modes: WritingMode[] }>(
@@ -69,39 +119,6 @@ export default function AiWriterPanel() {
   }, []);
 
   const activeMode = modes.find((m) => m.id === mode);
-
-  const handleGenerate = async () => {
-    if (!input.trim()) return;
-    setLoading(true);
-    setError(null);
-    setOutput(null);
-    setCopied(false);
-    try {
-      const data = await apiPost<{
-        ok: boolean;
-        text: string;
-        modeLabel?: string;
-        provider?: string;
-      }>(
-        "/api/ai-writer/generate",
-        {
-          mode,
-          input: input.trim(),
-          topic: topic.trim() || undefined,
-          tone,
-          length: mode === "article" || mode === "social" ? length : undefined,
-          targetLang: mode === "translate" ? targetLang || undefined : undefined,
-        },
-        { timeoutMs: 120000 },
-      );
-      setOutput(data.text);
-      setProvider(data.provider || null);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "生成失败");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const copyOutput = async () => {
     if (!output) return;
@@ -253,7 +270,7 @@ export default function AiWriterPanel() {
       <ActionButton
         label="开始写作"
         loadingLabel="AI 撰写中…"
-        onClick={handleGenerate}
+        onClick={() => void handleGenerate()}
         disabled={!input.trim() || aiConfigured === false}
         loading={loading}
       />

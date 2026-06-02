@@ -1,5 +1,5 @@
 #!/bin/bash
-# 安装菠萝工具箱所需本机依赖（macOS）
+# 安装本项目所需本机依赖（macOS）
 set -e
 cd "$(dirname "$0")/.."
 
@@ -68,6 +68,33 @@ else
     echo "✓ faster-whisper 已安装（首次转写会自动下载模型）"
   else
     echo "⚠️  faster-whisper 安装失败，字幕转写需手动: python3 -m pip install --user faster-whisper"
+  fi
+fi
+
+# edge-tts（AI 剪口播 · 人声合成）
+if python3 -c "import edge_tts" 2>/dev/null; then
+  echo "✓ edge-tts 已安装"
+else
+  echo "→ 安装 edge-tts (pip)…"
+  python3 -m pip install --user edge-tts
+  if python3 -c "import edge_tts" 2>/dev/null; then
+    echo "✓ edge-tts 已安装（AI 剪口播可用）"
+  else
+    echo "⚠️  edge-tts 安装失败，口播合成需手动: python3 -m pip install --user edge-tts"
+  fi
+fi
+
+# playwright（社媒分发 · 抖音全自动，可选）
+if python3 -c "import playwright" 2>/dev/null; then
+  echo "✓ playwright 已安装"
+else
+  echo "→ 安装 playwright（抖音全自动发布，可选）…"
+  python3 -m pip install --user playwright 2>/dev/null || true
+  if python3 -c "import playwright" 2>/dev/null; then
+    python3 -m playwright install chromium 2>/dev/null || true
+    echo "✓ playwright 已安装（抖音全自动可用）"
+  else
+    echo "⚠️  playwright 未安装，抖音全自动需: python3 -m pip install --user playwright && playwright install chromium"
   fi
 fi
 

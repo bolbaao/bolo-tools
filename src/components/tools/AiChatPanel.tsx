@@ -24,7 +24,10 @@ import {
   fetchChatModels,
   formatChatModelLabel,
   pickInitialChatProvider,
+  readStoredChatMode,
+  writeStoredChatMode,
   writeStoredChatProvider,
+  type ChatMode,
   type ChatModelOption,
 } from "@/lib/chat";
 import {
@@ -47,8 +50,15 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const welcomeMessage =
-  "嗨～想聊什么都可以，也可以直接告我你想要什么。";
+const welcomeMessages: Record<ChatMode, string> = {
+  chat: "嗨～想聊什么都可以，也可以直接告我你想要什么。",
+  agent: "Agent 模式已开启～告诉我你想做什么，我会帮你找工具并自动操作。",
+};
+
+const inputPlaceholders: Record<ChatMode, string> = {
+  chat: "输入文字，或粘贴/上传图片…",
+  agent: "描述任务，例如：下载这个视频、搜一部电影、帮我写文案…",
+};
 
 const MAX_IMAGES_PER_SEND = 4;
 const MAX_SESSION_IMAGES = 6;
@@ -66,7 +76,9 @@ type ChatMessage = {
 };
 
 type AiChatPanelProps = {
-  variant?: "default" | "hero";
+  variant?: "default" | "hero" | "dock";
+  chatMode?: ChatMode;
+  onChatModeChange?: (mode: ChatMode) => void;
 };
 
 function filterPendingPermissionRequests(
@@ -92,8 +104,13 @@ function filterPendingPermissionRequests(
   });
 }
 
-export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
+export default function AiChatPanel({
+  variant = "default",
+  chatMode: chatModeProp,
+  onChatModeChange,
+}: AiChatPanelProps) {
   const isHero = variant === "hero";
+  const isDock = variant === "dock";
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
@@ -103,7 +120,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
   const [historyReady, setHistoryReady] = useState(false);
   const [autoMemoryNotice, setAutoMemoryNotice] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "ai", text: welcomeMessage },
+    { role: "ai", text: welcomeMessages[readStoredChatMode()] },
   ]);
   const [loading, setLoading] = useState(false);
   const [permissionBusy, setPermissionBusy] = useState(false);
@@ -116,6 +133,8 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
   const [memorySaved, setMemorySaved] = useState<number | null>(null);
   const [chatModels, setChatModels] = useState<ChatModelOption[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [internalChatMode, setInternalChatMode] = useState<ChatMode>(() => readStoredChatMode());
+  const chatMode = chatModeProp ?? internalChatMode;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -138,7 +157,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
       .filter(
         (m) =>
           !m.hidden &&
-          !(m.role === "ai" && m.text === welcomeMessage) &&
+          !(m.role === "ai" && Object.values(welcomeMessages).includes(m.text)) &&
           !m.text.startsWith("（出错了）"),
       )
       .map((m) => ({ role: m.role, text: m.text }));
@@ -186,7 +205,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
         setSessionId(session.id);
         if (session.messages.length > 0) {
           setMessages([
-            { role: "ai", text: welcomeMessage },
+            { role: "ai", text: welcomeMessages[chatMode] },
             ...session.messages.map((m) => ({
               role: m.role,
               text: m.text,
@@ -252,7 +271,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
       .filter(
         (m) =>
           m.role === "user" ||
-          (m.role === "ai" && m.text !== welcomeMessage && !m.text.startsWith("（出错了）")),
+          (m.role === "ai" && !Object.values(welcomeMessages).includes(m.text) && !m.text.startsWith("（出错了）")),
       )
       .slice(-12)
       .map((m) => {
@@ -326,6 +345,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
       perms: ClientPermissions,
       chatImages: ClientPhotoItem[],
       provider: string | null = selectedProvider,
+      mode: ChatMode = chatMode,
     ) => {
       const apiMessages = buildApiMessages(history);
       if (!apiMessages.some((m) => m.role === "user")) {
@@ -340,6 +360,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
           messages: apiMessages,
           pageContext: getPageContext(perms, apiImages),
           ...(provider ? { provider } : {}),
+          mode,
         },
         { timeoutMs: needsVision ? 120000 : 65000, credentials: "include" },
       );
@@ -356,8 +377,27 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
 
       return appendAiFromResponse(data, history);
     },
-    [appendAiFromResponse, buildApiMessages, getPageContext, selectedProvider],
+    [appendAiFromResponse, buildApiMessages, chatMode, getPageContext, selectedProvider],
   );
+
+  const handleModeChange = (mode: ChatMode) => {
+    if (onChatModeChange) {
+      onChatModeChange(mode);
+    } else {
+      setInternalChatMode(mode);
+      writeStoredChatMode(mode);
+    }
+    setMessages((prev) => {
+      const onlyWelcome =
+        prev.length === 1 &&
+        prev[0].role === "ai" &&
+        Object.values(welcomeMessages).includes(prev[0].text);
+      if (onlyWelcome) {
+        return [{ role: "ai", text: welcomeMessages[mode] }];
+      }
+      return prev;
+    });
+  };
 
   const handleProviderChange = (provider: string) => {
     setSelectedProvider(provider);
@@ -497,7 +537,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
   };
 
   const resetChatState = () => {
-    setMessages([{ role: "ai", text: welcomeMessage }]);
+    setMessages([{ role: "ai", text: welcomeMessages[chatMode] }]);
     setInput("");
     setError(null);
     setClientPermissions({});
@@ -529,7 +569,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
       const session = await loadChatSession(id);
       setSessionId(session.id);
       setMessages([
-        { role: "ai", text: welcomeMessage },
+        { role: "ai", text: welcomeMessages[chatMode] },
         ...session.messages.map((m) => ({ role: m.role, text: m.text })),
       ]);
       setClientPermissions({});
@@ -565,9 +605,10 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
 
   return (
     <div className="space-y-4">
-      {!isHero && (
+      {!isHero && !isDock && (
         <p className="text-sm text-white/45 leading-relaxed">
           支持文字、图片与语音交流；可上传或粘贴图片让 AI 理解画面，也可授权定位、相册等以便回答与「这边」「当地」相关的问题。
+          Agent 模式会主动帮你打开工具并预填表单。
           {user?.emailVerified ? (
             <>
               {" "}
@@ -592,12 +633,12 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
 
       <div
         className={`rounded-xl border border-white/8 bg-black/20 flex flex-col ${
-          isHero ? "h-[320px] sm:h-[380px]" : "h-[360px] sm:h-[420px]"
+          isDock ? "h-[300px]" : isHero ? "h-[320px] sm:h-[380px]" : "h-[360px] sm:h-[420px]"
         }`}
       >
         <div className="flex items-center gap-2 border-b border-white/8 px-4 py-2.5 justify-between">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            {!isHero && (
+            {!isHero && !isDock && (
               <div className="flex shrink-0 items-center gap-3">
                 <span className="text-xs text-white/40">AI 对话</span>
                 {user?.emailVerified && (
@@ -609,6 +650,37 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
                   </Link>
                 )}
               </div>
+            )}
+            {!isDock && (
+            <div
+              className="flex shrink-0 rounded-lg border border-white/10 bg-black/30 p-0.5"
+              title="切换对话 / Agent 模式"
+            >
+              <button
+                type="button"
+                onClick={() => handleModeChange("chat")}
+                disabled={loading || permissionBusy}
+                className={`rounded-md px-2 py-1 text-[11px] transition-colors ${
+                  chatMode === "chat"
+                    ? "bg-violet-500/25 text-white"
+                    : "text-white/45 hover:text-white/70"
+                }`}
+              >
+                对话
+              </button>
+              <button
+                type="button"
+                onClick={() => handleModeChange("agent")}
+                disabled={loading || permissionBusy}
+                className={`rounded-md px-2 py-1 text-[11px] transition-colors ${
+                  chatMode === "agent"
+                    ? "bg-violet-500/25 text-white"
+                    : "text-white/45 hover:text-white/70"
+                }`}
+              >
+                Agent
+              </button>
+            </div>
             )}
             {isHero && user?.emailVerified && (
               <Link
@@ -635,7 +707,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
             ) : (
               <span className="text-xs text-white/30">暂无可用模型</span>
             )}
-            {user?.emailVerified && sessions.length > 0 && (
+            {user?.emailVerified && sessions.length > 0 && !isDock && (
               <select
                 value={sessionId ?? ""}
                 onChange={(e) => void switchSession(e.target.value)}
@@ -652,7 +724,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
             )}
           </div>
           <div className="flex shrink-0 items-center gap-3">
-            {user?.emailVerified && (
+            {user?.emailVerified && !isDock && (
               <button
                 type="button"
                 onClick={() => void startNewChat()}
@@ -662,6 +734,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
                 新对话
               </button>
             )}
+            {!isDock && (
             <button
               type="button"
               onClick={clearChat}
@@ -669,6 +742,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
             >
               清空对话
             </button>
+            )}
           </div>
         </div>
 
@@ -770,10 +844,13 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
           })}
           {loading && (
             <p className="text-xs text-white/30 animate-pulse">
-              {pendingImages.length > 0 ||
-              sessionChatImages.some(imageNeedsVisionApi)
-                ? "正在识别图片并回复…"
-                : "正在回复…"}
+              {chatMode === "agent"
+                ? pendingImages.length > 0 || sessionChatImages.some(imageNeedsVisionApi)
+                  ? "Agent 正在识别图片并规划操作…"
+                  : "Agent 正在规划并执行…"
+                : pendingImages.length > 0 || sessionChatImages.some(imageNeedsVisionApi)
+                  ? "正在识别图片并回复…"
+                  : "正在回复…"}
             </p>
           )}
         </div>
@@ -848,7 +925,7 @@ export default function AiChatPanel({ variant = "default" }: AiChatPanelProps) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void send()}
-              placeholder="输入文字，或粘贴/上传图片…"
+              placeholder={inputPlaceholders[chatMode]}
               disabled={loading || permissionBusy || imageBusy}
               className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-violet-500/50 disabled:opacity-50"
             />

@@ -24,6 +24,7 @@ import appBuilderRouter from "./routes/app-builder.mjs";
 import aiWriterRouter from "./routes/ai-writer.mjs";
 import aiWorkflowRouter from "./routes/ai-workflow.mjs";
 import aiVideoEditRouter from "./routes/ai-video-edit.mjs";
+import socialPublishRouter from "./routes/social-publish.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, "..", "out");
@@ -100,6 +101,7 @@ app.use("/api/app-builder", appBuilderRouter);
 app.use("/api/ai-writer", aiWriterRouter);
 app.use("/api/ai-workflow", aiWorkflowRouter);
 app.use("/api/ai-video-edit", aiVideoEditRouter);
+app.use("/api/social-publish", socialPublishRouter);
 
 if (hasOut && !API_ONLY) {
   app.use((req, res) => {
@@ -140,7 +142,7 @@ app.listen(PORT, HOST, () => {
   if (API_ONLY || !hasOut) {
     console.log(`🍍 API 开发服务: http://${HOST}:${PORT}/api/health`);
   } else {
-    console.log(`🍍 菠萝工具箱 已启动: http://${HOST}:${PORT}`);
+    console.log(`春雨集 已启动: http://${HOST}:${PORT}`);
     console.log(`   API: http://${HOST}:${PORT}/api/health`);
   }
 });

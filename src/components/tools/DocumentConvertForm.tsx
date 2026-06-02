@@ -8,6 +8,7 @@ import {
   type DocConvertMode,
 } from "@/lib/doc-convert";
 import { FEATURE_UNAVAILABLE } from "@/lib/service-message";
+import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 function formatBytes(n: number) {
@@ -27,6 +28,19 @@ export default function DocumentConvertForm() {
 
   const meta = useMemo(() => DOC_CONVERT_MODES.find((m) => m.id === mode)!, [mode]);
 
+  const onModeChange = useCallback((next: DocConvertMode) => {
+    setMode(next);
+    setFiles([]);
+    setError(null);
+  }, []);
+
+  useAgentPrefill("doc-convert", {
+    apply: (fields) => {
+      const next = fields.mode as DocConvertMode;
+      if (DOC_CONVERT_MODES.some((m) => m.id === next)) onModeChange(next);
+    },
+  });
+
   useEffect(() => {
     apiGet<{ ok: boolean } & DocCapabilities>("/api/documents/capabilities")
       .then((data) => setCaps(data))
@@ -39,12 +53,6 @@ export default function DocumentConvertForm() {
     if (!m) return true;
     return m.available !== false;
   }, [caps, mode]);
-
-  const onModeChange = (next: DocConvertMode) => {
-    setMode(next);
-    setFiles([]);
-    setError(null);
-  };
 
   const onPickFiles = (list: FileList | null) => {
     if (!list?.length) return;

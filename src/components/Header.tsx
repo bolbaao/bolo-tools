@@ -8,13 +8,13 @@ import { useState } from "react";
 
 const navItems = [
   { label: "首页", href: "/" },
-  { label: "AI工具", href: "/tools/ai-tools" },
+  { label: "AI工具", href: "/tools/ai-chat" },
   { label: "关于", href: "/#about" },
 ] as const;
 
 function isNavActive(pathname: string, href: string, isHome: boolean) {
   if (href === "/") return isHome && pathname === "/";
-  if (href === "/tools/ai-tools") return pathname.startsWith("/tools/ai");
+  if (href === "/tools/ai-chat") return pathname.startsWith("/tools/ai");
   if (href.startsWith("/tools")) return pathname.startsWith(href);
   return false;
 }
@@ -73,12 +73,6 @@ export default function Header() {
                     用户管理
                   </Link>
                 )}
-                <Link
-                  href="/tools/memory"
-                  className="text-xs text-white/45 hover:text-white/75 transition-colors px-2"
-                >
-                  记忆库
-                </Link>
                 <span className="text-xs text-white/35 max-w-[80px] truncate" title={user.username}>
                   {user.username}
                 </span>
@@ -101,7 +95,7 @@ export default function Header() {
             ) : null}
 
             <Link
-              href="/tools/ai-tools"
+              href="/tools/memory"
               className="hidden sm:inline-flex items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-medium text-[#0a0b14] transition-all hover:bg-white/92 active:scale-[0.98]"
             >
               开始使用
@@ -147,13 +141,9 @@ export default function Header() {
                     用户管理
                   </Link>
                 )}
-                <Link
-                  href="/tools/memory"
-                  className="block rounded-xl px-4 py-3 text-sm text-white/75 hover:bg-white/[0.05] hover:text-white"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  记忆库 · {user.username}
-                </Link>
+                <span className="block rounded-xl px-4 py-3 text-sm text-white/45">
+                  {user.username}
+                </span>
                 <button
                   type="button"
                   className="w-full rounded-xl px-4 py-3 text-left text-sm text-white/55 hover:bg-white/[0.05]"
@@ -175,7 +165,7 @@ export default function Header() {
               </button>
             ) : null}
             <Link
-              href="/tools/ai-tools"
+              href="/tools/memory"
               className="mt-1 block rounded-xl bg-white px-4 py-3 text-center text-sm font-medium text-[#0a0b14]"
               onClick={() => setMenuOpen(false)}
             >

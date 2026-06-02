@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { generateAppHtml, listAppTypes } from "../lib/app-builder.mjs";
+import { generateAppHtml, listAppPresets, listAppTypes } from "../lib/app-builder.mjs";
 import { resolveChatConfig } from "../lib/chat-config.mjs";
 import { HttpError, sendError } from "../lib/http-error.mjs";
 
@@ -10,13 +10,18 @@ router.get("/capabilities", (_req, res) => {
     ok: true,
     aiConfigured: Boolean(resolveChatConfig()),
     appTypes: listAppTypes(),
+    presets: listAppPresets(),
+    notes: {
+      shortcuts:
+        "「快捷指令配套」生成的是可通过 URL 调用的网页，供快捷指令「获取 URL 内容」使用；不能生成 .shortcut 文件。部署 HTML 后把公网 URL 填入快捷指令即可。",
+    },
   });
 });
 
 router.post("/generate", async (req, res) => {
   try {
-    const { description, appType, appName } = req.body ?? {};
-    const result = await generateAppHtml({ description, appType, appName });
+    const { description, appType, appName, presetId } = req.body ?? {};
+    const result = await generateAppHtml({ description, appType, appName, presetId });
 
     res.json({
       ok: true,

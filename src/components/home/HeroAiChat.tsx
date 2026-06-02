@@ -30,7 +30,7 @@ export default function HeroAiChat() {
             ✦
           </span>
           <span className="flex-1 text-sm text-white/35 transition-colors group-hover:text-white/45">
-            随便聊点什么，或让我帮你打开工具…
+            随便聊点什么，或切换到 Agent 模式让我帮你操作工具…
           </span>
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/40 ring-1 ring-white/[0.08] transition-all group-hover:bg-white/[0.09] group-hover:text-white/60">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>

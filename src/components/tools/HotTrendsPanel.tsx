@@ -1,6 +1,7 @@
 "use client";
 
 import { ApiError, apiGet } from "@/lib/api";
+import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { useCallback, useEffect, useState } from "react";
 
 type Platform = "douyin" | "xiaohongshu";
@@ -73,6 +74,20 @@ export default function HotTrendsPanel() {
       setLoading(false);
     }
   }, []);
+
+  useAgentPrefill("hot-trends", {
+    apply: (fields) => {
+      if (fields.platform === "douyin" || fields.platform === "xiaohongshu") {
+        setPlatform(fields.platform);
+      }
+    },
+    canSubmit: (fields) =>
+      fields.platform === "douyin" || fields.platform === "xiaohongshu",
+    submit: (fields) => {
+      const p = fields.platform as Platform;
+      if (p === "douyin" || p === "xiaohongshu") void load(p);
+    },
+  });
 
   useEffect(() => {
     void load(platform);

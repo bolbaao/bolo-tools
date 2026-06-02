@@ -12,6 +12,7 @@ import {
 } from "@/lib/memory";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 
 function formatDate(iso: string) {
   try {
@@ -37,6 +38,31 @@ export default function MemoryPanel() {
   const [editText, setEditText] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const handleAdd = useCallback(async (contentOverride?: string) => {
+    const text = (contentOverride ?? draft).trim();
+    if (!text || busy) return;
+    if (contentOverride) setDraft(contentOverride);
+    setBusy(true);
+    setError(null);
+    try {
+      const item = await addMemory(text);
+      setItems((prev) => [item, ...prev]);
+      setDraft("");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "添加失败");
+    } finally {
+      setBusy(false);
+    }
+  }, [draft, busy]);
+
+  useAgentPrefill("memory", {
+    apply: (fields) => {
+      if (fields.content) setDraft(fields.content);
+    },
+    canSubmit: (fields) => Boolean(fields.content?.trim()),
+    submit: (fields) => handleAdd(fields.content),
+  });
+
   const load = useCallback(async () => {
     if (!user?.emailVerified) return;
     setLoading(true);
@@ -53,22 +79,6 @@ export default function MemoryPanel() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  const handleAdd = async () => {
-    const text = draft.trim();
-    if (!text || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const item = await addMemory(text);
-      setItems((prev) => [item, ...prev]);
-      setDraft("");
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "添加失败");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const handleSaveEdit = async (id: string) => {
     const text = editText.trim();

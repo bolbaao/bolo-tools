@@ -1,4 +1,4 @@
-# 菠萝工具箱
+# 春雨集
 
 面向个人创作者的一站式工具网站，基于 **Next.js 15** + **Tailwind CSS 4** 构建，配套 **Node.js API** 提供真实能力。
 
@@ -11,6 +11,7 @@
 | 一键做 App | `/tools/app-builder` | DeepSeek 生成单页 HTML · 预览与下载 |
 | AI 写作助手 | `/tools/ai-writer` | 多模式写作 · 改写润色 · 社媒文案 |
 | AI 工作流 | `/tools/ai-workflow` | 多步流水线 · 内容/社媒/脚本模板 |
+| 社媒一键分发 | `/tools/social-publish` | 抖音默认全自动（Playwright+Cookie）· 其它平台 AI 文案+辅助发布 |
 | 热点中心 | `/tools/hot-trends` | 抖音官方热搜 · 小红书探索页热门笔记 |
 | 影视搜索 | `/tools/media-search` | 豆瓣+TMDB 并行检索 · 资源链接包 |
 | 制作爬虫 | `/tools/spider-builder` | 服务端 Cheerio 抓取 |
@@ -18,7 +19,7 @@
 | 视频链接提取 | `/tools/video-extract` | 抖音 / B 站 / YouTube / X / Telegram / Instagram 等 |
 | 文档转换 | `/tools/doc-convert` | PDF↔Word（需 LibreOffice）· PDF→图片 · 图片→PDF |
 | 字幕工坊 | `/tools/subtitle-workshop` | 本地 faster-whisper / 云端转写 · 提取内嵌字幕 · 时间平移 |
-| AI 视频剪辑 | `/tools/ai-video-edit` | 自然语言 → AI 剪辑方案 · ffmpeg 本地渲染（需 DeepSeek/方舟 + ffmpeg） |
+| AI 视频剪辑 | `/tools/ai-video-edit` | 智能剪辑 · **AI 剪口播**（文稿匹配素材 + edge-tts 人声）· ffmpeg 本地渲染 |
 | GIF 动图 | `/tools/gif-maker` | 视频片段 → GIF（ffmpeg） |
 | 文本工具箱 | `/tools/text-toolbox` | 字数统计 · 去重 · JSON · Markdown 预览（本地） |
 | 我的素材库（隐藏入口） | `/tools/assets` | 双击导航栏「菠」+ 密码 |

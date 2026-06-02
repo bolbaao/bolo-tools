@@ -82,5 +82,5 @@ server.on("error", (err) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`🍍 菠萝工具箱 已启动: http://${HOST}:${PORT}`);
+  console.log(`春雨集 已启动: http://${HOST}:${PORT}`);
 });
