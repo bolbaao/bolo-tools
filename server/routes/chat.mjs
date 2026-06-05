@@ -10,6 +10,7 @@ import {
   processChatUploadFiles,
   runWorkspaceChat,
 } from "../lib/workspace-chat.mjs";
+import { mergeToolResultIntoReply } from "../lib/chat-tool-runner.mjs";
 import { CHAT_UPLOAD_LIMITS } from "../lib/chat-file-types.mjs";
 
 const router = Router();
@@ -102,6 +103,48 @@ async function handleChat(req, res) {
     });
 
     res.json({ ok: true, ...result });
+  } catch (err) {
+    sendError(res, err);
+  }
+}
+
+router.post("/run-tool", (req, res) => {
+  const contentType = String(req.headers["content-type"] || "");
+  if (contentType.includes("multipart/form-data")) {
+    upload.array("files", CHAT_UPLOAD_LIMITS.maxFiles)(req, res, (err) => {
+      if (err) {
+        sendError(res, err);
+        return;
+      }
+      void handleRunTool(req, res);
+    });
+    return;
+  }
+  void handleRunTool(req, res);
+});
+
+async function handleRunTool(req, res) {
+  try {
+    let body = req.body || {};
+    if (typeof body.payload === "string") {
+      body = JSON.parse(body.payload);
+    }
+    const agentAction = body.agentAction;
+    if (!agentAction?.toolId) {
+      throw new Error("缺少工具参数");
+    }
+
+    const rawFiles = Array.isArray(req.files) ? req.files : [];
+    const authUser = getAuthUserFromRequest(req);
+    if (rawFiles.length) recordUserMediaUploads(authUser?.id, rawFiles, "chat");
+
+    const merged = await mergeToolResultIntoReply("", agentAction, {
+      rawFiles,
+      userId: authUser?.id,
+      lastUserMessage: String(body.lastUserMessage || agentAction.summary || ""),
+    });
+
+    res.json({ ok: true, reply: merged.reply, agentAction: merged.agentAction });
   } catch (err) {
     sendError(res, err);
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
+import CopyButton from "@/components/CopyButton";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { ApiError, apiGet, apiPost, downloadText } from "@/lib/api";
 import { AI_SERVICE_UNAVAILABLE } from "@/lib/service-message";
@@ -46,7 +47,6 @@ export default function AiWriterPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [output, setOutput] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const handleGenerate = useCallback(
     async (overrides?: { mode?: string; input?: string; topic?: string }) => {
@@ -60,7 +60,6 @@ export default function AiWriterPanel() {
       setLoading(true);
       setError(null);
       setOutput(null);
-      setCopied(false);
       try {
         const data = await apiPost<{
           ok: boolean;
@@ -117,13 +116,6 @@ export default function AiWriterPanel() {
   }, []);
 
   const activeMode = modes.find((m) => m.id === mode);
-
-  const copyOutput = async () => {
-    if (!output) return;
-    await navigator.clipboard.writeText(output);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const downloadOutput = () => {
     if (!output) return;
@@ -190,13 +182,33 @@ export default function AiWriterPanel() {
         </label>
         <textarea
           id="writer-input"
+          data-tool-primary-input
           value={input}
           onChange={(e) => setInput(e.target.value.slice(0, 8000))}
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && input.trim() && !loading) {
+              e.preventDefault();
+              void handleGenerate();
+            }
+          }}
           rows={8}
           placeholder={EXAMPLES[mode] || "输入内容…"}
           className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/30"
         />
-        <p className="mt-1 text-right text-xs text-white/25">{input.length} / 8000</p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-1.5">
+            {EXAMPLES[mode] && (
+              <button
+                type="button"
+                onClick={() => setInput(EXAMPLES[mode])}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/50 hover:border-indigo-500/30 hover:text-indigo-200/80"
+              >
+                填入示例
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-white/25">{input.length} / 8000 · Ctrl+Enter 生成</p>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-4">
@@ -274,18 +286,20 @@ export default function AiWriterPanel() {
       />
 
       {output && (
-        <div className="space-y-3">
+        <div className="space-y-3" data-tool-result="">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-white/50">
-              生成结果
+              生成结果 · {output.length} 字
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <CopyButton text={output} />
               <button
                 type="button"
-                onClick={() => void copyOutput()}
-                className="rounded-lg bg-white/5 px-4 py-2 text-xs text-white/70 hover:bg-white/10"
+                onClick={() => void handleGenerate()}
+                disabled={loading || !input.trim()}
+                className="rounded-lg bg-white/5 px-4 py-2 text-xs text-white/70 hover:bg-white/10 disabled:opacity-40"
               >
-                {copied ? "已复制" : "复制"}
+                再写一次
               </button>
               <button
                 type="button"

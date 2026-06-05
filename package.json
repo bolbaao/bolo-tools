@@ -13,7 +13,6 @@
     "lint": "next lint",
     "test:weixin-channels": "node scripts/test-weixin-channels.mjs",
     "test:video-platforms": "node scripts/test-video-platforms.mjs",
-    "test:ai-video-edit": "node scripts/test-ai-video-edit.mjs",
     "test:douyin-publish": "node scripts/test-douyin-publish.mjs"
   },
   "dependencies": {

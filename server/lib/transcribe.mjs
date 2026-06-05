@@ -71,6 +71,8 @@ export function getTranscribeStatus() {
   return {
     available: localAvailable || apiAvailable,
     localAvailable,
+    /** @deprecated 使用 localAvailable */
+    localWhisper: localAvailable,
     apiAvailable,
     mode: defaultMode,
     defaultMode,

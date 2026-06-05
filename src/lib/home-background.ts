@@ -120,9 +120,3 @@ export async function clearLocalHomeBackground(): Promise<void> {
   }
   localStorage.removeItem(HOME_BG_LOCAL_KEY);
 }
-
-export function formatVideoSize(bytes?: number) {
-  if (!bytes || bytes <= 0) return "";
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}

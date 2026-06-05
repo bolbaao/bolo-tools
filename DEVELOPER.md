@@ -117,7 +117,6 @@ node scripts/create-admin-user.mjs [用户名] [密码]
 | 视频链接提取 | `/tools/video-extract` | yt-dlp |
 | 文档转换 | `/tools/doc-convert` | ConvertAPI / 本地 PDF 处理 |
 | 字幕工坊 | `/tools/subtitle-workshop` | faster-whisper / 云端 |
-| AI 视频剪辑 | `/tools/ai-video-edit` | DeepSeek + ffmpeg + edge-tts |
 | GIF 动图 | `/tools/gif-maker` | ffmpeg |
 | 文本工具箱 | `/tools/text-toolbox` | 纯前端 |
 | 用户管理 | `/tools/admin` | 管理员专用 |

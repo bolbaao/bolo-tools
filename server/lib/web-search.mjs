@@ -10,6 +10,8 @@ export function getWebSearchCapabilities() {
     tavily: Boolean(env("TAVILY_API_KEY")),
     serper: Boolean(env("SERPER_API_KEY")),
     available: Boolean(env("TAVILY_API_KEY") || env("SERPER_API_KEY")),
+    /** @deprecated 使用 available */
+    searchConfigured: Boolean(env("TAVILY_API_KEY") || env("SERPER_API_KEY")),
   };
 }
 

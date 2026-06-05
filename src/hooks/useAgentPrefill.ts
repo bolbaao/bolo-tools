@@ -2,12 +2,8 @@
 
 import {
   AGENT_AUTOSUBMIT_DELAY_MS,
-  AGENT_PREFILL_EVENT,
   agentPrefillHasActionableFields,
-  clearAgentPrefill,
   consumeUrlPrefill,
-  peekAgentPrefill,
-  type AgentPrefillEventDetail,
   type AgentPrefillPayload,
 } from "@/lib/agent-prefill";
 import { usePathname } from "next/navigation";
@@ -21,10 +17,6 @@ export type UseAgentPrefillOptions = {
 };
 
 const RETRY_DELAYS_MS = [100, 400, 1000, 2500];
-
-function readPendingPrefill(toolId: string): AgentPrefillPayload | null {
-  return consumeUrlPrefill(toolId) ?? peekAgentPrefill(toolId);
-}
 
 function runPrefill(
   options: UseAgentPrefillOptions,
@@ -50,11 +42,10 @@ function handlePayload(
   if (payload.ts <= handledTsRef.current) return false;
   handledTsRef.current = payload.ts;
   runPrefill(options, payload.fields, payload.autoSubmit !== false);
-  clearAgentPrefill();
   return true;
 }
 
-/** 工具页挂载时消费智能体预填，并在 Agent 模式下自动执行主操作 */
+/** 工具页挂载时消费 URL 中的智能体预填，并在 Agent 模式下自动执行主操作 */
 export function useAgentPrefill(toolId: string, options: UseAgentPrefillOptions) {
   const pathname = usePathname();
   const optionsRef = useRef(options);
@@ -66,7 +57,7 @@ export function useAgentPrefill(toolId: string, options: UseAgentPrefillOptions)
 
     const attempt = () => {
       if (cancelled) return;
-      const payload = readPendingPrefill(toolId);
+      const payload = consumeUrlPrefill(toolId);
       if (!payload) return;
       handlePayload(optionsRef.current, payload, handledTsRef);
     };
@@ -79,20 +70,4 @@ export function useAgentPrefill(toolId: string, options: UseAgentPrefillOptions)
       for (const id of timers) window.clearTimeout(id);
     };
   }, [toolId, pathname]);
-
-  useEffect(() => {
-    const onPrefill = (event: Event) => {
-      const detail = (event as CustomEvent<AgentPrefillEventDetail>).detail;
-      if (detail?.toolId !== toolId) return;
-      const payload: AgentPrefillPayload = {
-        toolId: detail.toolId,
-        fields: detail.fields,
-        ts: Date.now(),
-        autoSubmit: detail.autoSubmit,
-      };
-      handlePayload(optionsRef.current, payload, handledTsRef);
-    };
-    window.addEventListener(AGENT_PREFILL_EVENT, onPrefill);
-    return () => window.removeEventListener(AGENT_PREFILL_EVENT, onPrefill);
-  }, [toolId]);
 }

@@ -10,15 +10,9 @@ import {
 import { inferDocConvertModeFromFiles } from "@/lib/doc-convert-prefill";
 import { FEATURE_UNAVAILABLE } from "@/lib/service-message";
 import { AGENT_AUTOSUBMIT_DELAY_MS } from "@/lib/agent-prefill";
+import { formatBytes } from "@/lib/format";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
-import { useToolPrefillFiles } from "@/hooks/useToolPrefillFiles";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-function formatBytes(n: number) {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export default function DocumentConvertForm() {
   const [mode, setMode] = useState<DocConvertMode>("pdf-to-word");
@@ -49,10 +43,6 @@ export default function DocumentConvertForm() {
     if (inferred) setMode(inferred);
   }, [mode]);
 
-  useToolPrefillFiles("doc-convert", {
-    onFiles: applyPickedFiles,
-  });
-
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -82,9 +72,22 @@ export default function DocumentConvertForm() {
 
   const onPickFiles = (list: FileList | null) => {
     if (!list?.length) return;
-    const picked = Array.from(list);
-    setFiles(meta.multiple ? picked : [picked[0]]);
+    applyPickedFiles(Array.from(list));
+  };
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
     setError(null);
+  };
+
+  const moveFile = (index: number, dir: -1 | 1) => {
+    setFiles((prev) => {
+      const next = [...prev];
+      const target = index + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
   };
 
   const convert = useCallback(async () => {
@@ -215,10 +218,40 @@ export default function DocumentConvertForm() {
 
       {files.length > 0 && (
         <ul className="space-y-2 rounded-xl border border-white/[0.08] bg-black/20 px-4 py-3">
-          {files.map((f) => (
-            <li key={`${f.name}-${f.size}`} className="flex items-center justify-between gap-3 text-sm">
-              <span className="truncate text-white/70">{f.name}</span>
+          {files.map((f, i) => (
+            <li key={`${f.name}-${f.size}-${i}`} className="flex items-center justify-between gap-2 text-sm">
+              {meta.multiple && files.length > 1 && (
+                <div className="flex flex-col gap-0.5 shrink-0">
+                  <button
+                    type="button"
+                    disabled={i === 0}
+                    onClick={() => moveFile(i, -1)}
+                    className="text-[10px] text-white/30 hover:text-white/60 disabled:opacity-20"
+                    aria-label="上移"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    disabled={i === files.length - 1}
+                    onClick={() => moveFile(i, 1)}
+                    className="text-[10px] text-white/30 hover:text-white/60 disabled:opacity-20"
+                    aria-label="下移"
+                  >
+                    ▼
+                  </button>
+                </div>
+              )}
+              <span className="truncate text-white/70 flex-1">{f.name}</span>
               <span className="shrink-0 text-xs text-white/35 tabular-nums">{formatBytes(f.size)}</span>
+              <button
+                type="button"
+                onClick={() => removeFile(i)}
+                className="shrink-0 text-white/30 hover:text-red-300/80 text-xs px-1"
+                aria-label="移除"
+              >
+                ✕
+              </button>
             </li>
           ))}
         </ul>

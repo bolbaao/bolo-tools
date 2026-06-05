@@ -20,10 +20,10 @@ import { IMAGE_VISION_UNAVAILABLE } from "../../shared/public-error.mjs";
 
 const MAX_TRANSCRIBE_SEC = Number(process.env.MAX_CHAT_TRANSCRIBE_SEC || 300);
 
-function withTmpDir(fn) {
+async function withTmpDir(fn) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pineapple-chat-"));
   try {
-    return fn(tmpDir);
+    return await fn(tmpDir);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -50,9 +50,13 @@ async function probeMedia(filePath) {
     if (video?.width && video?.height) parts.push(`画面 ${video.width}×${video.height}`);
     if (video?.codec_name) parts.push(`视频编码 ${video.codec_name}`);
     if (audio?.codec_name) parts.push(`音频编码 ${audio.codec_name}`);
-    return { durationSec: Number.isFinite(duration) ? duration : null, summary: parts.join(" · ") };
+    return {
+      durationSec: Number.isFinite(duration) ? duration : null,
+      hasAudio: Boolean(audio),
+      summary: parts.join(" · "),
+    };
   } catch {
-    return { durationSec: null, summary: "" };
+    return { durationSec: null, hasAudio: false, summary: "" };
   }
 }
 
@@ -78,14 +82,32 @@ async function transcribeMediaFile(filePath, originalName) {
         metadata: probe.summary,
       };
     }
+    if (!probe.hasAudio) {
+      return {
+        transcript: null,
+        error: "该视频无音轨，无法转写语音；可根据下方媒体信息回答",
+        metadata: probe.summary,
+      };
+    }
 
-    const wavPath = path.join(tmpDir, "audio.wav");
-    await extractAudioToWav(inputPath, wavPath);
-    const transcript = await transcribeAudioFile(wavPath, "text", "auto");
-    return {
-      transcript: String(transcript || "").trim().slice(0, 12000),
-      metadata: probe.summary,
-    };
+    try {
+      const wavPath = path.join(tmpDir, "audio.wav");
+      await extractAudioToWav(inputPath, wavPath);
+      const transcript = await transcribeAudioFile(wavPath, "text", "auto");
+      return {
+        transcript: String(transcript || "").trim().slice(0, 12000),
+        metadata: probe.summary,
+      };
+    } catch (e) {
+      const msg = e?.message || String(e);
+      return {
+        transcript: null,
+        error: /does not contain any stream|does not contain an audio stream/i.test(msg)
+          ? "该视频无音轨，无法转写语音；可根据下方媒体信息回答"
+          : `语音转写失败：${msg.slice(-200)}`,
+        metadata: probe.summary,
+      };
+    }
   });
 }
 
@@ -156,11 +178,21 @@ async function processVideo(buffer, name) {
     const filePath = path.join(tmpDir, `video${ext}`);
     fs.writeFileSync(filePath, buffer);
     const probe = await probeMedia(filePath);
-    const { transcript, error, metadata } = await transcribeMediaFile(filePath, name);
+    let transcript = null;
+    let error = null;
+    let metadata = probe.summary;
+    try {
+      const result = await transcribeMediaFile(filePath, name);
+      transcript = result.transcript;
+      error = result.error;
+      metadata = result.metadata || probe.summary;
+    } catch (e) {
+      error = e?.message || "视频处理失败";
+    }
     return {
       kind: "video",
       name,
-      metadata: metadata || probe.summary,
+      metadata,
       transcript,
       error,
     };
@@ -233,12 +265,30 @@ export function formatChatFilesForPrompt(files) {
   return lines.join("\n");
 }
 
-export async function buildAttachmentContext(chatFiles, lastUserMessage) {
+function normalizePageChatImages(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((i) => i && typeof i.name === "string")
+    .map((i) => ({
+      name: i.name,
+      size: i.size ?? 0,
+      lastModified: i.lastModified ?? 0,
+      mimeType: i.mimeType || "image/jpeg",
+      width: i.width,
+      height: i.height,
+      previewDataUrl: i.previewDataUrl,
+      visionDescription: i.visionDescription,
+      visionProvider: i.visionProvider,
+      visionError: i.visionError,
+    }));
+}
+
+export async function buildAttachmentContext(chatFiles, lastUserMessage, pageContextChatImages) {
   const files = Array.isArray(chatFiles) ? chatFiles : [];
   const fileBlock = formatChatFilesForPrompt(files);
 
-  const chatImages = files
-    .filter((f) => f.kind === "image" && f.previewDataUrl)
+  const fromFiles = files
+    .filter((f) => f.kind === "image" && (f.previewDataUrl || f.description || f.error))
     .map((f, i) => ({
       name: f.name,
       size: 0,
@@ -249,6 +299,15 @@ export async function buildAttachmentContext(chatFiles, lastUserMessage) {
       visionProvider: f.visionProvider,
       visionError: f.error,
     }));
+
+  const fromPage = normalizePageChatImages(pageContextChatImages);
+  const seen = new Set();
+  const chatImages = [...fromPage, ...fromFiles].filter((img) => {
+    const key = `${img.name}:${img.lastModified}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
   let chatImageVision = [];
   let imageBlock = "";

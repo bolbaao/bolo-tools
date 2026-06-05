@@ -2,7 +2,7 @@
 
 import ActionButton from "@/components/ActionButton";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
-import { ApiError, apiGet, apiPost } from "@/lib/api";
+import { ApiError, apiGet, apiNotFoundMessage, apiPost } from "@/lib/api";
 import { AI_SERVICE_UNAVAILABLE } from "@/lib/service-message";
 import { useCallback, useEffect, useState } from "react";
 
@@ -59,14 +59,29 @@ export default function AiSearchPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SearchResponse | null>(null);
+  const [serviceOnline, setServiceOnline] = useState<boolean | null>(null);
+  const [sourcesExpanded, setSourcesExpanded] = useState(false);
+
+  const searchReady = serviceOnline === true && (caps?.available ?? false);
 
   const runSearch = useCallback(async (q?: string, opts?: { topic?: "news" | "general" }) => {
     const term = (q ?? query).trim();
     if (!term) return;
+    if (!searchReady) {
+      setError(
+        serviceOnline === false
+          ? apiNotFoundMessage()
+          : caps && !caps.available
+            ? AI_SERVICE_UNAVAILABLE
+            : "搜索服务尚未就绪，请稍候",
+      );
+      return;
+    }
     setQuery(term);
     setLoading(true);
     setError(null);
     setData(null);
+    setSourcesExpanded(false);
     try {
       const result = await apiPost<SearchResponse>(
         "/api/ai-search/search",
@@ -80,11 +95,15 @@ export default function AiSearchPanel() {
       );
       setData(result);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "搜索失败");
+      const msg = e instanceof ApiError ? e.message : "搜索失败";
+      setError(msg);
+      if (e instanceof ApiError && e.status === 0) {
+        setServiceOnline(false);
+      }
     } finally {
       setLoading(false);
     }
-  }, [query, depth]);
+  }, [caps, query, depth, searchReady, serviceOnline]);
 
   useAgentPrefill("ai-search", {
     apply: (fields) => {
@@ -95,9 +114,15 @@ export default function AiSearchPanel() {
   });
 
   useEffect(() => {
-    apiGet<Capabilities>("/api/ai-search/capabilities")
-      .then(setCaps)
-      .catch(() => setCaps(null));
+    apiGet<Capabilities>("/api/ai-search/capabilities", { timeoutMs: 15000 })
+      .then((data) => {
+        setCaps(data);
+        setServiceOnline(true);
+      })
+      .catch(() => {
+        setCaps(null);
+        setServiceOnline(false);
+      });
   }, []);
 
   const loadHotTopics = useCallback(() => {
@@ -120,7 +145,14 @@ export default function AiSearchPanel() {
 
   return (
     <>
-      {caps && !caps.available ? (
+      {serviceOnline === false ? (
+        <p className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs leading-relaxed text-red-200/90">
+          {apiNotFoundMessage()} 请确认已在项目目录运行 <code className="text-red-100/90">./start.sh</code>，并访问{" "}
+          <code className="text-red-100/90">http://127.0.0.1:3000</code>。
+        </p>
+      ) : null}
+
+      {serviceOnline === true && caps && !caps.available ? (
         <p className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-xs leading-relaxed text-cyan-100/85">
           {AI_SERVICE_UNAVAILABLE}
         </p>
@@ -156,7 +188,7 @@ export default function AiSearchPanel() {
         label="开始搜索"
         loadingLabel="正在检索全网…"
         loading={loading}
-        disabled={!query.trim() || (caps ? !caps.available : false)}
+        disabled={!query.trim() || !searchReady}
         onClick={() => runSearch()}
       />
 
@@ -192,9 +224,15 @@ export default function AiSearchPanel() {
               key={item.title}
               type="button"
               onClick={() => runSearch(item.searchQuery, { topic: "news" })}
-              disabled={loading}
-              title={`${item.heat} · ${item.tag}`}
-              className="rounded-full bg-amber-500/[0.08] px-3 py-1.5 text-xs text-amber-100/75 ring-1 ring-amber-500/20 hover:bg-amber-500/[0.14] hover:text-amber-50 disabled:opacity-40"
+              disabled={loading || !searchReady}
+              title={
+                !searchReady
+                  ? serviceOnline === false
+                    ? apiNotFoundMessage()
+                    : AI_SERVICE_UNAVAILABLE
+                  : `${item.heat} · ${item.tag}`
+              }
+              className="rounded-full bg-amber-500/[0.08] px-3 py-1.5 text-xs text-amber-100/75 ring-1 ring-amber-500/20 hover:bg-amber-500/[0.14] hover:text-amber-50 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {item.title}
             </button>
@@ -228,38 +266,55 @@ export default function AiSearchPanel() {
           )}
 
           {data.results.length > 0 && (
-            <section className="space-y-3">
-              <h3 className="text-sm font-medium text-white/55">来源链接</h3>
-              <ul className="space-y-3">
-                {data.results.map((item, i) => (
-                  <li
-                    key={`${item.url}-${i}`}
-                    className="rounded-xl border border-white/[0.08] bg-black/20 p-4 hover:border-violet-500/20 transition-colors"
-                  >
-                    <div className="flex items-start gap-2">
-                      <span className="shrink-0 flex h-5 w-5 items-center justify-center rounded-md bg-violet-500/15 text-[10px] font-medium text-violet-200/90">
-                        {i + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <a
-                          href={item.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm font-medium text-violet-200/95 hover:text-violet-100 line-clamp-2"
-                        >
-                          {item.title}
-                        </a>
-                        <p className="mt-1 text-[11px] text-white/30 truncate">{item.url}</p>
-                        {item.snippet && (
-                          <p className="mt-2 text-xs text-white/50 leading-relaxed line-clamp-3">
-                            {item.snippet}
-                          </p>
-                        )}
+            <section className="rounded-xl border border-white/[0.08] bg-black/20 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setSourcesExpanded((v) => !v)}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors"
+              >
+                <h3 className="text-sm font-medium text-white/55">
+                  来源链接
+                  <span className="ml-2 text-[11px] font-normal text-white/30">
+                    {data.results.length} 条
+                  </span>
+                </h3>
+                <span className="shrink-0 text-xs text-white/40">
+                  {sourcesExpanded ? "收起 △" : "展开 ▽"}
+                </span>
+              </button>
+              {sourcesExpanded && (
+                <ul className="space-y-3 border-t border-white/[0.06] p-4 pt-3">
+                  {data.results.map((item, i) => (
+                    <li
+                      key={`${item.url}-${i}`}
+                      id={`source-${i + 1}`}
+                      className="rounded-xl border border-white/[0.08] bg-black/20 p-4 hover:border-violet-500/20 transition-colors"
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="shrink-0 flex h-5 w-5 items-center justify-center rounded-md bg-violet-500/15 text-[10px] font-medium text-violet-200/90">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium text-violet-200/95 hover:text-violet-100 line-clamp-2"
+                          >
+                            {item.title}
+                          </a>
+                          <p className="mt-1 text-[11px] text-white/30 truncate">{item.url}</p>
+                          {item.snippet && (
+                            <p className="mt-2 text-xs text-white/50 leading-relaxed line-clamp-3">
+                              {item.snippet}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
           )}
         </div>

@@ -4,13 +4,6 @@ import { generateWriting } from "./ai-writer.mjs";
 import { synthesizeSearchAnswer } from "./ai-search-synthesize.mjs";
 import { runWorkflow } from "./ai-workflow.mjs";
 import {
-  generateEditPlan,
-  prepareVideoInput,
-  probeVideo,
-  renderEditedVideo,
-  safeOutputName,
-} from "./ai-video-edit.mjs";
-import {
   generateArkImage,
   editArkImage,
   beautifyArkImage,
@@ -28,8 +21,10 @@ import { runSpider, SPIDER_PRESETS } from "./spider-run.mjs";
 import { adaptCaptionsForPlatforms, runSocialPublish } from "./social-publish.mjs";
 import { addUserMemory, listUserMemories, formatMemoriesForPrompt } from "./user-memory.mjs";
 import { putChatArtifact, formatArtifactLink } from "./chat-tool-artifacts.mjs";
+import { getLatestChatUpload } from "./user-media-library.mjs";
 import {
   pickFirstRaw,
+  pickRawFiles,
   getImageDataUrl,
   convertAudioFile,
   makeGifFromVideo,
@@ -48,6 +43,16 @@ function pickField(fields, keys, fallback = "") {
     if (val) return val;
   }
   return String(fallback || "").trim();
+}
+
+/** 当前请求无附件时，复用最近一次对话上传的文件 */
+export function resolveToolRawFiles(context = {}) {
+  const raw = (Array.isArray(context.rawFiles) ? context.rawFiles : []).filter(
+    (f) => f?.buffer?.length,
+  );
+  if (raw.length) return raw;
+  const cached = getLatestChatUpload(context.userId, ["video", "audio", "image"]);
+  return cached ? [cached] : [];
 }
 
 function formatVideoExtractResult(data) {
@@ -290,68 +295,6 @@ async function runImageStudio(fields, context) {
   throw new HttpError(400, "不支持的图像处理模式");
 }
 
-async function runVideoEdit(fields, context) {
-  const mode = pickField(fields, ["mode"], "edit") || "edit";
-  const videoFiles = (Array.isArray(context.rawFiles) ? context.rawFiles : []).filter(
-    (f) => f?.buffer?.length,
-  );
-  const videoFile = pickFirstRaw(context.rawFiles, ["video"]);
-  if (!videoFile) throw new HttpError(400, "请上传视频附件");
-
-  if (mode === "voiceover") {
-    throw new HttpError(400, "剪口播模式较复杂，请打开 AI 视频剪辑工具完成完整流程");
-  }
-
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pineapple-chat-vid-"));
-  try {
-    const fileInfos = videoFiles.map((f) => ({
-      name: f.originalname,
-      size: f.buffer.length,
-    }));
-    const inputPaths = videoFiles.map((f, i) => {
-      const p = path.join(tmpDir, `in-${i}${path.extname(f.originalname) || ".mp4"}`);
-      fs.writeFileSync(p, f.buffer);
-      return p;
-    });
-
-    const { mainPath, clips } = await prepareVideoInput(inputPaths, tmpDir, fileInfos);
-    const meta = await probeVideo(mainPath);
-
-    const instruction = pickField(fields, ["instruction", "prompt"], context.lastUserMessage);
-    const plan = await generateEditPlan({
-      instruction,
-      meta,
-      clips: clips.length > 1 ? clips : undefined,
-    });
-
-    const outputPath = path.join(tmpDir, safeOutputName(videoFile.originalname, clips.length));
-    await renderEditedVideo({ inputPath: mainPath, outputPath, plan, meta });
-
-    const outBuf = fs.readFileSync(outputPath);
-    const id = putChatArtifact({
-      buffer: outBuf,
-      filename: path.basename(outputPath),
-      contentType: "video/mp4",
-    });
-
-    const opSummary = (plan.operations || [])
-      .map((o) => o.op)
-      .filter(Boolean)
-      .join(" → ");
-    return [
-      "**视频剪辑完成**",
-      plan.summary || "",
-      opSummary ? `_操作：${opSummary}_` : "",
-      "",
-      formatArtifactLink(id, "下载视频"),
-    ]
-      .filter(Boolean)
-      .join("\n");
-  } finally {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  }
-}
-
 /**
  * @param {{ toolId: string, title: string, fields: Record<string, string> }} action
  * @param {{ lastUserMessage?: string, chatFiles?: object[], rawFiles?: object[], userId?: string }} context
@@ -360,6 +303,7 @@ async function runAgentTool(action, context = {}) {
   const toolId = String(action?.toolId || "").trim();
   const fields = action?.fields && typeof action.fields === "object" ? action.fields : {};
   const fallback = String(context.lastUserMessage || "").replace(/\n\[已附加.*\]$/, "").trim();
+  const toolContext = { ...context, rawFiles: resolveToolRawFiles(context) };
 
   try {
     switch (toolId) {
@@ -461,7 +405,7 @@ async function runAgentTool(action, context = {}) {
         const tags = pickField(fields, ["tags"]);
         const platformsRaw = pickField(fields, ["platforms"], "douyin");
         const platforms = platformsRaw.split(/[,，\s]+/).filter(Boolean);
-        const videoFile = pickFirstRaw(context.rawFiles, ["video"]);
+        const videoFile = pickFirstRaw(toolContext.rawFiles, ["video"]);
 
         if (videoFile) {
           const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pineapple-chat-social-"));
@@ -493,14 +437,14 @@ async function runAgentTool(action, context = {}) {
       }
 
       case "music-convert": {
-        const audio = pickFirstRaw(context.rawFiles, ["audio", "video"]);
+        const audio = pickFirstRaw(toolContext.rawFiles, ["audio", "video"]);
         if (!audio) throw new HttpError(400, "请上传音频或含音轨的视频");
         const r = await convertAudioFile(audio, pickField(fields, ["format"], "MP3"));
         return { ok: true, text: r.text };
       }
 
       case "gif-maker": {
-        const video = pickFirstRaw(context.rawFiles, ["video"]);
+        const video = pickFirstRaw(toolContext.rawFiles, ["video"]);
         if (!video) throw new HttpError(400, "请上传视频");
         const r = await makeGifFromVideo(video, fields);
         return { ok: true, text: r.text };
@@ -508,29 +452,36 @@ async function runAgentTool(action, context = {}) {
 
       case "doc-convert": {
         const mode = pickField(fields, ["mode"], "pdf-to-word") || "pdf-to-word";
-        const r = await runDocConvert(mode, context.rawFiles);
+        const r = await runDocConvert(mode, toolContext.rawFiles);
         return { ok: true, text: r.text };
       }
 
       case "subtitle-workshop": {
         const tab = pickField(fields, ["tab"], "transcribe") || "transcribe";
-        const media = pickFirstRaw(context.rawFiles, ["video", "audio"]);
+        const media = pickFirstRaw(toolContext.rawFiles, ["video", "audio"]);
         if (!media) throw new HttpError(400, "请上传视频或音频");
         if (tab === "extract") {
-          const r = await extractEmbeddedSubtitle(media);
-          return { ok: true, text: r.text };
+          try {
+            const r = await extractEmbeddedSubtitle(media);
+            return { ok: true, text: r.text };
+          } catch (e) {
+            const msg = e instanceof HttpError ? e.message : e?.message || "";
+            if (/未检测到|无字幕|subtitle stream/i.test(msg)) {
+              const r = await transcribeMediaFile(media, "text");
+              return {
+                ok: true,
+                text: `_视频无内嵌字幕轨，已改为语音转写：_\n\n${r.text}`,
+              };
+            }
+            throw e;
+          }
         }
         const r = await transcribeMediaFile(media, "text");
         return { ok: true, text: r.text };
       }
 
       case "image-studio": {
-        const text = await runImageStudio(fields, context);
-        return { ok: true, text };
-      }
-
-      case "ai-video-edit": {
-        const text = await runVideoEdit(fields, context);
+        const text = await runImageStudio(fields, toolContext);
         return { ok: true, text };
       }
 
@@ -557,14 +508,18 @@ async function runAgentTool(action, context = {}) {
         return {
           ok: false,
           error: tool ? `「${tool.title}」执行失败，请检查参数或附件` : "未知工具",
-          keepAction: true,
+          keepAction: false,
         };
       }
     }
   } catch (e) {
     const msg = e instanceof HttpError ? e.message : e?.message || "工具执行失败";
-    return { ok: false, error: msg, keepAction: true };
+    return { ok: false, error: msg, keepAction: false };
   }
+}
+
+export async function executeAgentTool(action, context = {}) {
+  return runAgentTool(action, context);
 }
 
 export async function mergeToolResultIntoReply(reply, agentAction, context) {

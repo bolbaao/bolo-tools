@@ -33,7 +33,6 @@ import adminRouter from "./routes/admin.mjs";
 import appBuilderRouter from "./routes/app-builder.mjs";
 import aiWriterRouter from "./routes/ai-writer.mjs";
 import aiWorkflowRouter from "./routes/ai-workflow.mjs";
-import aiVideoEditRouter from "./routes/ai-video-edit.mjs";
 import mlsharp3dRouter from "./routes/mlsharp-3d.mjs";
 import socialPublishRouter from "./routes/social-publish.mjs";
 import { startUserMediaCleanupInterval } from "./lib/user-media-library.mjs";
@@ -156,7 +155,6 @@ app.use("/api/chat", requireAuthIfPublic, heavyApiRateLimit, chatRouter);
 app.use("/api/app-builder", requireAuthIfPublic, heavyApiRateLimit, appBuilderRouter);
 app.use("/api/ai-writer", requireAuthIfPublic, heavyApiRateLimit, aiWriterRouter);
 app.use("/api/ai-workflow", requireAuthIfPublic, heavyApiRateLimit, aiWorkflowRouter);
-app.use("/api/ai-video-edit", requireAuthIfPublic, heavyApiRateLimit, aiVideoEditRouter);
 app.use("/api/social-publish", requireAuthIfPublic, heavyApiRateLimit, socialPublishRouter);
 
 if (hasOut && !API_ONLY) {

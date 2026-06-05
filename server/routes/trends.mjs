@@ -7,7 +7,8 @@ const router = Router();
 router.get("/:platform", async (req, res) => {
   try {
     const platform = req.params.platform;
-    const { list, source, updatedAt, notice } = await fetchTrends(platform);
+    const force = req.query.refresh === "1" || req.query.force === "1";
+    const { list, source, updatedAt, notice } = await fetchTrends(platform, { force });
     res.json({
       ok: true,
       list,

@@ -119,12 +119,6 @@ export async function compressImage(
   });
 }
 
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
-
 export function outputFilename(originalName: string, format: OutputFormat): string {
   const base = originalName.replace(/\.[^.]+$/, "") || "image";
   return `${base}-compressed.${extForFormat(format)}`;
@@ -187,6 +181,30 @@ export async function sharpenImage(file: File, level: SharpenLevel): Promise<Blo
 
 export function previewUrlFromFile(file: File): string {
   return URL.createObjectURL(file);
+}
+
+export async function buildImageZip(
+  files: { blob: Blob; filename: string }[],
+): Promise<Blob> {
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+  const used = new Set<string>();
+
+  for (const { blob, filename } of files) {
+    let name = filename;
+    let n = 1;
+    while (used.has(name)) {
+      const dot = filename.lastIndexOf(".");
+      const base = dot > 0 ? filename.slice(0, dot) : filename;
+      const ext = dot > 0 ? filename.slice(dot) : "";
+      name = `${base} (${n})${ext}`;
+      n += 1;
+    }
+    used.add(name);
+    zip.file(name, blob);
+  }
+
+  return zip.generateAsync({ type: "blob" });
 }
 
 /** 修图 API 上传上限（base64 字符数近似） */

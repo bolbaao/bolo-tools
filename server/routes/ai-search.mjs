@@ -48,11 +48,20 @@ router.post("/search", async (req, res) => {
       req.body?.synthesize !== "false" &&
       req.body?.synthesize !== 0;
 
-    const searchPayload = await searchWeb(query, {
-      depth,
-      topic,
-      days: topic === "news" ? 3 : undefined,
-    });
+    let searchPayload;
+    try {
+      searchPayload = await searchWeb(query, {
+        depth,
+        topic,
+        days: topic === "news" ? 3 : undefined,
+      });
+    } catch (e) {
+      if (topic === "news") {
+        searchPayload = await searchWeb(query, { depth, topic: "general" });
+      } else {
+        throw e;
+      }
+    }
 
     let summary = searchPayload.answer || null;
     let synthesized = false;

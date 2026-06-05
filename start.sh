@@ -107,7 +107,7 @@ fi
 
 echo "🔨 正在构建静态网站…"
 rm -rf out
-npm run build || exit 1
+npm run build || npm run build || exit 1
 
 echo ""
 echo "春雨集 已启动"

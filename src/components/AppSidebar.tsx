@@ -22,7 +22,7 @@ function groupToolsByCategory(allTools: Tool[]) {
   }));
 }
 
-export default function AppSidebar() {
+export default function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user, loading, logout } = useAuth();
   const { toggleSidebar } = useWorkspace();
@@ -37,12 +37,17 @@ export default function AppSidebar() {
     setAuthOpen(true);
   };
 
+  const handleNav = () => {
+    onNavigate?.();
+  };
+
   return (
     <aside className="app-sidebar flex h-full w-[260px] shrink-0 flex-col border-r border-white/[0.06] bg-surface-elevated/80 backdrop-blur-xl">
       <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-4 py-4">
         <Link
           href="/"
           scroll={false}
+          onClick={handleNav}
           className="min-w-0 text-[1.05rem] font-semibold tracking-tight text-white/92 hover:text-white transition-colors"
           aria-label="春雨集首页"
         >
@@ -75,6 +80,7 @@ export default function AppSidebar() {
                     <Link
                       href={tool.href}
                       scroll={false}
+                      onClick={handleNav}
                       className={`sidebar-nav-link group relative flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm ${
                         active
                           ? "nav-link-active"
@@ -104,6 +110,7 @@ export default function AppSidebar() {
                 <Link
                   href="/tools/developer"
                   scroll={false}
+                  onClick={handleNav}
                   className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition-colors ${
                     pathname === "/tools/developer"
                       ? "nav-link-active"
@@ -117,6 +124,7 @@ export default function AppSidebar() {
                 <Link
                   href="/tools/admin"
                   scroll={false}
+                  onClick={handleNav}
                   className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition-colors ${
                     pathname === "/tools/admin"
                       ? "nav-link-active"
@@ -151,6 +159,7 @@ export default function AppSidebar() {
                     <Link
                       href={tool.href}
                       scroll={false}
+                      onClick={handleNav}
                       className={`sidebar-nav-link group relative flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm ${
                         active
                           ? "nav-link-active"
@@ -182,6 +191,7 @@ export default function AppSidebar() {
                 key={tool.id}
                 href={tool.href}
                 scroll={false}
+                onClick={handleNav}
                 className="sidebar-nav-link flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm text-white/45 transition-colors hover:bg-white/[0.05] hover:text-white/70"
               >
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] ring-1 ring-white/[0.06]">

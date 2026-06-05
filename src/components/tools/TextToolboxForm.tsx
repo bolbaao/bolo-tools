@@ -1,22 +1,30 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
+import CopyButton from "@/components/CopyButton";
 import {
   countTextStats,
+  decodeBase64,
+  decodeUrl,
   dedupeLines,
+  encodeBase64,
+  encodeUrl,
   formatJson,
   markdownToHtml,
+  sortLines,
+  trimEmptyLines,
 } from "@/lib/text-tools";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { useMemo, useState } from "react";
 
-type Tab = "stats" | "dedupe" | "json" | "markdown";
+type Tab = "stats" | "dedupe" | "json" | "markdown" | "encode";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "stats", label: "字数统计" },
   { id: "dedupe", label: "去重行" },
   { id: "json", label: "JSON" },
   { id: "markdown", label: "Markdown" },
+  { id: "encode", label: "编码" },
 ];
 
 export default function TextToolboxForm() {
@@ -25,6 +33,13 @@ export default function TextToolboxForm() {
   const [jsonMinify, setJsonMinify] = useState(false);
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [jsonOut, setJsonOut] = useState("");
+  const [dedupeCase, setDedupeCase] = useState(true);
+  const [dedupeTrim, setDedupeTrim] = useState(false);
+  const [dedupeSort, setDedupeSort] = useState(false);
+  const [encodeMode, setEncodeMode] = useState<"base64" | "url">("base64");
+  const [encodeOp, setEncodeOp] = useState<"encode" | "decode">("encode");
+  const [encodeOut, setEncodeOut] = useState("");
+  const [encodeError, setEncodeError] = useState<string | null>(null);
 
   useAgentPrefill("text-toolbox", {
     apply: (fields) => {
@@ -38,7 +53,13 @@ export default function TextToolboxForm() {
       const effectiveTab =
         nextTab && TABS.some((t) => t.id === nextTab) ? nextTab : tab;
       if (effectiveTab === "dedupe") {
-        setInput(dedupeLines(fields.input));
+        setInput(
+          dedupeLines(fields.input, {
+            caseSensitive: dedupeCase,
+            trimLines: dedupeTrim,
+            sort: dedupeSort,
+          }),
+        );
       } else if (effectiveTab === "json") {
         const r = formatJson(fields.input, jsonMinify);
         if (r.ok) {
@@ -56,7 +77,7 @@ export default function TextToolboxForm() {
   const mdHtml = useMemo(() => (tab === "markdown" ? markdownToHtml(input) : ""), [input, tab]);
 
   const handleDedupe = () => {
-    setInput(dedupeLines(input));
+    setInput(dedupeLines(input, { caseSensitive: dedupeCase, trimLines: dedupeTrim, sort: dedupeSort }));
   };
 
   const handleJson = () => {
@@ -70,8 +91,34 @@ export default function TextToolboxForm() {
     }
   };
 
-  const copyText = async (text: string) => {
-    await navigator.clipboard.writeText(text);
+  const handleEncode = () => {
+    setEncodeError(null);
+    if (encodeOp === "encode") {
+      if (encodeMode === "base64") {
+        const r = encodeBase64(input);
+        if (r.ok) setEncodeOut(r.result);
+        else setEncodeError(r.error);
+      } else {
+        setEncodeOut(encodeUrl(input));
+      }
+    } else if (encodeMode === "base64") {
+      const r = decodeBase64(input);
+      if (r.ok) setEncodeOut(r.result);
+      else setEncodeError(r.error);
+    } else {
+      const r = decodeUrl(input);
+      if (r.ok) setEncodeOut(r.result);
+      else setEncodeError(r.error);
+    }
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && input.trim()) {
+      e.preventDefault();
+      if (tab === "json") handleJson();
+      else if (tab === "dedupe") handleDedupe();
+      else if (tab === "encode") handleEncode();
+    }
   };
 
   return (
@@ -93,16 +140,42 @@ export default function TextToolboxForm() {
         ))}
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-white/30">Ctrl+Enter 快速处理</p>
+        <div className="flex gap-2">
+          <CopyButton text={input} label="复制输入" disabled={!input.trim()} />
+          <button
+            type="button"
+            onClick={() => {
+              setInput("");
+              setJsonOut("");
+              setJsonError(null);
+              setEncodeOut("");
+              setEncodeError(null);
+            }}
+            disabled={!input.trim() && !jsonOut && !encodeOut}
+            className="rounded-lg bg-white/5 px-4 py-2 text-xs text-white/70 hover:bg-white/10 disabled:opacity-40"
+          >
+            清空
+          </button>
+        </div>
+      </div>
+
       <textarea
         value={input}
         onChange={(e) => setInput(e.target.value)}
+        onKeyDown={onKeyDown}
         rows={tab === "stats" ? 8 : 10}
         placeholder={
           tab === "json"
             ? '{"key": "value"}'
             : tab === "markdown"
               ? "# 标题\n\n**粗体** 与 `代码`"
-              : "粘贴或输入文本…"
+              : tab === "encode"
+                ? encodeOp === "encode"
+                  ? "输入要编码的文本…"
+                  : "粘贴 Base64 或 URL 编码字符串…"
+                : "粘贴或输入文本…"
         }
         className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-slate-500/50 focus:outline-none focus:ring-1 focus:ring-slate-500/30 font-mono"
       />
@@ -113,7 +186,11 @@ export default function TextToolboxForm() {
             { label: "字符", value: stats.chars },
             { label: "字符(无空格)", value: stats.charsNoSpace },
             { label: "词/字块", value: stats.words },
+            { label: "汉字", value: stats.cjkChars },
             { label: "行数", value: stats.lines },
+            { label: "段落", value: stats.paragraphs },
+            { label: "句子", value: stats.sentences },
+            { label: "阅读约", value: `${stats.readingMinutes} 分钟` },
           ].map((item) => (
             <div key={item.label} className="rounded-xl border border-white/8 bg-white/[0.02] p-3 text-center">
               <p className="text-xs text-white/40">{item.label}</p>
@@ -124,7 +201,61 @@ export default function TextToolboxForm() {
       )}
 
       {tab === "dedupe" && (
-        <ActionButton label="去除重复行" disabled={!input.trim()} onClick={handleDedupe} />
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-4 text-sm text-white/50">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={dedupeCase}
+                onChange={(e) => setDedupeCase(e.target.checked)}
+                className="rounded border-white/20"
+              />
+              区分大小写
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={dedupeTrim}
+                onChange={(e) => setDedupeTrim(e.target.checked)}
+                className="rounded border-white/20"
+              />
+              去掉空行
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={dedupeSort}
+                onChange={(e) => setDedupeSort(e.target.checked)}
+                className="rounded border-white/20"
+              />
+              排序
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <ActionButton
+              label="去除重复行"
+              disabled={!input.trim()}
+              onClick={handleDedupe}
+              className="!w-auto flex-1 min-w-[8rem]"
+            />
+            <button
+              type="button"
+              onClick={() => setInput(trimEmptyLines(input))}
+              disabled={!input.trim()}
+              className="rounded-xl border border-white/10 px-4 py-3 text-sm text-white/60 hover:bg-white/5 disabled:opacity-40"
+            >
+              仅去空行
+            </button>
+            <button
+              type="button"
+              onClick={() => setInput(sortLines(input))}
+              disabled={!input.trim()}
+              className="rounded-xl border border-white/10 px-4 py-3 text-sm text-white/60 hover:bg-white/5 disabled:opacity-40"
+            >
+              排序行
+            </button>
+          </div>
+        </div>
       )}
 
       {tab === "json" && (
@@ -141,17 +272,11 @@ export default function TextToolboxForm() {
           <ActionButton label="格式化 JSON" disabled={!input.trim()} onClick={handleJson} />
           {jsonError && <p className="text-sm text-red-400/90">{jsonError}</p>}
           {jsonOut && (
-            <div className="space-y-2">
+            <div className="space-y-2" data-tool-result="">
               <pre className="max-h-48 overflow-auto rounded-xl border border-white/8 bg-black/30 p-3 text-xs text-white/80">
                 {jsonOut}
               </pre>
-              <button
-                type="button"
-                onClick={() => copyText(jsonOut)}
-                className="text-xs text-blue-300/80 hover:text-blue-200 underline-offset-2 hover:underline"
-              >
-                复制结果
-              </button>
+              <CopyButton text={jsonOut} />
             </div>
           )}
         </div>
@@ -162,6 +287,56 @@ export default function TextToolboxForm() {
           className="rounded-xl border border-white/8 bg-white/[0.02] p-4 prose-invert text-sm text-white/80 [&_.md-h]:font-semibold [&_.md-h]:text-white [&_h1]:text-xl [&_h2]:text-lg [&_.md-code]:bg-black/40 [&_.md-code]:p-3 [&_.md-code]:rounded-lg [&_.md-ul]:list-disc [&_.md-ul]:pl-5"
           dangerouslySetInnerHTML={{ __html: mdHtml }}
         />
+      )}
+
+      {tab === "encode" && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {(["base64", "url"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setEncodeMode(m)}
+                className={`rounded-lg px-3 py-1.5 text-xs uppercase ${
+                  encodeMode === m
+                    ? "bg-slate-600/30 text-white border border-white/15"
+                    : "bg-white/5 text-white/50"
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+            <span className="w-px bg-white/10 mx-1" />
+            {(["encode", "decode"] as const).map((op) => (
+              <button
+                key={op}
+                type="button"
+                onClick={() => setEncodeOp(op)}
+                className={`rounded-lg px-3 py-1.5 text-xs ${
+                  encodeOp === op
+                    ? "bg-slate-600/30 text-white border border-white/15"
+                    : "bg-white/5 text-white/50"
+                }`}
+              >
+                {op === "encode" ? "编码" : "解码"}
+              </button>
+            ))}
+          </div>
+          <ActionButton
+            label={encodeOp === "encode" ? "编码" : "解码"}
+            disabled={!input.trim()}
+            onClick={handleEncode}
+          />
+          {encodeError && <p className="text-sm text-red-400/90">{encodeError}</p>}
+          {encodeOut && (
+            <div className="space-y-2" data-tool-result="">
+              <pre className="max-h-48 overflow-auto rounded-xl border border-white/8 bg-black/30 p-3 text-xs text-white/80 break-all">
+                {encodeOut}
+              </pre>
+              <CopyButton text={encodeOut} />
+            </div>
+          )}
+        </div>
       )}
 
       <p className="text-center text-xs text-white/25">即时处理，文本仅用于当次计算，不会保存</p>

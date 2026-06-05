@@ -1,18 +1,44 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
+import FileDropZone from "@/components/FileDropZone";
 import { ApiError, apiUpload, downloadBlob } from "@/lib/api";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+const PRESETS = [
+  { label: "表情包", width: "320", fps: "12", duration: "3" },
+  { label: "标准", width: "480", fps: "10", duration: "5" },
+  { label: "高清", width: "720", fps: "15", duration: "5" },
+  { label: "省体积", width: "400", fps: "8", duration: "4" },
+] as const;
 
 export default function GifMakerForm() {
   const [file, setFile] = useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [start, setStart] = useState("0");
   const [duration, setDuration] = useState("3");
   const [fps, setFps] = useState("10");
   const [width, setWidth] = useState("480");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const frameCount = useMemo(() => {
+    const d = Math.min(30, Math.max(0.5, Number(duration) || 0));
+    const f = Math.max(5, Math.min(20, Number(fps) || 10));
+    return Math.round(d * f);
+  }, [duration, fps]);
+
+  useEffect(() => {
+    if (!file) {
+      setVideoUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setVideoUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
   useAgentPrefill("gif-maker", {
     apply: (fields) => {
@@ -45,22 +71,67 @@ export default function GifMakerForm() {
     }
   };
 
+  const applyPreset = (preset: (typeof PRESETS)[number]) => {
+    setWidth(preset.width);
+    setFps(preset.fps);
+    setDuration(preset.duration);
+  };
+
+  const seekToStart = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    const t = Math.max(0, Number(start) || 0);
+    v.currentTime = t;
+  };
+
   return (
     <div className="space-y-6">
-      <label className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-8 cursor-pointer hover:border-amber-500/35 hover:bg-amber-500/5 transition-all">
-        <span className="text-3xl opacity-60">🎞</span>
-        <span className="text-sm text-white/50">{file?.name ?? "上传视频片段"}</span>
-        <span className="text-xs text-white/25">MP4 / MOV / WebM 等，建议片段 ≤ 30 秒</span>
-        <input
-          type="file"
-          accept="video/*"
-          className="hidden"
-          onChange={(e) => {
-            setFile(e.target.files?.[0] ?? null);
-            setError(null);
-          }}
-        />
-      </label>
+      <FileDropZone
+        icon="🎞"
+        accept="video/*"
+        accent="amber"
+        title={file?.name ?? "拖入或点击上传视频"}
+        hint="MP4 / MOV / WebM 等，建议片段 ≤ 30 秒"
+        onFiles={(files) => {
+          setFile(files[0] ?? null);
+          setError(null);
+        }}
+      />
+
+      {videoUrl && (
+        <div className="space-y-2">
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            controls
+            className="w-full max-h-56 rounded-xl border border-white/10 bg-black/40"
+            onLoadedMetadata={seekToStart}
+          />
+          <button
+            type="button"
+            onClick={seekToStart}
+            className="text-xs text-amber-300/80 hover:text-amber-200 underline-offset-2 hover:underline"
+          >
+            跳转到起始时间 {start}s
+          </button>
+        </div>
+      )}
+
+      <div>
+        <p className="text-xs text-white/40 mb-2">快捷预设</p>
+        <div className="flex flex-wrap gap-2">
+          {PRESETS.map((p) => (
+            <button
+              key={p.label}
+              type="button"
+              onClick={() => applyPreset(p)}
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:border-amber-500/30 hover:text-amber-200/90"
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -124,6 +195,10 @@ export default function GifMakerForm() {
           className="w-full accent-amber-500"
         />
       </div>
+
+      <p className="text-center text-xs text-white/35">
+        预计约 {frameCount} 帧 · 帧率越高、时长越长，文件越大
+      </p>
 
       {error && <p className="text-sm text-red-400/90 text-center">{error}</p>}
 

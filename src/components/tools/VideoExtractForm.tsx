@@ -1,9 +1,13 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
+import CopyButton from "@/components/CopyButton";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { ApiError, apiNotFoundMessage, apiPost, apiUrl, downloadBlob } from "@/lib/api";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+const RECENT_URLS_KEY = "video-extract-recent";
+const MAX_RECENT = 5;
 
 type VideoFormat = {
   formatId?: string;
@@ -94,8 +98,39 @@ export default function VideoExtractForm() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ExtractResult | null>(null);
+  const [recentUrls, setRecentUrls] = useState<string[]>([]);
 
   const detected = useMemo(() => detectClientPlatform(url), [url]);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(RECENT_URLS_KEY);
+      if (raw) setRecentUrls(JSON.parse(raw) as string[]);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const saveRecent = useCallback((target: string) => {
+    setRecentUrls((prev) => {
+      const next = [target, ...prev.filter((u) => u !== target)].slice(0, MAX_RECENT);
+      try {
+        sessionStorage.setItem(RECENT_URLS_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
+
+  const pasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text.trim()) setUrl(extractUrlFromText(text));
+    } catch {
+      setError("无法读取剪贴板，请手动粘贴");
+    }
+  };
 
   const handleExtract = useCallback(async (urlOverride?: string) => {
     const target = extractUrlFromText((urlOverride ?? url).trim());
@@ -107,12 +142,13 @@ export default function VideoExtractForm() {
     try {
       const data = await apiPost<ExtractResult>("/api/video/extract", { url: target });
       setResult(data);
+      saveRecent(target);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "解析失败");
     } finally {
       setLoading(false);
     }
-  }, [url]);
+  }, [url, saveRecent]);
 
   useAgentPrefill("video-extract", {
     apply: (fields) => {
@@ -159,10 +195,19 @@ export default function VideoExtractForm() {
   return (
     <>
       <div>
-        <label htmlFor="video-url" className="mb-2 block text-sm text-white/60">
-          视频链接
-          <span className="ml-2 text-xs font-normal text-white/30">视频号链接可在手机端分享处查看</span>
-        </label>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <label htmlFor="video-url" className="text-sm text-white/60">
+            视频链接
+            <span className="ml-2 text-xs font-normal text-white/30">视频号链接可在手机端分享处查看</span>
+          </label>
+          <button
+            type="button"
+            onClick={() => void pasteFromClipboard()}
+            className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:bg-white/10 hover:text-white/80"
+          >
+            粘贴链接
+          </button>
+        </div>
         <input
           id="video-url"
           type="text"
@@ -184,6 +229,21 @@ export default function VideoExtractForm() {
             已识别为 {platformLabel[detected] || detected}
           </p>
         ) : null}
+        {recentUrls.length > 0 && !url && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {recentUrls.map((u) => (
+              <button
+                key={u}
+                type="button"
+                onClick={() => setUrl(u)}
+                className="max-w-full truncate rounded-full bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40 hover:bg-white/10 hover:text-white/60"
+                title={u}
+              >
+                {u.replace(/^https?:\/\//, "").slice(0, 40)}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <ActionButton
@@ -213,7 +273,15 @@ export default function VideoExtractForm() {
                 className="w-full max-h-48 object-cover rounded-lg"
               />
             )}
-            <p className="text-sm font-medium text-white/90">{result.title}</p>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <p className="text-sm font-medium text-white/90 flex-1">{result.title}</p>
+              <div className="flex gap-1.5 shrink-0">
+                <CopyButton text={result.title} label="复制标题" className="!px-2 !py-1" />
+                {result.webpageUrl && (
+                  <CopyButton text={result.webpageUrl} label="复制链接" className="!px-2 !py-1" />
+                )}
+              </div>
+            </div>
             <p className="text-xs text-white/40">
               {result.uploader && `${result.uploader} · `}
               {result.duration ? `${Math.round(result.duration)} 秒` : ""}

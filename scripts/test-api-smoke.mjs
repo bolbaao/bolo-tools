@@ -61,10 +61,8 @@ async function main() {
   for (const [name, path, check] of [
     ["文档转换 capabilities", "/api/documents/capabilities", (d) => d.ok !== false],
     ["AI 全网搜索 capabilities", "/api/ai-search/capabilities", (d) => d.ok !== false],
-    ["AI 视频剪辑 capabilities", "/api/ai-video-edit/capabilities", (d) => d.ok !== false],
     ["社媒分发 capabilities", "/api/social-publish/capabilities", (d) => d.ok !== false],
     ["字幕工坊 status", "/api/subtitle/status", (d) => typeof d === "object"],
-    ["3D 工坊 status", "/api/mlsharp-3d/status", (d) => typeof d === "object"],
   ]) {
     const res = await get(path);
     if (res.status === 200 && check(res.data)) ok(name);
@@ -90,7 +88,12 @@ async function main() {
 
   const spider = await post(
     "/api/spider/run",
-    { url: "https://example.com", preset: "links" },
+    {
+      url: "https://example.com",
+      listSelector: "body",
+      itemSelector: "h1, p, a",
+      limit: 5,
+    },
     60000,
   );
   if (spider.status === 200 && spider.data?.ok) {
@@ -100,14 +103,14 @@ async function main() {
   }
 
   const aiCap = await get("/api/ai-search/capabilities");
-  if (aiCap.data?.searchConfigured) {
+  if (aiCap.data?.available) {
     const sr = await post(
       "/api/ai-search/search",
       { query: "2026 春节是哪天", depth: "basic" },
       90000,
     );
-    if (sr.status === 200 && sr.data?.answer) {
-      ok("AI 全网搜索", `${String(sr.data.answer).slice(0, 60)}…`);
+    if (sr.status === 200 && (sr.data?.summary || sr.data?.results?.length)) {
+      ok("AI 全网搜索", `${String(sr.data.summary || sr.data.results?.[0]?.title || "").slice(0, 60)}…`);
     } else {
       skip("AI 全网搜索", sr.data?.error || `status=${sr.status}`);
     }

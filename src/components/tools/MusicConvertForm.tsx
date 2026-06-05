@@ -2,10 +2,10 @@
 
 import ActionButton from "@/components/ActionButton";
 import { downloadBlob } from "@/lib/api";
+import { formatBytes } from "@/lib/format";
 import {
   buildMusicZip,
   classifyMusicFile,
-  formatBytes,
   FORMAT_HINTS,
   OUTPUT_FORMATS,
   processMusicFile,
@@ -434,7 +434,13 @@ export default function MusicConvertForm() {
           <div className="flex flex-col sm:flex-row gap-2">
             <ActionButton
               className="sm:flex-1"
-              label={loading ? "正在处理…" : `开始转换 · ${targetFormat}`}
+              label={
+                loading
+                  ? "正在处理…"
+                  : stats.failed > 0 && stats.pending === stats.failed
+                    ? `重试失败项 · ${targetFormat}`
+                    : `开始转换 · ${targetFormat}`
+              }
               loading={loading}
               loadingLabel={`处理中 ${progress.current}/${progress.total || "—"}`}
               disabled={!canProcess}

@@ -1,8 +1,10 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
+import CopyButton from "@/components/CopyButton";
+import FileDropZone from "@/components/FileDropZone";
 import { ApiError, apiGet, apiUpload, downloadText } from "@/lib/api";
-import { shiftSrt, srtToVtt } from "@/lib/srt";
+import { shiftSrt, srtToPlainText, srtToVtt } from "@/lib/srt";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { useEffect, useState } from "react";
 
@@ -242,19 +244,16 @@ export default function SubtitleWorkshopForm() {
 
       {tab !== "edit" && (
         <>
-          <label className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-8 cursor-pointer hover:border-cyan-500/35 hover:bg-cyan-500/5 transition-all">
-            <span className="text-3xl opacity-60">📝</span>
-            <span className="text-sm text-white/50">{file?.name ?? "上传视频或音频"}</span>
-            <input
-              type="file"
-              accept="video/*,audio/*"
-              className="hidden"
-              onChange={(e) => {
-                setFile(e.target.files?.[0] ?? null);
-                setError(null);
-              }}
-            />
-          </label>
+          <FileDropZone
+            icon="📝"
+            accept="video/*,audio/*"
+            accent="cyan"
+            title={file?.name ?? "拖入或点击上传视频/音频"}
+            onFiles={(files) => {
+              setFile(files[0] ?? null);
+              setError(null);
+            }}
+          />
 
           {tab === "transcribe" && (
             <div>
@@ -281,10 +280,20 @@ export default function SubtitleWorkshopForm() {
       )}
 
       {(tab === "edit" || srtText) && (
-        <div className="space-y-3">
-          <label htmlFor="srt-edit" className="block text-sm text-white/60">
-            字幕内容（SRT）
-          </label>
+        <div className="space-y-3" data-tool-result="">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label htmlFor="srt-edit" className="block text-sm text-white/60">
+              字幕内容（SRT）
+            </label>
+            <div className="flex gap-2">
+              <CopyButton text={srtText} disabled={!srtText.trim()} />
+              <CopyButton
+                text={srtToPlainText(srtText)}
+                label="复制纯文本"
+                disabled={!srtText.trim()}
+              />
+            </div>
+          </div>
           <textarea
             id="srt-edit"
             value={srtText}
@@ -330,6 +339,14 @@ export default function SubtitleWorkshopForm() {
               className="rounded-lg border border-cyan-500/30 px-4 py-2 text-sm text-cyan-200/90 hover:bg-cyan-500/10 disabled:opacity-40"
             >
               下载 VTT
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadContent(srtToPlainText(srtText), "subtitle.txt")}
+              disabled={!srtText.trim()}
+              className="rounded-lg border border-cyan-500/30 px-4 py-2 text-sm text-cyan-200/90 hover:bg-cyan-500/10 disabled:opacity-40"
+            >
+              下载 TXT
             </button>
           </div>
         </div>

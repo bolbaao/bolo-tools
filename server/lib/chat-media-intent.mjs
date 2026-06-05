@@ -48,6 +48,30 @@ export function extractMediaKeyword(text) {
   return kw.length >= 2 && kw.length <= 30 ? kw : null;
 }
 
+function isSafeImageUrl(url) {
+  const trimmed = String(url || "").trim();
+  if (!trimmed) return false;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function escapeMarkdownAlt(text) {
+  return String(text || "封面").replace(/[\[\]]/g, "");
+}
+
+function buildMediaDownloadHref(query) {
+  const params = new URLSearchParams({
+    agent_tool: "media-download",
+    agent_auto: "1",
+    keyword: String(query || "").trim(),
+  });
+  return `/tools/media-download?${params}`;
+}
+
 export function formatMediaSearchReply(result) {
   if (!result.ok) {
     return formatResourceNotFound(result.query);
@@ -58,30 +82,45 @@ export function formatMediaSearchReply(result) {
     return formatResourceNotFound(query);
   }
 
-  const byPlatform = new Map();
+  const seen = new Set();
+  const items = [];
 
   for (const section of sections) {
     for (const item of section.items) {
-      for (const link of item.links) {
-        const list = byPlatform.get(link.label) ?? [];
-        if (!list.some((l) => l.url === link.url)) {
-          list.push({ ...link, title: item.title });
-          byPlatform.set(link.label, list);
-        }
-      }
+      if (!item.links?.length) continue;
+      const key = item.id || item.title;
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      items.push(item);
     }
   }
 
-  const lines = [`**${query}** 的相关结果：`, ""];
+  items.sort((a, b) => Number(Boolean(b.poster)) - Number(Boolean(a.poster)));
 
-  for (const [label, links] of byPlatform) {
-    lines.push(`**${label}**`);
-    for (const link of links.slice(0, 4)) {
-      let row = `- ${link.url}`;
+  const displayItems = items.slice(0, 6);
+  const lines = [`**「${query}」的相关资源**`, ""];
+
+  for (const item of displayItems) {
+    if (item.poster && isSafeImageUrl(item.poster)) {
+      lines.push(`![${escapeMarkdownAlt(item.title)}](${item.poster})`);
+      lines.push("");
+    }
+    lines.push(`**${item.title}**`);
+    for (const link of item.links.slice(0, 3)) {
+      let row = `- **${link.label}**：${link.url}`;
       if (link.password) row += `（提取码：\`${link.password}\`）`;
       lines.push(row);
     }
     lines.push("");
+  }
+
+  if (items.length > displayItems.length) {
+    const more = items.length - displayItems.length;
+    const toolHref = buildMediaDownloadHref(query);
+    lines.push(
+      `_另有 ${more} 条结果，可打开 [影视资源下载](${toolHref}) 查看全部。_`,
+      "",
+    );
   }
 
   lines.push("_若链接失效，可换关键词再试试。_");

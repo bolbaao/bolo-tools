@@ -11,6 +11,7 @@ import { env } from "./env.mjs";
 import { buildAgentSystemPrompt, parseAgentAction } from "./chat-agent.mjs";
 import { mergeToolResultIntoReply } from "./chat-tool-runner.mjs";
 import { tryMediaSearchReply } from "./chat-media-intent.mjs";
+import { trySubtitleToolReply } from "./chat-subtitle-intent.mjs";
 import {
   buildAttachmentContext,
   getChatAttachmentCapabilities,
@@ -52,6 +53,8 @@ export async function runWorkspaceChat(messages, opts = {}) {
     ...(Array.isArray(opts.chatFiles) ? opts.chatFiles : []),
     ...(Array.isArray(opts.pageContext?.chatFiles) ? opts.pageContext.chatFiles : []),
   ];
+  const rawFiles = Array.isArray(opts.rawFiles) ? opts.rawFiles : [];
+  const userId = opts.userId;
 
   if (!chatFiles.length) {
     const mediaReply = await tryMediaSearchReply(lastUser);
@@ -69,9 +72,32 @@ export async function runWorkspaceChat(messages, opts = {}) {
     }
   }
 
+  const subtitleReply = await trySubtitleToolReply(lastUser, { rawFiles, userId });
+  if (subtitleReply) {
+    return {
+      reply: subtitleReply,
+      provider: chatConfig.provider,
+      providerLabel: getChatProviderLabel(chatConfig.provider),
+      model: chatConfig.model,
+      mode,
+      chatImageVision: [],
+      chatFiles: chatFiles.map((f) => ({
+        name: f.name,
+        kind: f.kind,
+        description: f.description,
+        transcript: f.transcript ? `${f.transcript.slice(0, 200)}…` : undefined,
+        contentPreview: f.content ? `${f.content.slice(0, 120)}…` : undefined,
+        metadata: f.metadata,
+        error: f.error,
+      })),
+      agentAction: null,
+    };
+  }
+
   const { fileBlock, imageBlock, chatImageVision } = await buildAttachmentContext(
     chatFiles,
     lastUser,
+    opts.pageContext?.chatImages,
   );
 
   const pathHint = opts.pageContext?.path
@@ -111,8 +137,8 @@ export async function runWorkspaceChat(messages, opts = {}) {
         const merged = await mergeToolResultIntoReply(reply, agentAction, {
           lastUserMessage: lastUser,
           chatFiles,
-          rawFiles: opts.rawFiles,
-          userId: opts.userId,
+          rawFiles,
+          userId,
         });
         reply = merged.reply;
         agentAction = merged.agentAction;

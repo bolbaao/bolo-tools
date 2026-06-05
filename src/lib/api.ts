@@ -101,10 +101,30 @@ export async function apiPost<T>(
 }
 
 export async function apiGet<T>(path: string, opts?: FetchOpts): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    credentials: opts?.credentials,
-  });
-  return parseJson<T>(res);
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  if (opts?.timeoutMs && opts.timeoutMs > 0) {
+    timer = setTimeout(() => controller.abort(), opts.timeoutMs);
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      credentials: opts?.credentials,
+      signal: controller.signal,
+    });
+    return parseJson<T>(res);
+  } catch (e) {
+    if (e instanceof ApiError) throw e;
+    if (e instanceof Error && e.name === "AbortError") {
+      throw new ApiError("请求超时，请稍后重试", 408);
+    }
+    if (e instanceof TypeError) {
+      throw new ApiError(apiNotFoundMessage(), 0);
+    }
+    throw e;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export async function apiDelete<T>(path: string, opts?: FetchOpts): Promise<T> {

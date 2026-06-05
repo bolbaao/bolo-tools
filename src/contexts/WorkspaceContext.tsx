@@ -1,7 +1,10 @@
 "use client";
 
+import { readInitialSidebarCollapsed } from "@/hooks/useMobileLayout";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+
+const MOBILE_QUERY = "(max-width: 1023px)";
 
 export type WorkspacePhase = "intro" | "active";
 
@@ -18,6 +21,7 @@ type WorkspaceContextValue = {
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
+  closeSidebar: () => void;
   startWorkspace: () => void;
 };
 
@@ -44,10 +48,29 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }, [isHome]);
 
   const sidebarPinned = phase === "active" || isToolPath(pathname);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(readInitialSidebarCollapsed);
+
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_QUERY);
+    const sync = () => {
+      if (mq.matches) setSidebarCollapsed(true);
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia(MOBILE_QUERY).matches) setSidebarCollapsed(true);
+  }, [pathname]);
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => !prev);
+  }, []);
+
+  const closeSidebar = useCallback(() => {
+    setSidebarCollapsed(true);
   }, []);
 
   const startWorkspace = useCallback(() => {
@@ -63,6 +86,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         sidebarCollapsed,
         setSidebarCollapsed,
         toggleSidebar,
+        closeSidebar,
         startWorkspace,
       }}
     >

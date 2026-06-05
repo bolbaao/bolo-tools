@@ -9,7 +9,6 @@ import {
   type PendingChatFile,
   type ProcessedChatFile,
 } from "@/lib/chat-files";
-import { saveAgentPrefill } from "@/lib/agent-prefill";
 import { AI_SERVICE_UNAVAILABLE } from "@/lib/service-message";
 import { useRouter } from "next/navigation";
 import {
@@ -72,7 +71,8 @@ type WorkspaceChatContextValue = {
   clearPendingFiles: () => void;
   sendMessage: (text: string) => Promise<void>;
   clearMessages: () => void;
-  openAgentAction: (action: AgentAction) => void;
+  deleteMessage: (id: string) => void;
+  openAgentAction: (action: AgentAction, messageId: string) => Promise<void>;
 };
 
 const WorkspaceChatContext = createContext<WorkspaceChatContextValue | null>(null);
@@ -130,6 +130,10 @@ export function WorkspaceChatProvider({ children }: { children: ReactNode }) {
     setError(null);
   }, []);
 
+  const deleteMessage = useCallback((id: string) => {
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+  }, []);
+
   const backToChat = useCallback(() => {
     setBackChatTransition(true);
     router.push("/", { scroll: false });
@@ -142,11 +146,40 @@ export function WorkspaceChatProvider({ children }: { children: ReactNode }) {
   }, [backChatTransition, pathname]);
 
   const openAgentAction = useCallback(
-    (action: AgentAction) => {
-      saveAgentPrefill(action.toolId, action.fields, { silent: true });
-      router.push(action.href);
+    async (action: AgentAction, messageId: string) => {
+      if (loading) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const form = new FormData();
+        form.append("payload", JSON.stringify({ agentAction: action }));
+        for (const item of pendingFiles) {
+          form.append("files", item.file, item.file.name);
+        }
+        const raw = await apiUpload("/api/chat/run-tool", form, { timeoutMs: 300000 });
+        if (raw instanceof Blob) {
+          throw new ApiError("服务返回异常");
+        }
+        const result = raw as { ok: boolean; reply: string; agentAction?: AgentAction | null };
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId
+              ? {
+                  ...m,
+                  content: [m.content, result.reply].filter(Boolean).join("\n\n"),
+                  agentAction: result.agentAction ?? null,
+                }
+              : m,
+          ),
+        );
+        clearPendingFiles();
+      } catch (e) {
+        setError(e instanceof ApiError ? e.message : "处理失败");
+      } finally {
+        setLoading(false);
+      }
     },
-    [router],
+    [clearPendingFiles, loading, pendingFiles],
   );
 
   const sendMessage = useCallback(
@@ -250,6 +283,7 @@ export function WorkspaceChatProvider({ children }: { children: ReactNode }) {
       clearPendingFiles,
       sendMessage,
       clearMessages,
+      deleteMessage,
       openAgentAction,
     }),
     [
@@ -267,6 +301,7 @@ export function WorkspaceChatProvider({ children }: { children: ReactNode }) {
       clearPendingFiles,
       sendMessage,
       clearMessages,
+      deleteMessage,
       openAgentAction,
     ],
   );

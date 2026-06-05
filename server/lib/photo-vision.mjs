@@ -147,6 +147,23 @@ function isAllowedImageDataUrl(url) {
 }
 
 async function describeOneImage(img, userContext) {
+  const cached = typeof img?.visionDescription === "string" ? img.visionDescription.trim() : "";
+  if (cached) {
+    return {
+      description: cached,
+      error: null,
+      visionProvider: img.visionProvider || null,
+    };
+  }
+
+  if (img?.visionError) {
+    return {
+      description: null,
+      error: String(img.visionError),
+      visionProvider: null,
+    };
+  }
+
   let description = null;
   let error = null;
   let visionProvider = null;
@@ -182,15 +199,19 @@ export async function resolveChatImagesSnapshot(chatImages, opts = {}) {
   if (!Array.isArray(chatImages) || !chatImages.length) return null;
 
   const userContext = opts.userContext;
-  const withPreview = chatImages
-    .filter((i) => i?.previewDataUrl && isAllowedImageDataUrl(i.previewDataUrl))
+  const eligible = chatImages
+    .filter((i) => {
+      if (!i) return false;
+      if (typeof i.visionDescription === "string" && i.visionDescription.trim()) return true;
+      return i.previewDataUrl && isAllowedImageDataUrl(i.previewDataUrl);
+    })
     .slice(0, 6);
-  if (!withPreview.length) {
+  if (!eligible.length) {
     return { error: "图片未包含可识别数据" };
   }
 
   const results = await Promise.all(
-    withPreview.map(async (img, i) => {
+    eligible.map(async (img, i) => {
       const { description, error, visionProvider } = await describeOneImage(img, userContext);
       return {
         index: i + 1,
@@ -206,7 +227,7 @@ export async function resolveChatImagesSnapshot(chatImages, opts = {}) {
     }),
   );
 
-  return { count: withPreview.length, items: results };
+  return { count: eligible.length, items: results };
 }
 
 export function formatChatImagesForPrompt(snapshot) {

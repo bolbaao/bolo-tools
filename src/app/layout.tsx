@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import AppShell from "@/components/AppShell";
 import PageTransition from "@/components/PageTransition";
 import EmailVerifyBanner from "@/components/EmailVerifyBanner";
@@ -10,6 +10,12 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "春雨集",
   description: `${PUBLIC_SITE_TAGLINE} — 音乐转换、视频提取、AI 创作与热点工具，简洁好用的创作者工具箱。`,
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

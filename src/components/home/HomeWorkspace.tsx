@@ -23,7 +23,7 @@ export default function HomeWorkspace() {
       }`}
     >
       <div
-        className={`home-hero-shell z-20 flex flex-col items-center px-6 text-center lg:px-12 ${
+        className={`home-hero-shell z-20 flex flex-col items-center px-4 text-center sm:px-6 lg:px-12 ${
           active ? "home-hero-shell-active" : "home-hero-shell-intro home-hero-enter"
         }`}
       >

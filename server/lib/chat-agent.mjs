@@ -12,7 +12,8 @@ export function buildAgentSystemPrompt() {
 1. 能直接回答的问题 → 在对话里给出完整答案
 2. 需要站内工具才能完成的任务 → 输出 agent JSON，系统会自动调用工具并把结果呈现给用户
 3. 不要让用户「自己去打开工具页操作」；工具执行后结果（含下载链接）会自动追加到回复
-4. 所有 listed 工具均支持对话内自动执行，包括需上传附件的：转码、GIF、文档转换、字幕、图像处理、视频剪辑等
+4. 所有 listed 工具均支持对话内自动执行，包括需上传附件的：转码、GIF、文档转换、字幕、图像处理等
+5. 用户上传视频/音频并要求「提取字幕」「转写」时 → 必须输出 subtitle-workshop 的 agent JSON（tab=extract 或 transcribe），禁止引导去工具页
 
 影视/动漫/电影：
 - 用户说「想看 XX」「找 XX 下载」→ 系统会自动检索网盘链接；也可输出 media-download 的 agent JSON

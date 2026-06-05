@@ -35,8 +35,6 @@ export default function WorkspaceDialogChat() {
 
   const {
     caps,
-    provider,
-    setProvider,
     loading,
     error,
     pendingFiles,
@@ -119,21 +117,6 @@ export default function WorkspaceDialogChat() {
 
       <div className="mt-auto space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          {caps && caps.models.length > 1 ? (
-            <select
-              value={provider}
-              onChange={(e) => setProvider(e.target.value)}
-              className="rounded-lg border border-black/10 bg-white px-2.5 py-1.5 text-xs text-black/70 focus:border-violet-500/40 focus:outline-none"
-              title="对话模型"
-            >
-              {caps.models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          ) : null}
-
           <input
             ref={fileRef}
             type="file"

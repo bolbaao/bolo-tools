@@ -1,13 +1,15 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
+import ImageCompareSlider from "@/components/ImageCompareSlider";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { useDisplayContent } from "@/hooks/useDisplayContent";
 import { ApiError, apiPost, downloadBlob } from "@/lib/api";
+import { formatBytes } from "@/lib/format";
 import {
+  buildImageZip,
   compressImage,
   compositeSubjectOnBackground,
-  formatBytes,
   outputFilename,
   prepareImageForEdit,
   previewUrlFromFile,
@@ -15,7 +17,7 @@ import {
   type OutputFormat,
 } from "@/lib/image-processing";
 import { getImageStudioFooterHint } from "@/lib/site-content";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Tab = "compress" | "sharpen" | "cutout" | "bgreplace" | "watermark" | "beautify" | "edit" | "generate";
 
@@ -109,6 +111,21 @@ const activeTabClass: Record<Tab, string> = {
   generate: "bg-violet-600/25 text-violet-100 border border-violet-500/30",
 };
 
+type CompressItem = {
+  id: string;
+  file: File;
+  beforeUrl: string;
+  afterUrl?: string;
+  resultBlob?: Blob;
+  resultSize?: number;
+  status: "pending" | "processing" | "done" | "error";
+  error?: string;
+};
+
+function newCompressId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 type ImageStudioFormProps = {
   initialTab?: Tab;
 };
@@ -148,6 +165,9 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
   const [watermarkMessage, setWatermarkMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [compressItems, setCompressItems] = useState<CompressItem[]>([]);
+  const [compressProgress, setCompressProgress] = useState({ current: 0, total: 0 });
+  const [resultBlob, setResultBlob] = useState<Blob | null>(null);
 
   const handleGenerate = useCallback(async (promptOverride?: string) => {
     const p = (promptOverride ?? prompt).trim();
@@ -203,6 +223,20 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     submit: (fields) => handleGenerate(fields.prompt),
   });
 
+  const resetCompressPreview = useCallback(() => {
+    if (afterUrl) URL.revokeObjectURL(afterUrl);
+    setAfterUrl(null);
+    setResultSize(null);
+    setResultBlob(null);
+  }, [afterUrl]);
+
+  const revokeCompressItems = useCallback((items: CompressItem[]) => {
+    for (const item of items) {
+      URL.revokeObjectURL(item.beforeUrl);
+      if (item.afterUrl) URL.revokeObjectURL(item.afterUrl);
+    }
+  }, []);
+
   useEffect(() => {
     if (initialTab) setTab(initialTab);
   }, [initialTab]);
@@ -215,19 +249,67 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     };
   }, [beforeUrl, afterUrl, bgFileUrl]);
 
+  const compressItemsRef = useRef(compressItems);
+  compressItemsRef.current = compressItems;
+  useEffect(() => {
+    return () => revokeCompressItems(compressItemsRef.current);
+  }, [revokeCompressItems]);
+
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
+    const list = e.target.files;
+    if (!list?.length) return;
+
+    if (tab === "compress" && list.length > 1) {
+      const accepted: CompressItem[] = [];
+      for (const f of Array.from(list)) {
+        if (!f.type.startsWith("image/")) continue;
+        accepted.push({
+          id: newCompressId(),
+          file: f,
+          beforeUrl: previewUrlFromFile(f),
+          status: "pending",
+        });
+      }
+      if (accepted.length === 0) {
+        setError("请选择图片文件");
+        return;
+      }
+      if (compressItems.length + accepted.length > 50) {
+        setError("单次最多 50 张图片，请分批处理");
+        return;
+      }
+      setError(null);
+      setCompressItems((prev) => [...prev, ...accepted]);
+      e.target.value = "";
+      return;
+    }
+
+    const f = list[0];
     if (beforeUrl) URL.revokeObjectURL(beforeUrl);
-    if (afterUrl) URL.revokeObjectURL(afterUrl);
+    resetCompressPreview();
+    if (tab === "compress") {
+      revokeCompressItems(compressItems);
+      setCompressItems([]);
+    }
     setFile(f ?? null);
     setBeforeUrl(f ? previewUrlFromFile(f) : null);
-    setAfterUrl(null);
-    setResultSize(null);
     setEditMessage(null);
     setBeautifyMessage(null);
     setBgMessage(null);
     setWatermarkMessage(null);
     setError(null);
+    e.target.value = "";
+  };
+
+  const removeCompressItem = (id: string) => {
+    setCompressItems((prev) => {
+      const item = prev.find((i) => i.id === id);
+      if (item) {
+        URL.revokeObjectURL(item.beforeUrl);
+        if (item.afterUrl) URL.revokeObjectURL(item.afterUrl);
+      }
+      return prev.filter((i) => i.id !== id);
+    });
   };
 
   const onBgFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -241,16 +323,89 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     if (!file) return;
     setLoading(true);
     setError(null);
+    resetCompressPreview();
     try {
       const blob = await compressImage(file, format, Number(quality));
       setResultSize(blob.size);
-      downloadBlob(blob, outputFilename(file.name, format));
+      setResultBlob(blob);
+      setAfterUrl(URL.createObjectURL(blob));
     } catch (e) {
       setError(e instanceof Error ? e.message : "压缩失败");
     } finally {
       setLoading(false);
     }
   };
+
+  const handleDownloadCompress = () => {
+    if (!file || !resultBlob) return;
+    downloadBlob(resultBlob, outputFilename(file.name, format));
+  };
+
+  const runBatchCompress = async () => {
+    const pending = compressItems.filter((i) => i.status === "pending" || i.status === "error");
+    if (pending.length === 0) return;
+
+    setLoading(true);
+    setError(null);
+    setCompressProgress({ current: 0, total: pending.length });
+
+    let current = 0;
+    for (const item of pending) {
+      setCompressItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, status: "processing", error: undefined } : i)),
+      );
+      try {
+        const blob = await compressImage(item.file, format, Number(quality));
+        const afterUrl = URL.createObjectURL(blob);
+        setCompressItems((prev) =>
+          prev.map((i) =>
+            i.id === item.id
+              ? { ...i, status: "done", resultBlob: blob, resultSize: blob.size, afterUrl }
+              : i,
+          ),
+        );
+      } catch (e) {
+        setCompressItems((prev) =>
+          prev.map((i) =>
+            i.id === item.id
+              ? { ...i, status: "error", error: e instanceof Error ? e.message : "压缩失败" }
+              : i,
+          ),
+        );
+      }
+      current += 1;
+      setCompressProgress({ current, total: pending.length });
+    }
+    setLoading(false);
+  };
+
+  const downloadCompressZip = async () => {
+    const done = compressItems.filter((i) => i.status === "done" && i.resultBlob);
+    if (done.length === 0) return;
+    setLoading(true);
+    try {
+      const blob = await buildImageZip(
+        done.map((i) => ({
+          blob: i.resultBlob!,
+          filename: outputFilename(i.file.name, format),
+        })),
+      );
+      downloadBlob(blob, `images-${format}-${Date.now()}.zip`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "打包失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const compressStats = useMemo(() => {
+    const total = compressItems.length;
+    const done = compressItems.filter((i) => i.status === "done").length;
+    const pending = compressItems.filter((i) => i.status === "pending" || i.status === "error").length;
+    return { total, done, pending };
+  }, [compressItems]);
+
+  const isBatchCompress = tab === "compress" && compressItems.length > 0;
 
   const handleSharpen = async () => {
     if (!file) return;
@@ -505,7 +660,7 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
   const handleDownloadWatermark = () => handleDownloadResult("no-watermark");
 
   const primaryAction = () => {
-    if (tab === "compress") return handleCompress();
+    if (tab === "compress") return isBatchCompress ? runBatchCompress() : handleCompress();
     if (tab === "sharpen") return handleSharpen();
     if (tab === "beautify") return handleBeautify();
     if (tab === "edit") return handleEdit();
@@ -516,7 +671,11 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
   };
 
   const primaryLabel = {
-    compress: `压缩并下载 ${format}`,
+    compress: isBatchCompress
+      ? `批量压缩 ${format}`
+      : afterUrl
+        ? "重新压缩"
+        : `开始压缩 ${format}`,
     sharpen: "变清晰并下载",
     cutout: "开始智能抠图",
     bgreplace: "开始换背景",
@@ -533,7 +692,11 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
         ? !file || !editPrompt.trim()
         : tab === "bgreplace"
           ? !file || (bgMode === "upload" && !bgFile) || (bgMode === "ai" && !bgAiPrompt.trim())
-          : !file;
+          : tab === "compress" && isBatchCompress
+            ? compressStats.pending === 0 || loading
+            : tab === "compress"
+              ? !file
+              : !file;
 
   return (
     <div className="space-y-6">
@@ -1136,10 +1299,107 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
             {tab === "compress" ? "◐" : tab === "sharpen" ? "◇" : "◈"}
           </span>
         )}
-        <span className="text-sm text-white/50">{file?.name ?? "上传图片"}</span>
-        <span className="text-xs text-white/25">压缩、清晰、抠图即时处理，注重隐私</span>
-        <input type="file" accept="image/*" className="hidden" onChange={onFile} />
+        <span className="text-sm text-white/50">
+          {tab === "compress" && isBatchCompress
+            ? `已选 ${compressItems.length} 张，可继续添加`
+            : file?.name ?? (tab === "compress" ? "上传图片（可多选）" : "上传图片")}
+        </span>
+        <span className="text-xs text-white/25">
+          {tab === "compress" ? "支持批量压缩，单张可前后对比" : "压缩、清晰、抠图即时处理，注重隐私"}
+        </span>
+        <input
+          type="file"
+          accept="image/*"
+          multiple={tab === "compress"}
+          className="hidden"
+          onChange={onFile}
+        />
       </label>
+
+      {tab === "compress" && isBatchCompress && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-white/40">
+            <span>
+              共 {compressStats.total} 张 · 完成 {compressStats.done}
+              {loading && compressProgress.total > 0
+                ? ` · 处理中 ${compressProgress.current}/${compressProgress.total}`
+                : ""}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                revokeCompressItems(compressItems);
+                setCompressItems([]);
+              }}
+              className="text-white/45 hover:text-white/70"
+            >
+              清空列表
+            </button>
+          </div>
+          <ul className="max-h-52 space-y-1.5 overflow-y-auto rounded-xl border border-white/8 bg-white/[0.02] p-2">
+            {compressItems.map((item) => (
+              <li
+                key={item.id}
+                className="flex items-center gap-2 rounded-lg border border-white/6 bg-black/20 px-3 py-2"
+              >
+                <span className="min-w-0 flex-1 truncate text-xs text-white/70">{item.file.name}</span>
+                <span className="shrink-0 text-[10px] text-white/35">
+                  {formatBytes(item.file.size)}
+                  {item.resultSize != null ? ` → ${formatBytes(item.resultSize)}` : ""}
+                </span>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ring-1 ${
+                    item.status === "done"
+                      ? "bg-emerald-500/15 text-emerald-200 ring-emerald-500/30"
+                      : item.status === "error"
+                        ? "bg-red-500/15 text-red-300 ring-red-500/30"
+                        : item.status === "processing"
+                          ? "bg-lime-500/15 text-lime-200 ring-lime-500/30"
+                          : "bg-white/5 text-white/40 ring-white/10"
+                  }`}
+                >
+                  {item.status === "done"
+                    ? "完成"
+                    : item.status === "error"
+                      ? "失败"
+                      : item.status === "processing"
+                        ? "处理中"
+                        : "等待"}
+                </span>
+                {item.status === "done" && item.resultBlob && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      downloadBlob(item.resultBlob!, outputFilename(item.file.name, format))
+                    }
+                    className="shrink-0 text-[10px] text-lime-300/80 hover:text-lime-200"
+                  >
+                    下载
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeCompressItem(item.id)}
+                  disabled={item.status === "processing"}
+                  className="shrink-0 text-[10px] text-white/30 hover:text-white/60 disabled:opacity-30"
+                >
+                  移除
+                </button>
+              </li>
+            ))}
+          </ul>
+          {compressStats.done > 0 && (
+            <button
+              type="button"
+              onClick={() => void downloadCompressZip()}
+              disabled={loading}
+              className="w-full rounded-xl border border-lime-500/25 bg-lime-500/10 py-2.5 text-sm text-lime-200/90 hover:bg-lime-500/15 disabled:opacity-40"
+            >
+              打包下载 ZIP（{compressStats.done} 张）
+            </button>
+          )}
+        </div>
+      )}
 
       {tab === "compress" && (
         <>
@@ -1177,19 +1437,40 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
               className="w-full accent-lime-500"
             />
           </div>
-          <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4 flex justify-between text-sm">
-            <div>
-              <p className="text-white/40 text-xs">原始大小</p>
-              <p className="text-white/80 mt-1">{file ? formatBytes(file.size) : "—"}</p>
-            </div>
-            <div className="text-white/20">→</div>
-            <div className="text-right">
-              <p className="text-white/40 text-xs">压缩后</p>
-              <p className="text-lime-300 mt-1">
-                {resultSize != null ? formatBytes(resultSize) : "点击压缩后显示"}
-              </p>
-            </div>
-          </div>
+          {!isBatchCompress && (
+            <>
+              <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4 flex justify-between text-sm">
+                <div>
+                  <p className="text-white/40 text-xs">原始大小</p>
+                  <p className="text-white/80 mt-1">{file ? formatBytes(file.size) : "—"}</p>
+                </div>
+                <div className="text-white/20">→</div>
+                <div className="text-right">
+                  <p className="text-white/40 text-xs">压缩后</p>
+                  <p className="text-lime-300 mt-1">
+                    {resultSize != null ? formatBytes(resultSize) : "点击压缩后显示"}
+                  </p>
+                </div>
+              </div>
+              {beforeUrl && afterUrl && (
+                <ImageCompareSlider
+                  beforeSrc={beforeUrl}
+                  afterSrc={afterUrl}
+                  beforeLabel="原图"
+                  afterLabel="压缩后"
+                />
+              )}
+              {resultBlob && file && (
+                <button
+                  type="button"
+                  onClick={handleDownloadCompress}
+                  className="w-full rounded-xl border border-lime-500/25 bg-lime-500/10 py-2.5 text-sm text-lime-200/90 hover:bg-lime-500/15"
+                >
+                  下载 {format}（{resultSize != null ? formatBytes(resultSize) : ""}）
+                </button>
+              )}
+            </>
+          )}
         </>
       )}
 
@@ -1267,7 +1548,11 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
         label={primaryLabel}
         loading={loading}
         loadingLabel={
-          (tab === "cutout" || tab === "bgreplace") && loadProgress
+          tab === "compress" && isBatchCompress && compressProgress.total > 0
+            ? `批量压缩 ${compressProgress.current}/${compressProgress.total}`
+            : tab === "compress" && loading
+              ? "压缩中…"
+              : (tab === "cutout" || tab === "bgreplace") && loadProgress
             ? loadProgress
             : tab === "edit" && loading
               ? "AI 修图中，约需数秒…"

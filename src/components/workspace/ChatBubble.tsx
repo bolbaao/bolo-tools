@@ -99,19 +99,24 @@ export function ChatAgentActionButton({
   title,
   compact,
   onClick,
+  loading,
 }: {
   title: string;
   compact?: boolean;
   onClick: () => void;
+  loading?: boolean;
 }) {
+  const label = loading ? "处理中…" : `继续处理 · ${title}`;
+
   if (compact) {
     return (
       <button
         type="button"
         onClick={onClick}
-        className="mt-2 rounded-lg border border-accent/20 bg-accent-muted px-2.5 py-1.5 text-[11px] text-accent-deep/90 transition-colors hover:bg-accent/12"
+        disabled={loading}
+        className="mt-2 rounded-lg border border-accent/20 bg-accent-muted px-2.5 py-1.5 text-[11px] text-accent-deep/90 transition-colors hover:bg-accent/12 disabled:opacity-50"
       >
-        打开 {title}
+        {label}
       </button>
     );
   }
@@ -122,9 +127,10 @@ export function ChatAgentActionButton({
       <button
         type="button"
         onClick={onClick}
-        className="rounded-xl border border-accent/20 bg-accent-muted px-3.5 py-2 text-xs text-accent-deep/90 transition-colors hover:bg-accent/12"
+        disabled={loading}
+        className="rounded-xl border border-accent/20 bg-accent-muted px-3.5 py-2 text-xs text-accent-deep/90 transition-colors hover:bg-accent/12 disabled:opacity-50"
       >
-        打开 {title} 并预填
+        {label}
       </button>
     </div>
   );

@@ -242,6 +242,7 @@ async function testChatApi() {
       return;
     }
     fail("chatImageVision", err);
+    return;
   } else {
     ok("chatImageVision", vision.visionProvider || "—");
   }

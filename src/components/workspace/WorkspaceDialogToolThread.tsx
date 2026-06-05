@@ -1,13 +1,14 @@
 "use client";
 
 import ChatBubble, { ChatAgentActionButton } from "@/components/workspace/ChatBubble";
+import ChatMessageRow from "@/components/workspace/ChatMessageRow";
 import ChatTypingIndicator from "@/components/workspace/ChatTypingIndicator";
 import { useWorkspaceChat } from "@/contexts/WorkspaceChatContext";
 import { useEffect, useRef } from "react";
 
 /** 工具页底部对话框内的精简对话记录 */
 export default function WorkspaceDialogToolThread() {
-  const { messages, loading, openAgentAction } = useWorkspaceChat();
+  const { messages, loading, deleteMessage, openAgentAction } = useWorkspaceChat();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,16 +25,16 @@ export default function WorkspaceDialogToolThread() {
       className="workspace-dialog-tool-thread custom-scrollbar mb-3 max-h-[min(40vh,280px)] space-y-2.5 overflow-y-auto rounded-xl border border-black/[0.06] bg-black/[0.02] p-3"
     >
       {messages.map((msg) => (
-        <div key={msg.id}>
+        <ChatMessageRow key={msg.id} messageId={msg.id} onDelete={deleteMessage} compact>
           <ChatBubble msg={msg} variant="compact" />
           {msg.agentAction ? (
             <ChatAgentActionButton
               compact
               title={msg.agentAction.title}
-              onClick={() => openAgentAction(msg.agentAction!)}
+              onClick={() => void openAgentAction(msg.agentAction!, msg.id)}
             />
           ) : null}
-        </div>
+        </ChatMessageRow>
       ))}
       {loading ? <ChatTypingIndicator compact label="思考中" /> : null}
     </div>

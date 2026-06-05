@@ -63,7 +63,7 @@ export const tools: Tool[] = [
   {
     id: "app-builder",
     title: "一键做 App",
-    description: "说出你想做的小工具或页面，AI 帮你生成、预览并下载，也能配合 iPhone 快捷指令使用。",
+    description: "说出你想做的小工具或页面，AI 生成后可继续优化、多端预览并下载，也能配合 iPhone 快捷指令使用。",
     href: "/tools/app-builder",
     gradient: "from-cyan-500/20 via-teal-500/15 to-emerald-500/10",
     tag: "AI",
@@ -130,14 +130,6 @@ export const tools: Tool[] = [
     description: "给视频或音频自动加字幕，也能从片子里提取原有字幕，改好后导出使用。",
     href: "/tools/subtitle-workshop",
     gradient: "from-cyan-500/20 to-teal-500/10",
-    tag: "视频",
-  },
-  {
-    id: "ai-video-edit",
-    title: "AI 视频剪辑",
-    description: "用大白话告诉 AI 怎么剪，或把口播稿配上画面并生成配音，出片更快。",
-    href: "/tools/ai-video-edit",
-    gradient: "from-fuchsia-500/20 via-violet-500/15 to-cyan-500/10",
     tag: "视频",
   },
   {

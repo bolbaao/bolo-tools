@@ -45,7 +45,6 @@ const SOURCE_LABELS: Record<string, string> = {
   "gif-maker": "GIF 动图",
   "subtitle-extract": "字幕提取",
   "subtitle-transcribe": "字幕转写",
-  "ai-video-edit": "AI 视频剪辑",
   unknown: "其他",
 };
 

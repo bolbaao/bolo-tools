@@ -3,13 +3,16 @@
 import AppSidebar from "@/components/AppSidebar";
 import HomeBackground from "@/components/home/HomeBackground";
 import HomeBackgroundControl from "@/components/home/HomeBackgroundControl";
+import { useMobileLayout } from "@/hooks/useMobileLayout";
 import { WorkspaceChatProvider } from "@/contexts/WorkspaceChatContext";
 import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { usePathname } from "next/navigation";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { phase, sidebarPinned, sidebarCollapsed, toggleSidebar, startWorkspace } = useWorkspace();
+  const isMobile = useMobileLayout();
+  const { phase, sidebarPinned, sidebarCollapsed, toggleSidebar, closeSidebar, startWorkspace } =
+    useWorkspace();
   const sidebarOpen = sidebarPinned && !sidebarCollapsed;
   const homeIntro = pathname === "/" && phase === "intro";
 
@@ -17,11 +20,30 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     <div className="app-shell relative flex h-full min-h-0 flex-1 overflow-hidden">
       <div
         className={`app-sidebar-slot shrink-0 overflow-hidden ${
-          sidebarOpen ? "w-[260px]" : "w-0"
+          !isMobile && sidebarOpen ? "w-[260px]" : "w-0"
         }`}
       >
-        <AppSidebar />
+        {!isMobile ? <AppSidebar onNavigate={closeSidebar} /> : null}
       </div>
+
+      {isMobile && sidebarPinned ? (
+        <div
+          className="app-sidebar-mobile-layer"
+          data-open={sidebarOpen ? "true" : "false"}
+          aria-hidden={!sidebarOpen}
+        >
+          <button
+            type="button"
+            className="app-sidebar-backdrop"
+            onClick={closeSidebar}
+            aria-label="关闭导航"
+            tabIndex={sidebarOpen ? 0 : -1}
+          />
+          <div className="app-sidebar-mobile">
+            <AppSidebar onNavigate={closeSidebar} />
+          </div>
+        </div>
+      ) : null}
 
       <div className="app-main relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <HomeBackground />

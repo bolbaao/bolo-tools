@@ -33,7 +33,7 @@ export default function WorkspaceFrame({
     <div className={`workspace-frame flex min-h-0 flex-1 flex-col ${className}`}>
       <div className="workspace-unified flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="workspace-panel workspace-light custom-scrollbar min-h-0 flex-1 overflow-y-auto">
-          <div className="workspace-panel-inner mx-auto flex min-h-full w-full flex-col px-5 py-6 sm:px-8 sm:py-8">
+          <div className="workspace-panel-inner mx-auto flex min-h-full w-full flex-col px-4 py-5 sm:px-8 sm:py-8">
             {showToolHeader ? (
               <header className="workspace-header mb-7 border-b pb-6 sm:mb-8 sm:pb-7">
                 {header}

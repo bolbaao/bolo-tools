@@ -42,11 +42,12 @@ export const AGENT_TOOLS = [
     id: "app-builder",
     title: "一键做 App",
     href: "/tools/app-builder",
-    description: "说出想做的小工具或页面，AI 生成、预览并下载，可配合快捷指令",
+    description: "说出想做的小工具或页面，AI 生成、预览、继续优化并下载，可配合快捷指令",
     fields: {
       description: "应用需求描述",
       appType: "tool|shortcuts|api|landing|dashboard|game|form",
       appName: "应用名称",
+      styleTheme: "auto|dark|light|minimal|colorful|glass",
     },
   },
   {
@@ -109,17 +110,6 @@ export const AGENT_TOOLS = [
     href: "/tools/gif-maker",
     description: "从视频里截一段做成动图，时间、长短和大小可调",
     fields: { start: "起始秒", duration: "时长秒", fps: "帧率", width: "宽度px" },
-  },
-  {
-    id: "ai-video-edit",
-    title: "AI 视频剪辑",
-    href: "/tools/ai-video-edit",
-    description: "用大白话告诉 AI 怎么剪，或把口播稿配上画面并生成配音",
-    fields: {
-      mode: "edit|voiceover",
-      instruction: "剪辑/匹配要求",
-      script: "口播文稿（剪口播模式）",
-    },
   },
   {
     id: "text-toolbox",

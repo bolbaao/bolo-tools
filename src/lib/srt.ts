@@ -27,6 +27,22 @@ function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
+/** 从 SRT 提取纯文本（去掉序号与时间轴） */
+export function srtToPlainText(srt: string): string {
+  return srt
+    .trim()
+    .replace(/\r\n/g, "\n")
+    .split(/\n\n+/)
+    .map((block) => {
+      const lines = block.split("\n").filter((l) => l.trim());
+      if (lines.length <= 1) return "";
+      const textLines = lines.slice(1).filter((l) => !/-->/.test(l));
+      return textLines.join(" ");
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
 export function srtToVtt(srt: string): string {
   const body = srt
     .trim()

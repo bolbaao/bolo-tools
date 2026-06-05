@@ -28,10 +28,10 @@ function clamp(n, min, max) {
   return Math.min(max, Math.max(min, n));
 }
 
-function withTmpDir(fn) {
+async function withTmpDir(fn) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pineapple-chat-tool-"));
   try {
-    return fn(tmpDir);
+    return await fn(tmpDir);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

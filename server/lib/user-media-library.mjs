@@ -171,6 +171,32 @@ export function getUserMediaFile(id) {
   return { item, filePath };
 }
 
+/** 取最近一次对话上传的音视频（多轮对话复用附件） */
+export function getLatestChatUpload(userId, kinds = ["video", "audio"]) {
+  const kindSet = new Set(kinds);
+  let items = loadMeta().filter(
+    (i) => i.source === "chat" && (i.kind === "video" || i.kind === "audio"),
+  );
+  if (userId) items = items.filter((i) => i.userId === userId);
+  else items = items.filter((i) => !i.userId);
+  items.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+
+  for (const item of items) {
+    if (!kindSet.has(item.kind)) continue;
+    const stored = getUserMediaFile(item.id);
+    if (!stored) continue;
+    const buffer = fs.readFileSync(stored.filePath);
+    if (!buffer?.length) continue;
+    return {
+      buffer,
+      originalname: item.name,
+      mimetype: item.mime,
+      size: item.size ?? buffer.length,
+    };
+  }
+  return null;
+}
+
 export function cleanupExpiredUserMedia() {
   const now = Date.now();
   const meta = loadMeta();

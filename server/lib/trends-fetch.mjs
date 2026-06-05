@@ -21,6 +21,11 @@ function cacheSet(key, payload) {
   cache.set(key, { at: Date.now(), payload });
 }
 
+export function clearTrendsCache(platform) {
+  if (platform) cache.delete(platform);
+  else cache.clear();
+}
+
 export function formatHeat(value) {
   if (value == null || value === "") return "—";
   const raw = String(value).trim();
@@ -95,7 +100,8 @@ async function fetchDouyinFromIes() {
   return list;
 }
 
-export async function fetchDouyinTrends() {
+export async function fetchDouyinTrends({ force = false } = {}) {
+  if (force) cache.delete("douyin");
   const cached = cacheGet("douyin");
   if (cached) return cached;
 
@@ -123,7 +129,8 @@ function parseInitialState(html) {
   return JSON.parse(match[1].replace(/undefined/g, "null"));
 }
 
-export async function fetchXiaohongshuTrends() {
+export async function fetchXiaohongshuTrends({ force = false } = {}) {
+  if (force) cache.delete("xiaohongshu");
   const cached = cacheGet("xiaohongshu");
   if (cached) return cached;
 
@@ -171,8 +178,8 @@ export async function fetchXiaohongshuTrends() {
   return payload;
 }
 
-export async function fetchTrends(platform) {
-  if (platform === "douyin") return fetchDouyinTrends();
-  if (platform === "xiaohongshu") return fetchXiaohongshuTrends();
+export async function fetchTrends(platform, { force = false } = {}) {
+  if (platform === "douyin") return fetchDouyinTrends({ force });
+  if (platform === "xiaohongshu") return fetchXiaohongshuTrends({ force });
   throw new HttpError(400, "不支持的平台");
 }

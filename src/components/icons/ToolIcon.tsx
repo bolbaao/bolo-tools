@@ -68,20 +68,6 @@ function ImageStudioIcon({ gradId }: IconProps) {
   );
 }
 
-/** 相片轮廓 + 右下角视觉星标，用于对话上传/识别图片 */
-function ImageVisionIconGfx({ gradId }: IconProps) {
-  const g = `url(#${gradId})`;
-  return (
-    <>
-      <rect x="4" y="7" width="10" height="8" rx="1.75" {...stroke} stroke={g} />
-      <circle cx="6.75" cy="9.75" r="0.85" fill={g} stroke="none" />
-      <path d="M5.5 12.5l1.8-1.3 1.6 1.1 2.2-1.7 2.4 1.9" {...stroke} stroke={g} strokeWidth={1.25} />
-      <path d="M16.75 14.75l2.25 2.25" {...stroke} stroke={g} />
-      <path d="M19 14.75l-1.5 1.5.75.75 1.5-1.5" {...stroke} stroke={g} strokeWidth={1.2} />
-    </>
-  );
-}
-
 function DocConvertIcon({ gradId }: IconProps) {
   const g = `url(#${gradId})`;
   return (
@@ -299,26 +285,6 @@ export function ToolIcon({ id, className = "h-6 w-6" }: ToolIconProps) {
     >
       <GradDefs id={gradId} />
       <Icon gradId={gradId} />
-    </svg>
-  );
-}
-
-type ImageVisionIconProps = {
-  className?: string;
-};
-
-export function ImageVisionIcon({ className = "h-5 w-5" }: ImageVisionIconProps) {
-  const gradId = useId();
-  return (
-    <svg
-      className={`${className} tool-icon-glow`.trim()}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <GradDefs id={gradId} />
-      <ImageVisionIconGfx gradId={gradId} />
     </svg>
   );
 }

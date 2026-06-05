@@ -2,12 +2,13 @@
 
 import HomeDiscoverPanel from "@/components/home/HomeDiscoverPanel";
 import ChatBubble, { ChatAgentActionButton } from "@/components/workspace/ChatBubble";
+import ChatMessageRow from "@/components/workspace/ChatMessageRow";
 import ChatTypingIndicator from "@/components/workspace/ChatTypingIndicator";
 import { useWorkspaceChat } from "@/contexts/WorkspaceChatContext";
 import { useEffect, useRef } from "react";
 
 export default function WorkspaceChatPanel() {
-  const { messages, loading, clearMessages, openAgentAction } = useWorkspaceChat();
+  const { messages, loading, clearMessages, deleteMessage, openAgentAction } = useWorkspaceChat();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,7 +23,10 @@ export default function WorkspaceChatPanel() {
         <div className="mb-4 flex items-center justify-end">
           <button
             type="button"
-            onClick={clearMessages}
+            onClick={() => {
+              if (!confirm("确定清空全部对话？")) return;
+              clearMessages();
+            }}
             className="text-[11px] text-black/38 transition-colors hover:text-black/62"
           >
             清空对话
@@ -38,15 +42,15 @@ export default function WorkspaceChatPanel() {
         ) : (
           <div className="mx-auto w-full max-w-2xl space-y-6 pb-6">
             {messages.map((msg) => (
-              <div key={msg.id}>
+              <ChatMessageRow key={msg.id} messageId={msg.id} onDelete={deleteMessage}>
                 <ChatBubble msg={msg} />
                 {msg.agentAction ? (
                   <ChatAgentActionButton
                     title={msg.agentAction.title}
-                    onClick={() => openAgentAction(msg.agentAction!)}
+                    onClick={() => void openAgentAction(msg.agentAction!, msg.id)}
                   />
                 ) : null}
-              </div>
+              </ChatMessageRow>
             ))}
             {loading ? <ChatTypingIndicator label="思考中" /> : null}
           </div>
