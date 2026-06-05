@@ -55,8 +55,14 @@ fi
 PY="$VENV/bin/python"
 
 if ! "$PY" -c "import torch" 2>/dev/null; then
-  echo "→ 安装 PyTorch（Apple Silicon / CPU）…"
-  "$UV_BIN" pip install --python "$PY" torch torchvision
+  if [ "$(uname -s)" = "Linux" ] && [ -n "${MLSHARP_CUDA:-}" ]; then
+    echo "→ 安装 PyTorch（CUDA，需 NVIDIA 驱动）…"
+    "$UV_BIN" pip install --python "$PY" torch torchvision \
+      --index-url https://download.pytorch.org/whl/cu121
+  else
+    echo "→ 安装 PyTorch（CPU；GPU 云主机可: MLSHARP_CUDA=1 重装）…"
+    "$UV_BIN" pip install --python "$PY" torch torchvision
+  fi
 else
   echo "✓ PyTorch 已安装"
 fi
@@ -111,6 +117,6 @@ echo "→ 启用精细度参数 patch…"
 node scripts/patch-mlsharp-quality.mjs || echo "⚠️  精细度 patch 未应用，高清模式可能不可用"
 
 echo ""
-echo "✅ ML-Sharp macOS 运行时已安装"
+echo "✅ ML-Sharp 运行时已安装"
 echo "   sharp: $SHARP_BIN"
 echo "   模型: $CHECKPOINT"

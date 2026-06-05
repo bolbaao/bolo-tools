@@ -34,7 +34,14 @@ export function getWhisperModelPath() {
 
 function resolvePythonBin() {
   const fromEnv = env("PYTHON_BIN") || env("PYTHON");
-  if (fromEnv && fs.existsSync(fromEnv)) return fromEnv;
+  if (fromEnv) {
+    const resolved = path.isAbsolute(fromEnv)
+      ? fromEnv
+      : path.join(PROJECT_ROOT, fromEnv);
+    if (fs.existsSync(resolved)) return resolved;
+  }
+  const venvPy = path.join(PROJECT_ROOT, ".local", "python-venv", "bin", "python3");
+  if (fs.existsSync(venvPy)) return venvPy;
   return "python3";
 }
 
@@ -53,8 +60,17 @@ function pythonHasFasterWhisper(pythonBin) {
 
 function whisperChildEnv() {
   const extra = env("PYTHONPATH");
+  const venvSite = path.join(PROJECT_ROOT, ".local", "python-venv", "lib");
+  const venvSitePackages = fs.existsSync(venvSite)
+    ? fs
+        .readdirSync(venvSite, { withFileTypes: true })
+        .filter((d) => d.isDirectory() && d.name.startsWith("python"))
+        .map((d) => path.join(venvSite, d.name, "site-packages"))
+        .find((p) => fs.existsSync(p))
+    : null;
   const paths = [
     extra,
+    venvSitePackages,
     `${process.env.HOME}/Library/Python/3.9/lib/python/site-packages`,
     `${process.env.HOME}/Library/Python/3.10/lib/python/site-packages`,
     `${process.env.HOME}/Library/Python/3.11/lib/python/site-packages`,

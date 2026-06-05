@@ -8,6 +8,7 @@ import {
   detectPlatform,
   isSupportedPlatform,
   resolveFinalUrl,
+  shouldResolveFinalUrl,
   sortFormatsByQuality,
 } from "./video-platform.mjs";
 import { safeFilename } from "./video-download.mjs";
@@ -72,7 +73,7 @@ export async function extractVideoByUrl(url) {
     throw new HttpError(400, "暂不支持该链接来源");
   }
 
-  if (platform !== "weixin-channels") {
+  if (shouldResolveFinalUrl(safeUrl, platform)) {
     safeUrl = await resolveFinalUrl(safeUrl, platform);
     platform = detectPlatform(safeUrl);
   }

@@ -15,10 +15,11 @@ const PREPROCESS_SCRIPT = path.join(PROJECT_ROOT, "scripts", "mlsharp-preprocess
 const VENV_PYTHON = path.join(PROJECT_ROOT, ".local", "mlsharp-venv", "bin", "python3");
 
 /** @type {Record<string, { internalSize: number; label: string }>} */
+// ML-Sharp 双金字塔 patch 网格仅 1536 可用（x0 stride 288 + x1 stride 192）；高清/超清靠预处理增强
 export const MLSHARP_QUALITY_PRESETS = {
   standard: { internalSize: 1536, label: "标准" },
-  high: { internalSize: 2048, label: "高清" },
-  ultra: { internalSize: 2048, label: "超清" },
+  high: { internalSize: 1536, label: "高清" },
+  ultra: { internalSize: 1536, label: "超清" },
 };
 
 export function resolveQuality(raw) {

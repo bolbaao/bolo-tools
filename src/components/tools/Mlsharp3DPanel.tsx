@@ -19,8 +19,8 @@ type QualityPreset = { id: QualityId; label: string; internalSize: number };
 
 const QUALITY_HINTS: Record<QualityId, string> = {
   standard: "速度最快，适合预览",
-  high: "细节更好，耗时与内存略增",
-  ultra: "最强预处理 + 2048 推理，最慢，建议主体清晰的照片",
+  high: "增强锐化预处理，细节略好",
+  ultra: "最强预处理，最慢，建议主体清晰的照片",
 };
 
 export default function Mlsharp3DPanel() {
@@ -30,8 +30,8 @@ export default function Mlsharp3DPanel() {
   const [quality, setQuality] = useState<QualityId>("standard");
   const [qualityPresets, setQualityPresets] = useState<QualityPreset[]>([
     { id: "standard", label: "标准", internalSize: 1536 },
-    { id: "high", label: "高清", internalSize: 2048 },
-    { id: "ultra", label: "超清", internalSize: 2048 },
+    { id: "high", label: "高清", internalSize: 1536 },
+    { id: "ultra", label: "超清", internalSize: 1536 },
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

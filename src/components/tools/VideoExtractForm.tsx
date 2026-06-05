@@ -98,9 +98,9 @@ export default function VideoExtractForm() {
   const detected = useMemo(() => detectClientPlatform(url), [url]);
 
   const handleExtract = useCallback(async (urlOverride?: string) => {
-    const target = (urlOverride ?? url).trim();
+    const target = extractUrlFromText((urlOverride ?? url).trim());
     if (!target) return;
-    if (urlOverride) setUrl(urlOverride);
+    setUrl(target);
     setLoading(true);
     setError(null);
     setResult(null);
@@ -165,7 +165,8 @@ export default function VideoExtractForm() {
         </label>
         <input
           id="video-url"
-          type="url"
+          type="text"
+          inputMode="url"
           data-tool-primary-input
           value={url}
           onChange={(e) => setUrl(e.target.value)}

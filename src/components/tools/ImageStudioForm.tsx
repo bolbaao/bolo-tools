@@ -2,9 +2,11 @@
 
 import ActionButton from "@/components/ActionButton";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
+import { useDisplayContent } from "@/hooks/useDisplayContent";
 import { ApiError, apiPost, downloadBlob } from "@/lib/api";
 import {
   compressImage,
+  compositeSubjectOnBackground,
   formatBytes,
   outputFilename,
   prepareImageForEdit,
@@ -12,14 +14,17 @@ import {
   sharpenImage,
   type OutputFormat,
 } from "@/lib/image-processing";
+import { getImageStudioFooterHint } from "@/lib/site-content";
 import { useCallback, useEffect, useState } from "react";
 
-type Tab = "compress" | "sharpen" | "cutout" | "beautify" | "edit" | "generate";
+type Tab = "compress" | "sharpen" | "cutout" | "bgreplace" | "watermark" | "beautify" | "edit" | "generate";
 
 const TABS: { id: Tab; label: string; hint: string }[] = [
   { id: "compress", label: "压缩", hint: "减小体积" },
   { id: "sharpen", label: "变清晰", hint: "锐化增强" },
   { id: "cutout", label: "抠图", hint: "智能去背景" },
+  { id: "bgreplace", label: "换背景", hint: "证件照 / 场景" },
+  { id: "watermark", label: "去水印", hint: "AI 智能修复" },
   { id: "beautify", label: "人像美化", hint: "一键变美" },
   { id: "edit", label: "修图", hint: "AI 改图" },
   { id: "generate", label: "AI 生图", hint: "文字描述成图" },
@@ -56,11 +61,34 @@ const beautifyLevels = [
   { id: "pro" as const, label: "精修", desc: "精致上镜，气质提升" },
 ];
 
+const bgColorPresets = [
+  { id: "white", label: "纯白", color: "#FFFFFF" },
+  { id: "blue", label: "证件蓝", color: "#438EDB" },
+  { id: "red", label: "证件红", color: "#D63636" },
+  { id: "gray", label: "浅灰", color: "#F0F0F0" },
+];
+
+const bgAiPresets = [
+  "干净白墙摄影棚",
+  "海边日落",
+  "城市街拍虚化背景",
+  "简约 Office 办公环境",
+  "樱花公园",
+];
+
+const watermarkLevels = [
+  { id: "light" as const, label: "轻度", desc: "角落小水印、半透明 Logo" },
+  { id: "standard" as const, label: "标准", desc: "常见水印与角标" },
+  { id: "strong" as const, label: "强力", desc: "大面积或复杂叠加" },
+];
+
 function tabFromParam(value: string | null): Tab {
   if (
     value === "compress" ||
     value === "sharpen" ||
     value === "cutout" ||
+    value === "bgreplace" ||
+    value === "watermark" ||
     value === "beautify" ||
     value === "edit" ||
     value === "generate"
@@ -74,6 +102,8 @@ const activeTabClass: Record<Tab, string> = {
   compress: "bg-lime-600/25 text-lime-100 border border-lime-500/30",
   sharpen: "bg-sky-600/25 text-sky-100 border border-sky-500/30",
   cutout: "bg-emerald-600/25 text-emerald-100 border border-emerald-500/30",
+  bgreplace: "bg-teal-600/25 text-teal-100 border border-teal-500/30",
+  watermark: "bg-orange-600/25 text-orange-100 border border-orange-500/30",
   beautify: "bg-rose-600/25 text-rose-100 border border-rose-500/30",
   edit: "bg-amber-600/25 text-amber-100 border border-amber-500/30",
   generate: "bg-violet-600/25 text-violet-100 border border-violet-500/30",
@@ -84,6 +114,7 @@ type ImageStudioFormProps = {
 };
 
 export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
+  const { isAdmin } = useDisplayContent();
   const [tab, setTab] = useState<Tab>(initialTab ?? "compress");
   const [file, setFile] = useState<File | null>(null);
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
@@ -105,6 +136,16 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
   const [beautifyLevel, setBeautifyLevel] = useState<"natural" | "standard" | "pro">("standard");
   const [beautifyResolution, setBeautifyResolution] = useState<"1k" | "2k">("2k");
   const [beautifyMessage, setBeautifyMessage] = useState<string | null>(null);
+  const [bgMode, setBgMode] = useState<"color" | "upload" | "ai">("color");
+  const [bgColor, setBgColor] = useState("#FFFFFF");
+  const [bgFile, setBgFile] = useState<File | null>(null);
+  const [bgFileUrl, setBgFileUrl] = useState<string | null>(null);
+  const [bgAiPrompt, setBgAiPrompt] = useState("");
+  const [bgResolution, setBgResolution] = useState<"1k" | "2k">("2k");
+  const [bgMessage, setBgMessage] = useState<string | null>(null);
+  const [watermarkLevel, setWatermarkLevel] = useState<"light" | "standard" | "strong">("standard");
+  const [watermarkResolution, setWatermarkResolution] = useState<"1k" | "2k">("2k");
+  const [watermarkMessage, setWatermarkMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -154,6 +195,7 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
       if (fields.prompt) {
         setPrompt(fields.prompt);
         setEditPrompt(fields.prompt);
+        setBgAiPrompt(fields.prompt);
       }
     },
     canSubmit: (fields) =>
@@ -169,8 +211,9 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     return () => {
       if (beforeUrl) URL.revokeObjectURL(beforeUrl);
       if (afterUrl) URL.revokeObjectURL(afterUrl);
+      if (bgFileUrl) URL.revokeObjectURL(bgFileUrl);
     };
-  }, [beforeUrl, afterUrl]);
+  }, [beforeUrl, afterUrl, bgFileUrl]);
 
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -182,7 +225,16 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     setResultSize(null);
     setEditMessage(null);
     setBeautifyMessage(null);
+    setBgMessage(null);
+    setWatermarkMessage(null);
     setError(null);
+  };
+
+  const onBgFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (bgFileUrl) URL.revokeObjectURL(bgFileUrl);
+    setBgFile(f ?? null);
+    setBgFileUrl(f ? previewUrlFromFile(f) : null);
   };
 
   const handleCompress = async () => {
@@ -328,6 +380,114 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     }
   };
 
+  const handleBgReplace = async () => {
+    if (!file || !beforeUrl) return;
+    if (bgMode === "upload" && !bgFile) {
+      setError("请上传背景图片");
+      return;
+    }
+    if (bgMode === "ai" && !bgAiPrompt.trim()) {
+      setError("请描述目标背景");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setBgMessage(null);
+    if (afterUrl?.startsWith("blob:")) URL.revokeObjectURL(afterUrl);
+    setAfterUrl(null);
+
+    try {
+      if (bgMode === "ai") {
+        setLoadProgress("AI 换背景中…");
+        const imageDataUrl = await prepareImageForEdit(file, bgResolution);
+        const data = await apiPost<{
+          ok: boolean;
+          imageUrl?: string;
+          imageBase64?: string;
+          mimeType?: string;
+          message?: string;
+        }>(
+          "/api/ark-image/replace-background",
+          {
+            imageDataUrl,
+            backgroundPrompt: bgAiPrompt.trim(),
+            resolution: bgResolution,
+          },
+          { timeoutMs: 180000 },
+        );
+        if (data.imageBase64) {
+          const mime = data.mimeType || "image/png";
+          setAfterUrl(`data:${mime};base64,${data.imageBase64}`);
+        } else if (data.imageUrl) {
+          setAfterUrl(data.imageUrl);
+        }
+        setBgMessage(data.message || "背景已替换");
+        return;
+      }
+
+      setLoadProgress("正在加载 AI 模型（首次较慢）…");
+      const { removeBackground } = await import("@imgly/background-removal");
+      setLoadProgress("正在抠图…");
+      const subjectBlob = await removeBackground(beforeUrl, {
+        progress: (key, current, total) => {
+          if (total) setLoadProgress(`${key} ${Math.round((current / total) * 100)}%`);
+        },
+      });
+      setLoadProgress("正在合成背景…");
+      const background =
+        bgMode === "color"
+          ? { type: "color" as const, color: bgColor }
+          : { type: "image" as const, source: bgFile! };
+      const blob = await compositeSubjectOnBackground(subjectBlob, background);
+      setAfterUrl(URL.createObjectURL(blob));
+      setBgMessage("背景已替换");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "换背景失败");
+    } finally {
+      setLoading(false);
+      setLoadProgress("");
+    }
+  };
+
+  const handleWatermark = async () => {
+    if (!file) return;
+    setLoading(true);
+    setError(null);
+    setWatermarkMessage(null);
+    if (afterUrl?.startsWith("blob:")) URL.revokeObjectURL(afterUrl);
+    setAfterUrl(null);
+    try {
+      const imageDataUrl = await prepareImageForEdit(file, watermarkResolution);
+      const data = await apiPost<{
+        ok: boolean;
+        imageUrl?: string;
+        imageBase64?: string;
+        mimeType?: string;
+        message?: string;
+      }>(
+        "/api/ark-image/watermark-remove",
+        {
+          imageDataUrl,
+          level: watermarkLevel,
+          resolution: watermarkResolution,
+        },
+        { timeoutMs: 180000 },
+      );
+      if (data.imageBase64) {
+        const mime = data.mimeType || "image/png";
+        setAfterUrl(`data:${mime};base64,${data.imageBase64}`);
+      } else if (data.imageUrl) {
+        setAfterUrl(data.imageUrl);
+      }
+      setWatermarkMessage(data.message || "水印已去除");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "去水印失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDownloadResult = async (suffix: string) => {
     if (!afterUrl || !file) return;
     try {
@@ -341,6 +501,8 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
 
   const handleDownloadEdit = () => handleDownloadResult("edited");
   const handleDownloadBeautify = () => handleDownloadResult("beautified");
+  const handleDownloadBg = () => handleDownloadResult("new-bg");
+  const handleDownloadWatermark = () => handleDownloadResult("no-watermark");
 
   const primaryAction = () => {
     if (tab === "compress") return handleCompress();
@@ -348,6 +510,8 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     if (tab === "beautify") return handleBeautify();
     if (tab === "edit") return handleEdit();
     if (tab === "generate") return handleGenerate();
+    if (tab === "bgreplace") return handleBgReplace();
+    if (tab === "watermark") return handleWatermark();
     return handleCutout();
   };
 
@@ -355,12 +519,21 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     compress: `压缩并下载 ${format}`,
     sharpen: "变清晰并下载",
     cutout: "开始智能抠图",
+    bgreplace: "开始换背景",
+    watermark: "开始去水印",
     beautify: "一键人像美化",
     edit: "开始 AI 修图",
     generate: "生成图片",
   }[tab];
 
-  const primaryDisabled = tab === "generate" ? !prompt.trim() : tab === "edit" ? !file || !editPrompt.trim() : !file;
+  const primaryDisabled =
+    tab === "generate"
+      ? !prompt.trim()
+      : tab === "edit"
+        ? !file || !editPrompt.trim()
+        : tab === "bgreplace"
+          ? !file || (bgMode === "upload" && !bgFile) || (bgMode === "ai" && !bgAiPrompt.trim())
+          : !file;
 
   return (
     <div className="space-y-6">
@@ -480,6 +653,275 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
               className="w-full rounded-xl border border-white/15 py-2.5 text-sm text-white/70 hover:text-white"
             >
               下载图片
+            </button>
+          )}
+        </div>
+      ) : tab === "bgreplace" ? (
+        <div className="space-y-5">
+          <label className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-8 cursor-pointer hover:border-white/25 hover:bg-white/[0.04] transition-all">
+            {beforeUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={beforeUrl} alt="预览" className="max-h-40 rounded-lg object-contain" />
+            ) : (
+              <span className="text-3xl opacity-60">▣</span>
+            )}
+            <span className="text-sm text-white/50">{file?.name ?? "上传主体图片"}</span>
+            <span className="text-xs text-white/25">人像、商品、宠物均可 · 自动抠图后换背景</span>
+            <input type="file" accept="image/*" className="hidden" onChange={onFile} />
+          </label>
+
+          <div>
+            <label className="block text-sm text-white/60 mb-2">背景方式</label>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { id: "color" as const, label: "纯色背景" },
+                  { id: "upload" as const, label: "上传背景图" },
+                  { id: "ai" as const, label: "AI 场景" },
+                ] as const
+              ).map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setBgMode(m.id)}
+                  className={`rounded-lg px-3 py-1.5 text-sm ${
+                    bgMode === m.id
+                      ? "bg-teal-600/25 text-teal-200 border border-teal-500/35"
+                      : "bg-white/5 text-white/50 border border-white/8"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {bgMode === "color" ? (
+            <div>
+              <label className="block text-sm text-white/60 mb-2">背景颜色</label>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {bgColorPresets.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setBgColor(p.color)}
+                    className={`rounded-lg px-3 py-1.5 text-sm border ${
+                      bgColor === p.color
+                        ? "bg-teal-600/25 text-teal-200 border-teal-500/35"
+                        : "bg-white/5 text-white/50 border-white/8"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="color"
+                value={bgColor}
+                onChange={(e) => setBgColor(e.target.value)}
+                className="h-10 w-full cursor-pointer rounded-lg border border-white/10 bg-white/5"
+                aria-label="自定义背景色"
+              />
+            </div>
+          ) : null}
+
+          {bgMode === "upload" ? (
+            <label className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-6 cursor-pointer hover:border-white/25 transition-all">
+              {bgFileUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={bgFileUrl} alt="背景预览" className="max-h-28 rounded-lg object-cover" />
+              ) : (
+                <span className="text-2xl opacity-50">🖼</span>
+              )}
+              <span className="text-sm text-white/50">{bgFile?.name ?? "上传背景图片"}</span>
+              <input type="file" accept="image/*" className="hidden" onChange={onBgFile} />
+            </label>
+          ) : null}
+
+          {bgMode === "ai" ? (
+            <>
+              <div>
+                <label htmlFor="bg-ai-prompt" className="block text-sm text-white/60 mb-2">
+                  目标背景描述
+                </label>
+                <textarea
+                  id="bg-ai-prompt"
+                  value={bgAiPrompt}
+                  onChange={(e) => setBgAiPrompt(e.target.value.slice(0, 200))}
+                  rows={2}
+                  placeholder="例如：干净白墙摄影棚、海边日落…"
+                  className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-teal-500/50 focus:outline-none focus:ring-1 focus:ring-teal-500/30"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-white/60 mb-2">快捷场景</label>
+                <div className="flex flex-wrap gap-2">
+                  {bgAiPresets.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setBgAiPrompt(preset)}
+                      className={`rounded-lg px-3 py-1.5 text-sm ${
+                        bgAiPrompt === preset
+                          ? "bg-teal-600/25 text-teal-200 border border-teal-500/35"
+                          : "bg-white/5 text-white/50 border border-white/8"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-white/60 mb-2">输出清晰度</label>
+                <div className="flex gap-2">
+                  {(["1k", "2k"] as const).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setBgResolution(r)}
+                      className={`rounded-lg px-3 py-1.5 text-sm ${
+                        bgResolution === r
+                          ? "bg-teal-600/25 text-teal-200 border border-teal-500/35"
+                          : "bg-white/5 text-white/50 border border-white/8"
+                      }`}
+                    >
+                      {r.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : null}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-xl border border-white/8 p-3">
+              <p className="text-xs text-white/40 mb-2">原图</p>
+              <div className="aspect-square rounded-lg bg-white/5 overflow-hidden flex items-center justify-center">
+                {beforeUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={beforeUrl} alt="原图" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-white/25 text-xs">—</span>
+                )}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/8 p-3">
+              <p className="text-xs text-white/40 mb-2">换背景后</p>
+              <div className="aspect-square rounded-lg bg-white/5 overflow-hidden flex items-center justify-center">
+                {afterUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={afterUrl} alt="换背景结果" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-white/25 text-xs bg-white/5 w-full h-full flex items-center justify-center rounded-lg">
+                    {loading ? "处理中…" : "—"}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {bgMessage && <p className="text-sm text-emerald-400/90 text-center">{bgMessage}</p>}
+          {afterUrl && (
+            <button
+              type="button"
+              onClick={handleDownloadBg}
+              className="w-full rounded-xl border border-white/15 py-2.5 text-sm text-white/70 hover:text-white"
+            >
+              下载结果
+            </button>
+          )}
+        </div>
+      ) : tab === "watermark" ? (
+        <div className="space-y-5">
+          <label className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-8 cursor-pointer hover:border-white/25 hover:bg-white/[0.04] transition-all">
+            {beforeUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={beforeUrl} alt="预览" className="max-h-40 rounded-lg object-contain" />
+            ) : (
+              <span className="text-3xl opacity-60">◌</span>
+            )}
+            <span className="text-sm text-white/50">{file?.name ?? "上传带水印的图片"}</span>
+            <span className="text-xs text-white/25">适合去除角标、Logo、叠加文字 · 请确保你有权处理该图片</span>
+            <input type="file" accept="image/*" className="hidden" onChange={onFile} />
+          </label>
+
+          <div>
+            <label className="block text-sm text-white/60 mb-2">去除强度</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {watermarkLevels.map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => setWatermarkLevel(l.id)}
+                  className={`rounded-xl px-3 py-3 text-left transition-all ${
+                    watermarkLevel === l.id
+                      ? "bg-orange-600/25 text-orange-100 border border-orange-500/35"
+                      : "bg-white/5 text-white/50 border border-white/8 hover:bg-white/10"
+                  }`}
+                >
+                  <span className="block text-sm font-medium">{l.label}</span>
+                  <span className="block text-[11px] opacity-70 mt-0.5">{l.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-white/60 mb-2">输出清晰度</label>
+            <div className="flex gap-2">
+              {(["1k", "2k"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setWatermarkResolution(r)}
+                  className={`rounded-lg px-3 py-1.5 text-sm ${
+                    watermarkResolution === r
+                      ? "bg-orange-600/25 text-orange-200 border border-orange-500/35"
+                      : "bg-white/5 text-white/50 border border-white/8"
+                  }`}
+                >
+                  {r.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-xl border border-white/8 p-3">
+              <p className="text-xs text-white/40 mb-2">原图</p>
+              <div className="aspect-square rounded-lg bg-white/5 overflow-hidden flex items-center justify-center">
+                {beforeUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={beforeUrl} alt="原图" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-white/25 text-xs">—</span>
+                )}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/8 p-3">
+              <p className="text-xs text-white/40 mb-2">去水印后</p>
+              <div className="aspect-square rounded-lg bg-white/5 overflow-hidden flex items-center justify-center">
+                {afterUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={afterUrl} alt="去水印结果" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-white/25 text-xs bg-white/5 w-full h-full flex items-center justify-center rounded-lg">
+                    {loading ? "处理中…" : "—"}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {watermarkMessage && <p className="text-sm text-emerald-400/90 text-center">{watermarkMessage}</p>}
+          {afterUrl && (
+            <button
+              type="button"
+              onClick={handleDownloadWatermark}
+              className="w-full rounded-xl border border-white/15 py-2.5 text-sm text-white/70 hover:text-white"
+            >
+              下载结果
             </button>
           )}
         </div>
@@ -816,7 +1258,7 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
         </>
       )}
 
-      {loadProgress && tab !== "generate" && tab !== "edit" && tab !== "beautify" && (
+      {loadProgress && !["generate", "edit", "beautify", "watermark"].includes(tab) && (
         <p className="text-center text-xs text-violet-300/80 animate-pulse">{loadProgress}</p>
       )}
       {error && <p className="text-sm text-red-400/90 text-center leading-relaxed">{error}</p>}
@@ -825,26 +1267,24 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
         label={primaryLabel}
         loading={loading}
         loadingLabel={
-          tab === "cutout" && loadProgress
+          (tab === "cutout" || tab === "bgreplace") && loadProgress
             ? loadProgress
             : tab === "edit" && loading
               ? "AI 修图中，约需数秒…"
               : tab === "beautify" && loading
                 ? "AI 人像美化中，约需数秒…"
-                : undefined
+                : tab === "watermark" && loading
+                  ? "AI 去水印中，约需数秒…"
+                  : tab === "bgreplace" && loading && bgMode === "ai"
+                    ? "AI 换背景中，约需数秒…"
+                    : undefined
         }
         disabled={primaryDisabled}
         onClick={primaryAction}
       />
 
       <p className="text-center text-xs text-white/25 leading-relaxed">
-        {tab === "generate"
-          ? "AI 生图：输入画面描述，一键生成并下载"
-          : tab === "beautify"
-            ? "人像美化：上传人像照片，一键智能美颜，需配置 ARK_API_KEY"
-            : tab === "edit"
-              ? "AI 修图：上传图片并描述修改需求，需配置 ARK_API_KEY"
-              : "压缩、变清晰、抠图：上传图片即可处理并下载"}
+        {getImageStudioFooterHint(tab, bgMode, isAdmin)}
       </p>
     </div>
   );

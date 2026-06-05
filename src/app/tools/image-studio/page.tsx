@@ -7,7 +7,16 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
 function tabFromParam(value: string | null) {
-  if (value === "compress" || value === "sharpen" || value === "cutout" || value === "beautify" || value === "edit" || value === "generate") {
+  if (
+    value === "compress" ||
+    value === "sharpen" ||
+    value === "cutout" ||
+    value === "bgreplace" ||
+    value === "watermark" ||
+    value === "beautify" ||
+    value === "edit" ||
+    value === "generate"
+  ) {
     return value;
   }
   return undefined;

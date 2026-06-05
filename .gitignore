@@ -33,6 +33,9 @@
 /cookies/*.txt
 /cookies/cron.log
 
+# release bundles
+/dist/
+
 # misc
 logs/start-on-1.log
 .DS_Store

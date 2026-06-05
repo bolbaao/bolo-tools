@@ -168,3 +168,33 @@ export async function beautifyArkImage({ imageDataUrl, level = "standard", resol
   const prompt = BEAUTIFY_PROMPTS[level] || BEAUTIFY_PROMPTS.standard;
   return editArkImage({ prompt, imageDataUrl, resolution });
 }
+
+const WATERMARK_PROMPTS = {
+  light:
+    "轻微去除图片角落或边缘的小型半透明水印、Logo 或文字，自然修复被遮挡区域，不改变画面主体内容与构图",
+  standard:
+    "去除图片上的水印、Logo、角标和叠加文字，智能修复背景，保持画面主体完整自然，不添加新水印",
+  strong:
+    "彻底清除图片中所有水印、文字标记、Logo 和半透明叠加层，对遮挡区域进行内容感知修复，尽量恢复干净画面",
+};
+
+/**
+ * @param {{ imageDataUrl: string; level?: string; resolution?: string }} opts
+ */
+export async function removeWatermarkArkImage({ imageDataUrl, level = "standard", resolution = "2k" }) {
+  const prompt = WATERMARK_PROMPTS[level] || WATERMARK_PROMPTS.standard;
+  return editArkImage({ prompt, imageDataUrl, resolution });
+}
+
+/**
+ * @param {{ imageDataUrl: string; backgroundPrompt?: string; resolution?: string }} opts
+ */
+export async function replaceBackgroundArkImage({
+  imageDataUrl,
+  backgroundPrompt,
+  resolution = "2k",
+}) {
+  const bg = backgroundPrompt?.trim() || "简洁干净的纯色背景";
+  const prompt = `将照片中主体的背景替换为：${bg}。完整保留前景人物或物品的细节、边缘和光影，主体不做变形，背景与主体自然融合，写实风格`;
+  return editArkImage({ prompt, imageDataUrl, resolution });
+}

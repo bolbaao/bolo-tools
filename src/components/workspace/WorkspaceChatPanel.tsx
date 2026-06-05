@@ -1,15 +1,14 @@
 "use client";
 
+import HomeDiscoverPanel from "@/components/home/HomeDiscoverPanel";
 import ChatBubble, { ChatAgentActionButton } from "@/components/workspace/ChatBubble";
 import ChatTypingIndicator from "@/components/workspace/ChatTypingIndicator";
 import { useWorkspaceChat } from "@/contexts/WorkspaceChatContext";
-import { pickRandomGreeting } from "@/lib/chat-greetings";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 export default function WorkspaceChatPanel() {
   const { messages, loading, clearMessages, openAgentAction } = useWorkspaceChat();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const emptyHint = useMemo(() => pickRandomGreeting(), []);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -33,11 +32,8 @@ export default function WorkspaceChatPanel() {
 
       <div ref={scrollRef} className="workspace-chat-scroll custom-scrollbar min-h-0 flex-1 overflow-y-auto">
         {messages.length === 0 && !loading ? (
-          <div className="flex h-full min-h-[240px] flex-col items-center justify-center px-6 py-12 text-center">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-muted text-lg text-accent-deep/80 ring-1 ring-accent/15">
-              ✦
-            </div>
-            <p className="max-w-md text-sm leading-relaxed text-black/45">{emptyHint}</p>
+          <div className="px-2 py-4 sm:px-4">
+            <HomeDiscoverPanel />
           </div>
         ) : (
           <div className="mx-auto w-full max-w-2xl space-y-6 pb-6">

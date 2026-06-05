@@ -151,9 +151,11 @@ function main() {
   }
 
   if (isExecutable(MAC_VENV_SHARP)) {
+    const runtimeLabel =
+      process.platform === "darwin" ? "mac-venv" : process.platform === "linux" ? "linux-venv" : "venv";
     writeManifest({
       version: 2,
-      runtime: "mac-venv",
+      runtime: runtimeLabel,
       source: "apple/ml-sharp + GemosDodo checkpoint",
       root: bundleRoot,
       sharpBin: MAC_VENV_SHARP,
@@ -162,7 +164,7 @@ function main() {
       cwd: PROJECT_ROOT,
       installedAt: new Date().toISOString(),
     });
-    console.log("✓ 已写入 manifest.json (macOS 运行时)");
+    console.log(`✓ 已写入 manifest.json (${runtimeLabel})`);
     console.log(`  sharp: ${MAC_VENV_SHARP}`);
     if (checkpoint) console.log(`  模型: ${checkpoint}`);
     return;
@@ -180,7 +182,7 @@ function main() {
       installedAt: new Date().toISOString(),
     });
     console.log("○ 模型权重已就绪，但 ML-Sharp 运行时未安装");
-    console.log("  请运行: ./scripts/install-mlsharp-mac.sh");
+    console.log("  请运行: ./scripts/install-mlsharp-linux.sh  （或 install-mlsharp-mac.sh）");
     return;
   }
 

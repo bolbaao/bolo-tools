@@ -1,11 +1,31 @@
 #!/bin/bash
-# 下载 yt-dlp 官方 macOS 独立二进制到 .local/bin（避免系统 Python 3.9 + LibreSSL 的 SSL 问题）
+# 下载 yt-dlp 官方独立二进制到 .local/bin（macOS / Linux）
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 VERSION="${YTDLP_VERSION:-2026.03.17}"
 TARGET=".local/bin/yt-dlp"
-ASSET="yt-dlp_macos"
+
+OS="$(uname -s)"
+ARCH="$(uname -m)"
+case "$OS" in
+  Darwin) ASSET="yt-dlp_macos" ;;
+  Linux)
+    case "$ARCH" in
+      x86_64|amd64) ASSET="yt-dlp_linux" ;;
+      aarch64|arm64) ASSET="yt-dlp_linux_aarch64" ;;
+      *)
+        echo "❌ Linux 不支持的架构: $ARCH"
+        exit 1
+        ;;
+    esac
+    ;;
+  *)
+    echo "❌ 仅支持 macOS / Linux，当前: $OS"
+    exit 1
+    ;;
+esac
+
 URL="https://github.com/yt-dlp/yt-dlp/releases/download/${VERSION}/${ASSET}"
 TMP="${TARGET}.download"
 

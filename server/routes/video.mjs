@@ -11,6 +11,7 @@ import {
   detectPlatform,
   isSupportedPlatform,
   resolveFinalUrl,
+  shouldResolveFinalUrl,
   sortFormatsByQuality,
 } from "../lib/video-platform.mjs";
 import {
@@ -78,7 +79,7 @@ router.post("/extract", async (req, res) => {
       throw new HttpError(400, "暂不支持该链接来源");
     }
 
-    if (platform !== "weixin-channels") {
+    if (shouldResolveFinalUrl(safeUrl, platform)) {
       safeUrl = await resolveFinalUrl(safeUrl, platform);
       platform = detectPlatform(safeUrl);
     }

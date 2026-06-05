@@ -17,14 +17,33 @@ export const DEFAULT_TTS_VOICES = [
 
 function resolvePythonBin() {
   const fromEnv = env("PYTHON_BIN") || env("PYTHON");
-  if (fromEnv && fs.existsSync(fromEnv)) return fromEnv;
+  if (fromEnv) {
+    const resolved = path.isAbsolute(fromEnv)
+      ? fromEnv
+      : path.join(PROJECT_ROOT, fromEnv);
+    if (fs.existsSync(resolved)) return resolved;
+  }
+  const venvPy = path.join(PROJECT_ROOT, ".local", "python-venv", "bin", "python3");
+  if (fs.existsSync(venvPy)) return venvPy;
   return "python3";
+}
+
+function venvSitePackages() {
+  const venvSite = path.join(PROJECT_ROOT, ".local", "python-venv", "lib");
+  if (!fs.existsSync(venvSite)) return null;
+  for (const d of fs.readdirSync(venvSite, { withFileTypes: true })) {
+    if (!d.isDirectory() || !d.name.startsWith("python")) continue;
+    const sp = path.join(venvSite, d.name, "site-packages");
+    if (fs.existsSync(sp)) return sp;
+  }
+  return null;
 }
 
 function pythonChildEnv() {
   const extra = env("PYTHONPATH");
   const paths = [
     extra,
+    venvSitePackages(),
     `${process.env.HOME}/Library/Python/3.9/lib/python/site-packages`,
     `${process.env.HOME}/Library/Python/3.10/lib/python/site-packages`,
     `${process.env.HOME}/Library/Python/3.11/lib/python/site-packages`,

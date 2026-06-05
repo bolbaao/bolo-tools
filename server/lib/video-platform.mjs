@@ -121,7 +121,20 @@ export function sortFormatsByQuality(platform) {
   ].includes(platform);
 }
 
+/** X 帖文 / t.co：yt-dlp 自行跳转，Node fetch 对 t.co 常失败 */
+export function shouldResolveFinalUrl(url, platform) {
+  if (platform === "weixin-channels") return false;
+  if (platform === "twitter") {
+    if (/t\.co\//i.test(url)) return false;
+    if (/\/status(?:es)?\/\d+/i.test(url)) return false;
+    if (/\/i\/(?:web\/)?status\/\d+/i.test(url)) return false;
+    return false;
+  }
+  return true;
+}
+
 export async function resolveFinalUrl(url, platform) {
+  if (!shouldResolveFinalUrl(url, platform)) return url;
   const ua = platform === "douyin" ? MOBILE_UA : DESKTOP_UA;
   try {
     const res = await fetch(url, {
@@ -209,23 +222,45 @@ export function getSocialCookieStrategies() {
   return strategies;
 }
 
-/** X/Twitter：多数视频需登录 Cookie，优先尝试 Cookie 再回退无 Cookie */
+const KNOWN_COOKIE_BROWSERS = new Set([
+  "safari",
+  "chrome",
+  "chromium",
+  "brave",
+  "edge",
+  "firefox",
+  "opera",
+  "vivaldi",
+]);
+
+function filterCookieBrowsers(browsers) {
+  return browsers.filter((b) => b && KNOWN_COOKIE_BROWSERS.has(String(b).toLowerCase()));
+}
+
+/** X/Twitter：先无 Cookie（公开帖），再尝试 Cookie（需登录帖）；过期 Cookie 不应阻断解析 */
 export function getTwitterCookieStrategies() {
-  const strategies = [];
-  const seen = new Set();
+  const strategies = [{ name: "default", args: [] }];
+  const seen = new Set([""]);
   const preferred =
     env("TWITTER_COOKIES_FROM_BROWSER") ||
     env("SOCIAL_COOKIES_FROM_BROWSER") ||
     env("YTDLP_COOKIES_FROM_BROWSER") ||
     "safari";
-  const browsers = [preferred, "safari", "chrome", "chromium", "brave", "edge", "firefox"];
+  const browsers = filterCookieBrowsers([
+    preferred,
+    "safari",
+    "chrome",
+    "chromium",
+    "brave",
+    "edge",
+    "firefox",
+  ]);
   addCookieStrategies(
     strategies,
     seen,
     [env("TWITTER_COOKIES"), env("SOCIAL_COOKIES"), "./cookies/x.txt", "./cookies/social.txt"],
     browsers,
   );
-  strategies.push({ name: "default", args: [] });
   return strategies;
 }
 
@@ -267,7 +302,10 @@ export function formatYtDlpError(stderr, platform) {
     platform === "twitter" &&
     /login|authenticate|private|csrf|not authorized|No video could be found|no video/i.test(text)
   ) {
-    return "X 视频解析失败。请在 Safari 登录 x.com 后运行 ./scripts/setup-x-cookies.sh，或确认链接为公开视频帖（非纯图片/文字）";
+    return "X 视频解析失败。请确认链接为含视频的推文（非纯图片/文字帖）；需登录才能看的视频请运行 ./scripts/setup-x-cookies.sh 配置 Cookie";
+  }
+  if (platform === "twitter" && /Unable to download webpage|unable to download webpage/i.test(text)) {
+    return "无法打开 X 链接。请粘贴完整推文地址（x.com/…/status/数字 或分享文案中的链接），并检查网络或 .env 中的 HTTPS_PROXY";
   }
   if (platform === "instagram" && /login|cookie|rate-limit/i.test(text)) {
     return "Instagram 通常需要登录 Cookie。请在 Safari 登录 instagram.com 后配置 SOCIAL_COOKIES";

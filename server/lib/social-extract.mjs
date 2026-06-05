@@ -22,6 +22,10 @@ function isCookieRelatedError(message, platform) {
   return false;
 }
 
+function shouldRetryAllStrategies(platform) {
+  return platform === "twitter" || platform === "instagram";
+}
+
 /** yt-dlp 解析 YouTube / X / Telegram 等社交平台 */
 export async function extractSocial(url, platform) {
   const strategies = getCookieStrategiesForPlatform(platform);
@@ -34,7 +38,7 @@ export async function extractSocial(url, platform) {
     } catch (e) {
       lastError = e;
       const msg = e instanceof Error ? e.message : "";
-      if (!isCookieRelatedError(msg, platform)) {
+      if (!shouldRetryAllStrategies(platform) && !isCookieRelatedError(msg, platform)) {
         throw e;
       }
     }

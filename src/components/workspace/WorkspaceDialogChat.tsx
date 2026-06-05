@@ -5,6 +5,7 @@ import ChatTypingIndicator from "@/components/workspace/ChatTypingIndicator";
 import { ChatPendingAttachmentGrid } from "@/components/workspace/ChatMessageMedia";
 import WorkspaceDialogToolThread from "@/components/workspace/WorkspaceDialogToolThread";
 import { useWorkspaceChat } from "@/contexts/WorkspaceChatContext";
+import { useDisplayContent } from "@/hooks/useDisplayContent";
 import { pickRandomGreeting } from "@/lib/chat-greetings";
 import { CHAT_FILE_ACCEPT } from "@/lib/chat-files";
 import { getToolFromPathname } from "@/lib/tool-page";
@@ -44,11 +45,12 @@ export default function WorkspaceDialogChat() {
     sendMessage,
     messages,
   } = useWorkspaceChat();
+  const { getToolDialogPlaceholder } = useDisplayContent();
 
   const [input, setInput] = useState("");
   const [inputPlaceholder] = useState(() => pickRandomGreeting());
   const placeholder = tool
-    ? `向 AI 描述需求，可协助使用「${tool.title}」…`
+    ? getToolDialogPlaceholder(tool.id, tool.title)
     : inputPlaceholder;
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);

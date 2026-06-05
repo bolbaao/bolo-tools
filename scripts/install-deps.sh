@@ -1,7 +1,11 @@
 #!/bin/bash
-# 安装本项目所需本机依赖（macOS）
+# 安装本项目所需本机依赖
 set -e
 cd "$(dirname "$0")/.."
+
+if [ "$(uname -s)" = "Linux" ]; then
+  exec bash scripts/install-deps-linux.sh "$@"
+fi
 
 echo "🍍 安装本机依赖…"
 mkdir -p .local/bin

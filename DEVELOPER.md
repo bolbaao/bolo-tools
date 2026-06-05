@@ -1,6 +1,6 @@
 # 开发者手册
 
-面向部署与二次开发。普通使用说明见 [README.md](README.md)。
+面向部署与二次开发。普通使用说明见 [README.md](README.md)。**Linux 云服务器打包与上线见 [DEPLOY.md](DEPLOY.md)。**
 
 ## 技术栈
 

@@ -56,7 +56,7 @@
 | 字幕工坊 · 本地语音转写 | 安装 faster-whisper：`./scripts/install-deps.sh`（首次会自动下载模型，无需 API Key） |
 | PDF ↔ Word | 运行 `./scripts/download-libreoffice.sh` 下载 LibreOffice（PDF 转图片、图片转 PDF 不需要） |
 | 酷狗加密歌曲解锁 | 运行 `./scripts/download-kgm-mask.sh` |
-| 3D 工坊 · 单图生成 3D 模型 | 1) `./scripts/download-mlsharp-3d-maker.sh` 下载模型包；2) macOS 再运行 `./scripts/install-mlsharp-mac.sh` 安装运行时 |
+| 3D 工坊 · 单图生成 3D 模型 | 本机：`./scripts/download-mlsharp-3d-maker.sh` + `./scripts/install-mlsharp-mac.sh`；**上云**：`./scripts/pack-mlsharp-3d.sh` 打包上传，服务器 `bash scripts/unpack-mlsharp-3d.sh …`（见 [DEPLOY.md](DEPLOY.md)） |
 | 部分视频平台解析 | 可选安装 yt-dlp：`brew install yt-dlp`；抖音等需保持浏览器登录，详见 [cookies/README.md](cookies/README.md) |
 
 ### 配置方式
@@ -68,6 +68,8 @@ cp .env.example .env
 ```
 
 填好后重新运行 `./start.sh` 即可生效。
+
+**部署到 Linux 云服务器**（打包依赖、上传、生产启动）见 [DEPLOY.md](DEPLOY.md)。
 
 ## 常见问题
 

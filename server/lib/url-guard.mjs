@@ -79,6 +79,10 @@ export function normalizeTwitterInput(raw) {
       parsed.pathname.match(/\/i\/(?:web\/)?status\/(\d+)/i)?.[1];
 
     if (idFromPath) {
+      const user = parsed.pathname.match(/^\/([A-Za-z0-9_]+)\/status(?:es)?\//i)?.[1];
+      if (user && user.toLowerCase() !== "i") {
+        return `https://x.com/${user}/status/${idFromPath}`;
+      }
       return `https://x.com/i/status/${idFromPath}`;
     }
     return url.split("#")[0].split("?")[0];

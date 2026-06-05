@@ -8,10 +8,11 @@ from pathlib import Path
 
 from PIL import Image, ImageEnhance, ImageFilter
 
+# 推理分辨率固定 1536（ML-Sharp 双金字塔 patch 约束）；高清/超清差异在锐化预处理
 PRESETS = {
     "standard": {"long_edge": 1536, "sharpen": 0.0, "internal": 1536},
-    "high": {"long_edge": 2048, "sharpen": 0.35, "internal": 2048},
-    "ultra": {"long_edge": 2048, "sharpen": 0.65, "internal": 2048},
+    "high": {"long_edge": 1536, "sharpen": 0.35, "internal": 1536},
+    "ultra": {"long_edge": 1536, "sharpen": 0.65, "internal": 1536},
 }
 
 

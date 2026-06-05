@@ -30,7 +30,7 @@ export const tools: Tool[] = [
   {
     id: "image-studio",
     title: "图像工坊",
-    description: "让图片更小、更清晰，一键抠图、美化人像，还能用文字描述生成新图。",
+    description: "让图片更小、更清晰，一键抠图、换背景、去水印、美化人像，还能用文字描述生成新图。",
     href: "/tools/image-studio",
     gradient: "from-sky-500/20 via-violet-500/15 to-emerald-500/10",
     tag: "图像",

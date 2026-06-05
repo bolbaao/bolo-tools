@@ -10,7 +10,13 @@ import {
   renderEditedVideo,
   safeOutputName,
 } from "./ai-video-edit.mjs";
-import { generateArkImage, editArkImage, beautifyArkImage } from "./ark-image.mjs";
+import {
+  generateArkImage,
+  editArkImage,
+  beautifyArkImage,
+  removeWatermarkArkImage,
+  replaceBackgroundArkImage,
+} from "./ark-image.mjs";
 import { HttpError } from "./http-error.mjs";
 import { formatMediaSearchReply } from "./chat-media-intent.mjs";
 import { formatResourceNotFound, formatSearchNotFound } from "../../shared/public-error.mjs";
@@ -205,6 +211,39 @@ async function runImageStudio(fields, context) {
       return `**人像美化完成**\n\n${formatArtifactLink(id, "下载图片")}`;
     }
     return `**人像美化完成**\n\n[查看图片](${result.imageUrl})`;
+  }
+
+  if (mode === "watermark") {
+    const result = await removeWatermarkArkImage({
+      imageDataUrl,
+      level: pickField(fields, ["level"], "standard") || "standard",
+    });
+    if (result.imageBase64) {
+      const id = putChatArtifact({
+        buffer: Buffer.from(result.imageBase64, "base64"),
+        filename: `watermark-${Date.now()}.png`,
+        contentType: result.mimeType || "image/png",
+      });
+      return `**水印已去除**\n\n${formatArtifactLink(id, "下载图片")}`;
+    }
+    return `**水印已去除**\n\n[查看图片](${result.imageUrl})`;
+  }
+
+  if (mode === "bgreplace") {
+    const bgPrompt = prompt || pickField(fields, ["backgroundPrompt"], "简洁干净的纯色背景");
+    const result = await replaceBackgroundArkImage({
+      imageDataUrl,
+      backgroundPrompt: bgPrompt,
+    });
+    if (result.imageBase64) {
+      const id = putChatArtifact({
+        buffer: Buffer.from(result.imageBase64, "base64"),
+        filename: `bg-${Date.now()}.png`,
+        contentType: result.mimeType || "image/png",
+      });
+      return `**背景已替换**\n\n${formatArtifactLink(id, "下载图片")}`;
+    }
+    return `**背景已替换**\n\n[查看图片](${result.imageUrl})`;
   }
 
   if (mode === "edit" || mode === "cutout") {

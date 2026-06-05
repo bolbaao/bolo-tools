@@ -4,12 +4,12 @@ import PageTransition from "@/components/PageTransition";
 import EmailVerifyBanner from "@/components/EmailVerifyBanner";
 import AdminDeveloperBanner from "@/components/AdminDeveloperBanner";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { PUBLIC_SITE_TAGLINE } from "@/lib/site-content";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "春雨集",
-  description:
-    "把日常变得更有想象力。音乐转换、视频提取、AI 创作与热点工具 — 简洁专业的 AI 工具箱。",
+  description: `${PUBLIC_SITE_TAGLINE} — 音乐转换、视频提取、AI 创作与热点工具，简洁好用的创作者工具箱。`,
 };
 
 export default function RootLayout({

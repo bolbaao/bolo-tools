@@ -1,11 +1,15 @@
 "use client";
 
 import { ToolIconBox } from "@/components/icons/ToolIcon";
+import { useDisplayContent } from "@/hooks/useDisplayContent";
 import { useOptionalWorkspaceChat } from "@/contexts/WorkspaceChatContext";
 import type { Tool } from "@/lib/tools";
 
 export default function ToolWorkspaceHeader({ tool }: { tool: Tool }) {
   const chatCtx = useOptionalWorkspaceChat();
+  const { getToolDescription, getToolHighlights } = useDisplayContent();
+  const description = getToolDescription(tool.id);
+  const highlights = getToolHighlights(tool.id);
 
   return (
     <div className="space-y-4">
@@ -40,8 +44,20 @@ export default function ToolWorkspaceHeader({ tool }: { tool: Tool }) {
             </span>
           </div>
           <p className="mt-1.5 max-w-2xl text-[0.9375rem] leading-relaxed text-black/52">
-            {tool.description}
+            {description}
           </p>
+          {highlights.length > 0 ? (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {highlights.map((item) => (
+                <li
+                  key={item}
+                  className="rounded-full bg-emerald-500/[0.07] px-2.5 py-1 text-[11px] font-medium text-emerald-800/75 ring-1 ring-emerald-500/12"
+                >
+                  {item}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       </div>
     </div>

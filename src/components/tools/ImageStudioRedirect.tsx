@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
-type Tab = "compress" | "sharpen" | "cutout" | "beautify" | "edit" | "generate";
+type Tab = "compress" | "sharpen" | "cutout" | "bgreplace" | "watermark" | "beautify" | "edit" | "generate";
 
 export default function ImageStudioRedirect({ tab }: { tab: Tab }) {
   const router = useRouter();

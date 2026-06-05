@@ -3,17 +3,82 @@ export type OutputFormat = "JPG" | "PNG" | "WebP";
 function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
+    loadImageFromUrl(url, () => URL.revokeObjectURL(url))
+      .then(resolve)
+      .catch(reject);
+  });
+}
+
+function loadImageFromUrl(src: string, onLoad?: () => void): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      URL.revokeObjectURL(url);
+      onLoad?.();
       resolve(img);
     };
     img.onerror = () => {
-      URL.revokeObjectURL(url);
+      onLoad?.();
       reject(new Error("无法读取图片"));
     };
-    img.src = url;
+    img.src = src;
   });
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, mime: string, quality?: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("导出失败"));
+      },
+      mime,
+      quality,
+    );
+  });
+}
+
+export type BackgroundSpec =
+  | { type: "color"; color: string }
+  | { type: "image"; source: File | string };
+
+/** 将抠图结果（带透明通道）合成到新背景上 */
+export async function compositeSubjectOnBackground(
+  subjectBlob: Blob,
+  background: BackgroundSpec,
+): Promise<Blob> {
+  const subjectUrl = URL.createObjectURL(subjectBlob);
+  try {
+    const subject = await loadImageFromUrl(subjectUrl, () => URL.revokeObjectURL(subjectUrl));
+    const w = subject.naturalWidth;
+    const h = subject.naturalHeight;
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas 不可用");
+
+    if (background.type === "color") {
+      ctx.fillStyle = background.color;
+      ctx.fillRect(0, 0, w, h);
+    } else {
+      const bgImg =
+        background.source instanceof File
+          ? await loadImage(background.source)
+          : await loadImageFromUrl(background.source);
+      const scale = Math.max(w / bgImg.naturalWidth, h / bgImg.naturalHeight);
+      const bw = bgImg.naturalWidth * scale;
+      const bh = bgImg.naturalHeight * scale;
+      const bx = (w - bw) / 2;
+      const by = (h - bh) / 2;
+      ctx.drawImage(bgImg, bx, by, bw, bh);
+    }
+
+    ctx.drawImage(subject, 0, 0);
+    return canvasToBlob(canvas, "image/png");
+  } catch (e) {
+    URL.revokeObjectURL(subjectUrl);
+    throw e;
+  }
 }
 
 function mimeForFormat(format: OutputFormat): string {

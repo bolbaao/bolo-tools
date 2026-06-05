@@ -25,8 +25,11 @@ export const AGENT_TOOLS = [
     id: "image-studio",
     title: "图像工坊",
     href: "/tools/image-studio",
-    description: "压缩、变清晰、抠图、美化人像，还能用文字描述生成新图",
-    fields: { mode: "compress|sharpen|cutout|beautify|edit|generate", prompt: "生图或修图描述" },
+    description: "压缩、变清晰、抠图、换背景、去水印、美化人像，还能用文字描述生成新图",
+    fields: {
+      mode: "compress|sharpen|cutout|bgreplace|watermark|beautify|edit|generate",
+      prompt: "生图、修图或背景描述",
+    },
   },
   {
     id: "ai-search",

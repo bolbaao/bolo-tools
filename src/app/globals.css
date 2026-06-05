@@ -1504,6 +1504,57 @@ body.page-ready .reveal {
   transition-duration: 0.15s;
 }
 
+.featured-tool-card-light {
+  border-radius: 1.25rem;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(248, 249, 252, 0.95) 100%
+  );
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  backdrop-filter: blur(12px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.8) inset,
+    0 8px 28px -12px rgba(0, 0, 0, 0.12);
+}
+
+.featured-tool-card-light:hover {
+  transform: translateY(-3px);
+  border-color: rgba(124, 140, 255, 0.22);
+  box-shadow:
+    0 0 0 1px rgba(124, 140, 255, 0.06) inset,
+    0 16px 40px -16px rgba(99, 102, 212, 0.14),
+    0 8px 20px -8px rgba(0, 0, 0, 0.08);
+}
+
+.featured-tool-card-light::before {
+  background: linear-gradient(
+    135deg,
+    rgba(124, 140, 255, 0.22) 0%,
+    transparent 45%,
+    transparent 55%,
+    rgba(126, 111, 212, 0.16) 100%
+  );
+}
+
+.home-hero-desc {
+  transition:
+    opacity 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    max-height 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.home-hero-enter .home-hero-desc {
+  animation: home-hero-fade-in 0.9s var(--ease-apple) 0.35s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero-enter .home-hero-desc {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 .glass-panel {
   background: rgba(18, 18, 28, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.08);

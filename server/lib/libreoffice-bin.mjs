@@ -5,12 +5,19 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.join(__dirname, "..", "..");
-const PROJECT_SOFFICE = path.join(
+const PROJECT_SOFFICE_MAC = path.join(
   PROJECT_ROOT,
   ".local",
   "LibreOffice.app",
   "Contents",
   "MacOS",
+  "soffice",
+);
+const PROJECT_SOFFICE_LINUX = path.join(
+  PROJECT_ROOT,
+  ".local",
+  "libreoffice",
+  "program",
   "soffice",
 );
 const MAC_SOFFICE = "/Applications/LibreOffice.app/Contents/MacOS/soffice";
@@ -25,7 +32,8 @@ function resolveEnvPath(raw) {
 export function getLibreOfficePath() {
   const fromEnv = resolveEnvPath(process.env.LIBREOFFICE_PATH);
   if (fromEnv) return fromEnv;
-  if (fs.existsSync(PROJECT_SOFFICE)) return PROJECT_SOFFICE;
+  if (fs.existsSync(PROJECT_SOFFICE_MAC)) return PROJECT_SOFFICE_MAC;
+  if (fs.existsSync(PROJECT_SOFFICE_LINUX)) return PROJECT_SOFFICE_LINUX;
   if (fs.existsSync(MAC_SOFFICE)) return MAC_SOFFICE;
 
   for (const name of ["soffice", "libreoffice", "lowriter"]) {
