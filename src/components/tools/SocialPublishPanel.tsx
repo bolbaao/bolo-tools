@@ -43,11 +43,10 @@ export default function SocialPublishPanel() {
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [video, setVideo] = useState<File | null>(null);
+  const [cover, setCover] = useState<File | null>(null);
+  const [coverMaxMb, setCoverMaxMb] = useState(15);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
-  const [automationEnabled, setAutomationEnabled] = useState(false);
-  const [automationHint, setAutomationHint] = useState("");
   const [douyinAutoEnabled, setDouyinAutoEnabled] = useState(true);
-  const [douyinAutoHint, setDouyinAutoHint] = useState("");
   const [douyinAuto, setDouyinAuto] = useState(true);
   const [captions, setCaptions] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -55,6 +54,14 @@ export default function SocialPublishPanel() {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<PublishResult[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
+
+  const coverPreview = useMemo(() => (cover ? URL.createObjectURL(cover) : null), [cover]);
+
+  useEffect(() => {
+    return () => {
+      if (coverPreview) URL.revokeObjectURL(coverPreview);
+    };
+  }, [coverPreview]);
 
   useAgentPrefill("social-publish", {
     apply: (fields) => {
@@ -78,20 +85,18 @@ export default function SocialPublishPanel() {
       platforms: PlatformInfo[];
       accounts: AccountInfo[];
       aiConfigured: boolean;
-      automationEnabled: boolean;
-      automationHint: string;
       douyinAutoEnabled?: boolean;
       douyinAutoHint?: string;
+      coverUploadSupported?: boolean;
+      coverMaxMb?: number;
     }>("/api/social-publish/capabilities")
       .then((d) => {
         setPlatforms(d.platforms || []);
         setAccounts(d.accounts || []);
         setAiConfigured(d.aiConfigured);
-        setAutomationEnabled(Boolean(d.automationEnabled));
-        setAutomationHint(d.automationHint || "");
         setDouyinAutoEnabled(d.douyinAutoEnabled !== false);
-        setDouyinAutoHint(d.douyinAutoHint || "");
         setDouyinAuto(d.douyinAutoEnabled !== false);
+        if (d.coverMaxMb) setCoverMaxMb(d.coverMaxMb);
       })
       .catch(() => setAiConfigured(false));
   }, []);
@@ -106,6 +111,23 @@ export default function SocialPublishPanel() {
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
     );
+  };
+
+  const onCoverChange = (file: File | null) => {
+    if (!file) {
+      setCover(null);
+      return;
+    }
+    if (!/^image\/(jpeg|png|webp)$/i.test(file.type) && !/\.(jpe?g|png|webp)$/i.test(file.name)) {
+      setError("封面请上传 JPG、PNG 或 WebP 图片");
+      return;
+    }
+    if (file.size > coverMaxMb * 1024 * 1024) {
+      setError(`封面不能超过 ${coverMaxMb}MB`);
+      return;
+    }
+    setError(null);
+    setCover(file);
   };
 
   const adaptCaptions = async () => {
@@ -157,6 +179,7 @@ export default function SocialPublishPanel() {
         fd.append("captions", JSON.stringify(captions));
       }
       if (video) fd.append("video", video);
+      if (cover) fd.append("cover", cover);
 
       const path = douyinOnly
         ? "/api/social-publish/douyin/publish"
@@ -242,6 +265,31 @@ export default function SocialPublishPanel() {
             onChange={(e) => setVideo(e.target.files?.[0] ?? null)}
           />
         </div>
+        <div>
+          <label className="text-xs text-white/45">封面图片（可选，JPG/PNG/WebP，最大 {coverMaxMb}MB）</label>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+            className="mt-1 block w-full text-sm text-white/60 file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-white/80"
+            onChange={(e) => onCoverChange(e.target.files?.[0] ?? null)}
+          />
+          {coverPreview ? (
+            <div className="mt-3 flex items-start gap-3">
+              <img
+                src={coverPreview}
+                alt="封面预览"
+                className="h-24 w-40 rounded-lg object-cover ring-1 ring-white/10"
+              />
+              <button
+                type="button"
+                className="text-xs text-white/45 hover:text-white/70"
+                onClick={() => setCover(null)}
+              >
+                移除封面
+              </button>
+            </div>
+          ) : null}
+        </div>
       </section>
 
       {douyinAutoEnabled && (
@@ -258,7 +306,6 @@ export default function SocialPublishPanel() {
               上传后自动点「发布」
             </label>
           </div>
-          <p className="text-xs text-white/45 leading-relaxed">{douyinAutoHint}</p>
           {accountMap.douyin && !accountMap.douyin.ready && (
             <p className="text-xs text-amber-200/80">{accountMap.douyin.hint}</p>
           )}
@@ -279,37 +326,39 @@ export default function SocialPublishPanel() {
             const acc = accountMap[p.id];
             const on = selected.includes(p.id);
             return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => togglePlatform(p.id)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition-colors ${
-                  on
-                    ? "bg-blue-500/20 text-blue-100 ring-blue-500/40"
-                    : "bg-white/5 text-white/50 ring-white/10 hover:text-white/70"
-                }`}
-              >
-                {p.label}
-                {acc && (
-                  <span
-                    className={`ml-1.5 inline-block h-1.5 w-1.5 rounded-full ${
-                      acc.ready ? "bg-emerald-400" : "bg-amber-400"
-                    }`}
-                    title={acc.hint}
-                  />
-                )}
-              </button>
+              <div key={p.id} className="inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => togglePlatform(p.id)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition-colors ${
+                    on
+                      ? "bg-blue-500/20 text-blue-100 ring-blue-500/40"
+                      : "bg-white/5 text-white/50 ring-white/10 hover:text-white/70"
+                  }`}
+                >
+                  {p.label}
+                  {acc && (
+                    <span
+                      className={`ml-1.5 inline-block h-1.5 w-1.5 rounded-full ${
+                        acc.ready ? "bg-emerald-400" : "bg-amber-400"
+                      }`}
+                      title={acc.hint}
+                    />
+                  )}
+                </button>
+                <a
+                  href={p.creatorUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full px-2 py-1 text-[10px] text-blue-300/80 ring-1 ring-white/10 hover:text-blue-200 hover:ring-blue-500/30"
+                  title={`打开${p.label}创作者中心`}
+                >
+                  链接 ↗
+                </a>
+              </div>
             );
           })}
         </div>
-        <p className="text-xs text-white/40 leading-relaxed">
-          绿点表示该平台账号已就绪。{automationHint}
-          {automationEnabled && !douyinAutoEnabled && (
-            <span className="block mt-1 text-amber-200/80">
-              其它平台的自动发布需在站点设置中开启。
-            </span>
-          )}
-        </p>
       </section>
 
       <div className="flex flex-wrap gap-3">
@@ -412,9 +461,6 @@ export default function SocialPublishPanel() {
         </section>
       )}
 
-      <p className="text-xs text-white/35 leading-relaxed">
-        抖音全自动会代替你点击「发布」，请确认内容合规。首次或 Cookie 失效时可能弹出浏览器登录；遇验证码需手动完成。
-      </p>
     </div>
   );
 }

@@ -120,16 +120,6 @@ export default function MediaDownloadPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 px-5 py-4">
-        <p className="text-sm text-white/65 leading-relaxed">
-          输入名称后搜索，找到结果即可
-          <strong className="text-white/85 font-medium">一键复制</strong>。
-        </p>
-        <p className="mt-2 text-xs text-white/35">
-          提示：不要带「第几部」「第几期」等无关词；搜不到时可换关键词或别名再试。
-        </p>
-      </div>
-
       <div className="flex flex-col gap-3 sm:flex-row">
         <input
           type="search"
@@ -291,9 +281,6 @@ export default function MediaDownloadPanel() {
         </p>
       )}
 
-      <p className="text-center text-[11px] text-white/25 leading-relaxed">
-        搜索结果不代表本站立场，请支持正版内容。
-      </p>
     </div>
   );
 }

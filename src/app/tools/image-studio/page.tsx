@@ -13,6 +13,9 @@ function tabFromParam(value: string | null) {
     value === "cutout" ||
     value === "bgreplace" ||
     value === "watermark" ||
+    value === "erase" ||
+    value === "ocr" ||
+    value === "idphoto" ||
     value === "beautify" ||
     value === "edit" ||
     value === "generate"

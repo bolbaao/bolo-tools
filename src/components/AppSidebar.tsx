@@ -29,7 +29,10 @@ export default function AppSidebar({ onNavigate }: { onNavigate?: () => void }) 
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
 
-  const categories = useMemo(() => groupToolsByCategory(getSidebarTools()), []);
+  const categories = useMemo(
+    () => groupToolsByCategory(getSidebarTools(user?.isAdmin)),
+    [user?.isAdmin],
+  );
   const personalTools = useMemo(() => getPersonalCenterTools(), []);
 
   const openAuth = (mode: "login" | "register") => {

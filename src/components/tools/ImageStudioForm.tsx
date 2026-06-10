@@ -1,32 +1,63 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
+import CopyButton from "@/components/CopyButton";
 import ImageCompareSlider from "@/components/ImageCompareSlider";
+import {
+  ToolChip,
+  ToolChipBar,
+  ToolPresetCard,
+  ToolPresetGrid,
+  ToolSection,
+} from "@/components/tools/ToolSection";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
-import { useDisplayContent } from "@/hooks/useDisplayContent";
 import { ApiError, apiPost, downloadBlob } from "@/lib/api";
 import { formatBytes } from "@/lib/format";
 import {
   buildImageZip,
   compressImage,
+  composeIdPhoto,
   compositeSubjectOnBackground,
+  ID_PHOTO_SIZES,
   outputFilename,
   prepareImageForEdit,
   previewUrlFromFile,
   sharpenImage,
+  type IdPhotoSize,
   type OutputFormat,
 } from "@/lib/image-processing";
-import { getImageStudioFooterHint } from "@/lib/site-content";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type Tab = "compress" | "sharpen" | "cutout" | "bgreplace" | "watermark" | "beautify" | "edit" | "generate";
+type Tab =
+  | "compress"
+  | "sharpen"
+  | "cutout"
+  | "bgreplace"
+  | "watermark"
+  | "erase"
+  | "ocr"
+  | "idphoto"
+  | "beautify"
+  | "edit"
+  | "generate";
+
+const POPULAR_FEATURES: { tab: Tab; title: string; icon: string }[] = [
+  { tab: "cutout", title: "智能抠图", icon: "✂️" },
+  { tab: "watermark", title: "图片去水印", icon: "💧" },
+  { tab: "sharpen", title: "图像增强", icon: "✨" },
+  { tab: "edit", title: "风格转换", icon: "🎨" },
+  { tab: "compress", title: "批量处理", icon: "📦" },
+];
 
 const TABS: { id: Tab; label: string; hint: string }[] = [
   { id: "compress", label: "压缩", hint: "减小体积" },
   { id: "sharpen", label: "变清晰", hint: "锐化增强" },
   { id: "cutout", label: "抠图", hint: "智能去背景" },
-  { id: "bgreplace", label: "换背景", hint: "证件照 / 场景" },
+  { id: "bgreplace", label: "换背景", hint: "场景合成" },
   { id: "watermark", label: "去水印", hint: "AI 智能修复" },
+  { id: "erase", label: "AI 消除", hint: "去路人杂物" },
+  { id: "ocr", label: "提文字", hint: "OCR 识别" },
+  { id: "idphoto", label: "证件照", hint: "标准尺寸" },
   { id: "beautify", label: "人像美化", hint: "一键变美" },
   { id: "edit", label: "修图", hint: "AI 改图" },
   { id: "generate", label: "AI 生图", hint: "文字描述成图" },
@@ -84,6 +115,14 @@ const watermarkLevels = [
   { id: "strong" as const, label: "强力", desc: "大面积或复杂叠加" },
 ];
 
+const eraseLevels = [
+  { id: "light" as const, label: "轻度", desc: "小杂物、轻微遮挡" },
+  { id: "standard" as const, label: "标准", desc: "路人、电线、常见杂物" },
+  { id: "strong" as const, label: "强力", desc: "复杂或多处遮挡" },
+];
+
+const erasePresets = ["去掉路人", "去掉电线", "去掉右下角文字", "去掉背景杂物"];
+
 function tabFromParam(value: string | null): Tab {
   if (
     value === "compress" ||
@@ -91,6 +130,9 @@ function tabFromParam(value: string | null): Tab {
     value === "cutout" ||
     value === "bgreplace" ||
     value === "watermark" ||
+    value === "erase" ||
+    value === "ocr" ||
+    value === "idphoto" ||
     value === "beautify" ||
     value === "edit" ||
     value === "generate"
@@ -99,17 +141,6 @@ function tabFromParam(value: string | null): Tab {
   }
   return "compress";
 }
-
-const activeTabClass: Record<Tab, string> = {
-  compress: "bg-lime-600/25 text-lime-100 border border-lime-500/30",
-  sharpen: "bg-sky-600/25 text-sky-100 border border-sky-500/30",
-  cutout: "bg-emerald-600/25 text-emerald-100 border border-emerald-500/30",
-  bgreplace: "bg-teal-600/25 text-teal-100 border border-teal-500/30",
-  watermark: "bg-orange-600/25 text-orange-100 border border-orange-500/30",
-  beautify: "bg-rose-600/25 text-rose-100 border border-rose-500/30",
-  edit: "bg-amber-600/25 text-amber-100 border border-amber-500/30",
-  generate: "bg-violet-600/25 text-violet-100 border border-violet-500/30",
-};
 
 type CompressItem = {
   id: string;
@@ -131,7 +162,6 @@ type ImageStudioFormProps = {
 };
 
 export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
-  const { isAdmin } = useDisplayContent();
   const [tab, setTab] = useState<Tab>(initialTab ?? "compress");
   const [file, setFile] = useState<File | null>(null);
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
@@ -163,6 +193,15 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
   const [watermarkLevel, setWatermarkLevel] = useState<"light" | "standard" | "strong">("standard");
   const [watermarkResolution, setWatermarkResolution] = useState<"1k" | "2k">("2k");
   const [watermarkMessage, setWatermarkMessage] = useState<string | null>(null);
+  const [eraseLevel, setEraseLevel] = useState<"light" | "standard" | "strong">("standard");
+  const [eraseHint, setEraseHint] = useState("");
+  const [eraseResolution, setEraseResolution] = useState<"1k" | "2k">("2k");
+  const [eraseMessage, setEraseMessage] = useState<string | null>(null);
+  const [ocrText, setOcrText] = useState<string | null>(null);
+  const [ocrMessage, setOcrMessage] = useState<string | null>(null);
+  const [idPhotoSize, setIdPhotoSize] = useState<IdPhotoSize>("1inch");
+  const [idPhotoBg, setIdPhotoBg] = useState("#438EDB");
+  const [idPhotoMessage, setIdPhotoMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [compressItems, setCompressItems] = useState<CompressItem[]>([]);
@@ -658,6 +697,90 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
   const handleDownloadBeautify = () => handleDownloadResult("beautified");
   const handleDownloadBg = () => handleDownloadResult("new-bg");
   const handleDownloadWatermark = () => handleDownloadResult("no-watermark");
+  const handleDownloadErase = () => handleDownloadResult("erased");
+  const handleDownloadIdPhoto = () => handleDownloadResult("idphoto");
+
+  const handleErase = async () => {
+    if (!file) return;
+    setLoading(true);
+    setError(null);
+    setEraseMessage(null);
+    if (afterUrl?.startsWith("blob:")) URL.revokeObjectURL(afterUrl);
+    setAfterUrl(null);
+    try {
+      const imageDataUrl = await prepareImageForEdit(file, eraseResolution);
+      const data = await apiPost<{
+        ok: boolean;
+        imageUrl?: string;
+        imageBase64?: string;
+        mimeType?: string;
+        message?: string;
+      }>(
+        "/api/ark-image/erase",
+        {
+          imageDataUrl,
+          level: eraseLevel,
+          hint: eraseHint.trim() || undefined,
+          resolution: eraseResolution,
+        },
+        { timeoutMs: 180000 },
+      );
+      if (data.imageBase64) {
+        const mime = data.mimeType || "image/png";
+        setAfterUrl(`data:${mime};base64,${data.imageBase64}`);
+      } else if (data.imageUrl) {
+        setAfterUrl(data.imageUrl);
+      }
+      setEraseMessage(data.message || "智能消除完成");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "智能消除失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOcr = async () => {
+    if (!file) return;
+    setLoading(true);
+    setError(null);
+    setOcrMessage(null);
+    setOcrText(null);
+    try {
+      const imageDataUrl = await prepareImageForEdit(file, "2k");
+      const data = await apiPost<{
+        ok: boolean;
+        text?: string;
+        message?: string;
+      }>("/api/ark-image/ocr", { imageDataUrl }, { timeoutMs: 120000 });
+      setOcrText(data.text || "");
+      setOcrMessage(data.message || "文字提取完成");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "文字提取失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleIdPhoto = async () => {
+    if (!file) return;
+    setLoading(true);
+    setError(null);
+    setIdPhotoMessage(null);
+    setLoadProgress("");
+    if (afterUrl?.startsWith("blob:")) URL.revokeObjectURL(afterUrl);
+    setAfterUrl(null);
+    try {
+      setLoadProgress("正在抠图并生成证件照…");
+      const blob = await composeIdPhoto(file, { bgColor: idPhotoBg, size: idPhotoSize });
+      setAfterUrl(URL.createObjectURL(blob));
+      setIdPhotoMessage(`${ID_PHOTO_SIZES[idPhotoSize].label} 证件照已生成`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "证件照生成失败");
+    } finally {
+      setLoading(false);
+      setLoadProgress("");
+    }
+  };
 
   const primaryAction = () => {
     if (tab === "compress") return isBatchCompress ? runBatchCompress() : handleCompress();
@@ -667,6 +790,9 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     if (tab === "generate") return handleGenerate();
     if (tab === "bgreplace") return handleBgReplace();
     if (tab === "watermark") return handleWatermark();
+    if (tab === "erase") return handleErase();
+    if (tab === "ocr") return handleOcr();
+    if (tab === "idphoto") return handleIdPhoto();
     return handleCutout();
   };
 
@@ -680,6 +806,9 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
     cutout: "开始智能抠图",
     bgreplace: "开始换背景",
     watermark: "开始去水印",
+    erase: "开始 AI 消除",
+    ocr: "提取图中文字",
+    idphoto: "生成证件照",
     beautify: "一键人像美化",
     edit: "开始 AI 修图",
     generate: "生成图片",
@@ -700,24 +829,19 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-1.5 p-1 rounded-xl bg-white/[0.03] border border-white/8">
+      <ToolChipBar>
         {TABS.map((t) => (
-          <button
+          <ToolChip
             key={t.id}
-            type="button"
+            label={t.label}
+            active={tab === t.id}
             onClick={() => {
               setTab(t.id);
               setError(null);
             }}
-            className={`flex-1 min-w-[5rem] rounded-lg px-2 py-2.5 text-center transition-all ${
-              tab === t.id ? activeTabClass[t.id] : "text-white/45 hover:text-white/70 hover:bg-white/5"
-            }`}
-          >
-            <span className="block text-sm font-medium">{t.label}</span>
-            <span className="block text-[10px] opacity-60 mt-0.5">{t.hint}</span>
-          </button>
+          />
         ))}
-      </div>
+      </ToolChipBar>
 
       {tab === "generate" ? (
         <div className="space-y-5">
@@ -1085,6 +1209,244 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
               className="w-full rounded-xl border border-white/15 py-2.5 text-sm text-white/70 hover:text-white"
             >
               下载结果
+            </button>
+          )}
+        </div>
+      ) : tab === "erase" ? (
+        <div className="space-y-5">
+          <label className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-8 cursor-pointer hover:border-white/25 hover:bg-white/[0.04] transition-all">
+            {beforeUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={beforeUrl} alt="预览" className="max-h-40 rounded-lg object-contain" />
+            ) : (
+              <span className="text-3xl opacity-60">✦</span>
+            )}
+            <span className="text-sm text-white/50">{file?.name ?? "上传需要处理的图片"}</span>
+            <span className="text-xs text-white/25">智能去除路人、杂物、电线等 · 请确保你有权处理该图片</span>
+            <input type="file" accept="image/*" className="hidden" onChange={onFile} />
+          </label>
+
+          <div>
+            <label className="block text-sm text-white/60 mb-2">消除强度</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {eraseLevels.map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => setEraseLevel(l.id)}
+                  className={`rounded-xl px-3 py-3 text-left transition-all ${
+                    eraseLevel === l.id
+                      ? "bg-fuchsia-600/25 text-fuchsia-100 border border-fuchsia-500/35"
+                      : "bg-white/5 text-white/50 border border-white/8 hover:bg-white/10"
+                  }`}
+                >
+                  <span className="block text-sm font-medium">{l.label}</span>
+                  <span className="block text-[11px] opacity-70 mt-0.5">{l.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="erase-hint" className="block text-sm text-white/60 mb-2">
+              消除说明（可选）
+            </label>
+            <input
+              id="erase-hint"
+              type="text"
+              value={eraseHint}
+              onChange={(e) => setEraseHint(e.target.value.slice(0, 80))}
+              placeholder="如：去掉画面左侧的路人"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-fuchsia-500/50 focus:outline-none"
+            />
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {erasePresets.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setEraseHint(p)}
+                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/50 hover:border-fuchsia-500/30"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-white/60 mb-2">输出清晰度</label>
+            <div className="flex gap-2">
+              {(["1k", "2k"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setEraseResolution(r)}
+                  className={`rounded-lg px-3 py-1.5 text-sm ${
+                    eraseResolution === r
+                      ? "bg-fuchsia-600/25 text-fuchsia-200 border border-fuchsia-500/35"
+                      : "bg-white/5 text-white/50 border border-white/8"
+                  }`}
+                >
+                  {r.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-xl border border-white/8 p-3">
+              <p className="text-xs text-white/40 mb-2">原图</p>
+              <div className="aspect-square rounded-lg bg-white/5 overflow-hidden flex items-center justify-center">
+                {beforeUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={beforeUrl} alt="原图" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-white/25 text-xs">—</span>
+                )}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/8 p-3">
+              <p className="text-xs text-white/40 mb-2">消除后</p>
+              <div className="aspect-square rounded-lg bg-white/5 overflow-hidden flex items-center justify-center">
+                {afterUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={afterUrl} alt="消除结果" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-white/25 text-xs bg-white/5 w-full h-full flex items-center justify-center rounded-lg">
+                    {loading ? "处理中…" : "—"}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {eraseMessage && <p className="text-sm text-emerald-400/90 text-center">{eraseMessage}</p>}
+          {afterUrl && (
+            <button
+              type="button"
+              onClick={handleDownloadErase}
+              className="w-full rounded-xl border border-white/15 py-2.5 text-sm text-white/70 hover:text-white"
+            >
+              下载结果
+            </button>
+          )}
+        </div>
+      ) : tab === "ocr" ? (
+        <div className="space-y-5">
+          <label className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-8 cursor-pointer hover:border-white/25 hover:bg-white/[0.04] transition-all">
+            {beforeUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={beforeUrl} alt="预览" className="max-h-40 rounded-lg object-contain" />
+            ) : (
+              <span className="text-3xl opacity-60">文</span>
+            )}
+            <span className="text-sm text-white/50">{file?.name ?? "上传含文字的图片"}</span>
+            <span className="text-xs text-white/25">截图、海报、扫描件均可 · 需配置火山方舟视觉模型</span>
+            <input type="file" accept="image/*" className="hidden" onChange={onFile} />
+          </label>
+
+          {ocrMessage && <p className="text-sm text-emerald-400/90 text-center">{ocrMessage}</p>}
+          {ocrText ? (
+            <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-white/45">识别结果</p>
+                <CopyButton text={ocrText} />
+              </div>
+              <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-white/80">
+                {ocrText}
+              </pre>
+            </div>
+          ) : null}
+        </div>
+      ) : tab === "idphoto" ? (
+        <div className="space-y-5">
+          <label className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-8 cursor-pointer hover:border-white/25 hover:bg-white/[0.04] transition-all">
+            {beforeUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={beforeUrl} alt="预览" className="max-h-40 rounded-lg object-contain" />
+            ) : (
+              <span className="text-3xl opacity-60">照</span>
+            )}
+            <span className="text-sm text-white/50">{file?.name ?? "上传人像照片"}</span>
+            <span className="text-xs text-white/25">正面半身照效果最佳 · 本地抠图，无需 API Key</span>
+            <input type="file" accept="image/*" className="hidden" onChange={onFile} />
+          </label>
+
+          <div>
+            <label className="block text-sm text-white/60 mb-2">证件照尺寸</label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(ID_PHOTO_SIZES) as IdPhotoSize[]).map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => setIdPhotoSize(size)}
+                  className={`rounded-lg px-3 py-1.5 text-sm ${
+                    idPhotoSize === size
+                      ? "bg-blue-600/25 text-blue-100 border border-blue-500/35"
+                      : "bg-white/5 text-white/50 border border-white/8"
+                  }`}
+                >
+                  {ID_PHOTO_SIZES[size].label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-white/60 mb-2">背景颜色</label>
+            <div className="flex flex-wrap gap-2">
+              {bgColorPresets.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setIdPhotoBg(p.color)}
+                  className={`rounded-lg px-3 py-1.5 text-sm border ${
+                    idPhotoBg === p.color
+                      ? "border-blue-400/50 text-blue-100 bg-blue-600/15"
+                      : "border-white/8 text-white/50 bg-white/5"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-xl border border-white/8 p-3">
+              <p className="text-xs text-white/40 mb-2">原图</p>
+              <div className="aspect-square rounded-lg bg-white/5 overflow-hidden flex items-center justify-center">
+                {beforeUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={beforeUrl} alt="原图" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-white/25 text-xs">—</span>
+                )}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/8 p-3">
+              <p className="text-xs text-white/40 mb-2">证件照</p>
+              <div className="aspect-[295/413] rounded-lg bg-white/5 overflow-hidden flex items-center justify-center">
+                {afterUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={afterUrl} alt="证件照" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-white/25 text-xs bg-white/5 w-full h-full flex items-center justify-center rounded-lg">
+                    {loading ? "处理中…" : "—"}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {idPhotoMessage && <p className="text-sm text-emerald-400/90 text-center">{idPhotoMessage}</p>}
+          {afterUrl && (
+            <button
+              type="button"
+              onClick={handleDownloadIdPhoto}
+              className="w-full rounded-xl border border-white/15 py-2.5 text-sm text-white/70 hover:text-white"
+            >
+              下载证件照
             </button>
           )}
         </div>
@@ -1560,17 +1922,37 @@ export default function ImageStudioForm({ initialTab }: ImageStudioFormProps) {
                 ? "AI 人像美化中，约需数秒…"
                 : tab === "watermark" && loading
                   ? "AI 去水印中，约需数秒…"
-                  : tab === "bgreplace" && loading && bgMode === "ai"
-                    ? "AI 换背景中，约需数秒…"
-                    : undefined
+                  : tab === "erase" && loading
+                    ? "AI 智能消除中，约需数秒…"
+                    : tab === "ocr" && loading
+                      ? "OCR 识别中…"
+                      : tab === "idphoto" && loading
+                        ? loadProgress || "正在生成证件照…"
+                        : tab === "bgreplace" && loading && bgMode === "ai"
+                          ? "AI 换背景中，约需数秒…"
+                          : undefined
         }
         disabled={primaryDisabled}
         onClick={primaryAction}
       />
 
-      <p className="text-center text-xs text-white/25 leading-relaxed">
-        {getImageStudioFooterHint(tab, bgMode, isAdmin)}
-      </p>
+      <ToolSection title="热门功能">
+        <ToolPresetGrid className="tool-preset-grid--5">
+          {POPULAR_FEATURES.map((f) => (
+            <ToolPresetCard
+              key={f.tab}
+              title={f.title}
+              icon={f.icon}
+              active={tab === f.tab}
+              onClick={() => {
+                setTab(f.tab);
+                setError(null);
+              }}
+            />
+          ))}
+        </ToolPresetGrid>
+      </ToolSection>
+
     </div>
   );
 }

@@ -65,7 +65,7 @@ else
   python3 -m venv "$VENV"
 fi
 "$VENV/bin/pip" install -q -U pip
-PKGS="faster-whisper edge-tts zhconv browser_cookie3"
+PKGS="faster-whisper zhconv browser_cookie3"
 if [ "$MINIMAL" -eq 0 ]; then
   PKGS="$PKGS playwright"
 fi

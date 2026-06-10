@@ -12,22 +12,26 @@ ARCHIVE="$OUT_DIR/${NAME}-linux-amd64.tar.gz"
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
 
+# 确保构建产物在包内（先单独复制 out/，避免 rsync 大目录时 out 被并发删除或挂载同步丢失）
+if [ ! -d "out" ]; then
+  echo "❌ 缺少 out/，请先 npm run build"
+  exit 1
+fi
+
 echo "→ 组装运行目录…"
+mkdir -p "$STAGE"
+cp -a out "$STAGE/out"
+
 rsync -a \
   --exclude='.git' \
   --exclude='.next' \
+  --exclude='out' \
   --exclude='data' \
   --exclude='dist' \
   --exclude='.env' \
   --exclude='cookies/*.txt' \
   --exclude='.node-portable' \
   ./ "$STAGE/"
-
-# 确保构建产物在包内
-if [ ! -d "$STAGE/out" ]; then
-  echo "❌ 缺少 out/，请先 npm run build"
-  exit 1
-fi
 
 cat > "$STAGE/DEPLOY-README.txt" <<'EOF'
 春雨集 · Linux 运行包

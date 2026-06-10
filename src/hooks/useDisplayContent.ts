@@ -3,11 +3,11 @@
 import { useAuth } from "@/contexts/AuthContext";
 import {
   getQuickChatPrompts,
-  getSiteStats,
   getSiteTagline,
   getSiteValueProps,
   getToolDescription,
   getToolDialogPlaceholder,
+  getToolHeroSubtitle,
   getToolHighlights,
   type SiteValueProp,
 } from "@/lib/site-content";
@@ -24,9 +24,9 @@ export function useDisplayContent() {
     isAdmin,
     siteTagline: getSiteTagline(isAdmin),
     siteValueProps: getSiteValueProps(isAdmin),
-    siteStats: getSiteStats(isAdmin),
     quickChatPrompts: getQuickChatPrompts(isAdmin),
     getToolDescription: (toolId: string) => getToolDescription(toolId, isAdmin),
+    getToolHeroSubtitle: (toolId: string) => getToolHeroSubtitle(toolId, isAdmin),
     getToolHighlights: (toolId: string) => getToolHighlights(toolId, isAdmin),
     getToolDialogPlaceholder: (toolId: string, title: string) =>
       getToolDialogPlaceholder(toolId, title, isAdmin),

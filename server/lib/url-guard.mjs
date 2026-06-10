@@ -15,7 +15,7 @@ const BLOCKED_HOSTS = new Set([
 const BLOCKED_HOST_SUFFIXES = [".local", ".internal", ".localhost"];
 
 const DOMAIN_PREFIX_RULES = [
-  /channels\.weixin\.qq\.com|finder\.video\.qq\.com/i,
+  /channels\.weixin\.qq\.com|finder\.video\.qq\.com|wxapp\.tc\.qq\.com|weixin110\.qq\.com|weixin\.qq\.com\/(?:sph|r\/)/i,
   /[\w.-]*douyin\.com|iesdouyin\.com|v\.douyin\.com/i,
   /bilibili\.com|b23\.tv|bili2233\.cn/i,
   /youtube\.com|youtu\.be/i,

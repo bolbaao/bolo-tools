@@ -25,6 +25,7 @@ const PROJECT_ROOT = path.join(__dirname, "..", "..");
 const PUBLISH_SCRIPT = path.join(PROJECT_ROOT, "scripts", "social_publish.py");
 
 export const MAX_PUBLISH_VIDEO_MB = Number(env("SOCIAL_PUBLISH_MAX_MB", "512")) || 512;
+export const MAX_PUBLISH_COVER_MB = Number(env("SOCIAL_PUBLISH_COVER_MAX_MB", "15")) || 15;
 
 function isOtherPlatformAutomationEnabled() {
   return env("SOCIAL_PUBLISH_AUTOMATION", "0") === "1";
@@ -58,6 +59,8 @@ export function getSocialPublishCapabilities() {
     automationEnabled: automation,
     douyinAutoEnabled: douyinAuto,
     douyinAutoHint: getDouyinPublishHint(),
+    coverUploadSupported: true,
+    coverMaxMb: MAX_PUBLISH_COVER_MB,
     automationHint: douyinAuto
       ? `抖音：${getDouyinPublishHint()}`
       : automation
@@ -201,7 +204,7 @@ function runPlaywrightPublish(jobDirPath, platformId) {
 }
 
 /**
- * @param {{ title: string, description: string, tags?: string, platforms: string[], captions?: Record<string,string>, videoPath?: string | null, videoName?: string }} opts
+ * @param {{ title: string, description: string, tags?: string, platforms: string[], captions?: Record<string,string>, videoPath?: string | null, videoName?: string, coverPath?: string | null, coverName?: string }} opts
  */
 export async function runSocialPublish(opts) {
   const platforms = normalizePlatformIds(opts.platforms);
@@ -240,6 +243,13 @@ export async function runSocialPublish(opts) {
     fs.copyFileSync(opts.videoPath, path.join(dir, videoFile));
   }
 
+  let coverFile = null;
+  if (opts.coverPath && fs.existsSync(opts.coverPath)) {
+    const ext = path.extname(opts.coverName || opts.coverPath) || ".jpg";
+    coverFile = `cover${ext}`;
+    fs.copyFileSync(opts.coverPath, path.join(dir, coverFile));
+  }
+
   const job = {
     id: jobId,
     createdAt: new Date().toISOString(),
@@ -249,6 +259,7 @@ export async function runSocialPublish(opts) {
     platforms,
     captions,
     videoFile,
+    coverFile,
     mode: douyinOnlyAuto || otherAutomation ? "automate" : "assist",
     douyinAuto: douyinOnlyAuto,
   };
@@ -321,7 +332,9 @@ export async function runSocialPublish(opts) {
       description: cap.description || description,
       accountHint: account.hint,
       message: account.ready
-        ? "文案已就绪：请打开创作者中心，粘贴标题与描述后上传视频并发布"
+        ? coverFile
+          ? "文案与封面已就绪：请打开创作者中心，确认封面后上传视频并发布"
+          : "文案已就绪：请打开创作者中心，粘贴标题与描述后上传视频并发布"
         : account.hint,
     });
   }

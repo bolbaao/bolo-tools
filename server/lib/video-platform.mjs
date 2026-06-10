@@ -16,7 +16,8 @@ export const MOBILE_UA =
 const PLATFORM_RULES = [
   {
     id: "weixin-channels",
-    pattern: /channels\.weixin\.qq\.com|finder\.video\.qq\.com|wxapp\.tc\.qq\.com/i,
+    pattern:
+      /channels\.weixin\.qq\.com|finder\.video\.qq\.com|wxapp\.tc\.qq\.com|weixin110\.qq\.com|weixin\.qq\.com\/(?:sph|r\/)/i,
   },
   { id: "douyin", pattern: /douyin\.com|iesdouyin\.com|douyinvod\.com|v\.douyin\.com/i },
   { id: "bilibili", pattern: /bilibili\.com|b23\.tv|bili2233\.cn|bilivideo\.com/i },
@@ -84,6 +85,52 @@ export function resolveCookiesPath(raw) {
   return fs.existsSync(p) ? p : null;
 }
 
+/** 从 Netscape cookies.txt 读取 Cookie 请求头 */
+export function loadCookieHeaderFromFiles(paths) {
+  const list = Array.isArray(paths) ? paths : [paths];
+  for (const p of list) {
+    const resolved = resolveCookiesPath(p);
+    if (!resolved) continue;
+    try {
+      const lines = fs.readFileSync(resolved, "utf8").split("\n");
+      const pairs = [];
+      for (const line of lines) {
+        if (!line || line.startsWith("#")) continue;
+        const parts = line.split("\t");
+        if (parts.length >= 7 && parts[5] && parts[6]) {
+          pairs.push(`${parts[5]}=${parts[6]}`);
+        }
+      }
+      if (pairs.length) return pairs.join("; ");
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
+export function loadCookieHeaderForPlatform(platform) {
+  const byPlatform = {
+    douyin: [env("DOUYIN_COOKIES"), env("YTDLP_COOKIES"), "./cookies/douyin.txt"],
+    bilibili: [env("BILIBILI_COOKIES"), "./cookies/bilibili.txt"],
+    "weixin-channels": [env("YUANBAO_SPH_COOKIES"), "./cookies/yuanbao.txt"],
+    twitter: [env("TWITTER_COOKIES"), env("SOCIAL_COOKIES"), "./cookies/x.txt", "./cookies/social.txt"],
+    instagram: [env("SOCIAL_COOKIES"), "./cookies/social.txt"],
+    youtube: [env("SOCIAL_COOKIES"), "./cookies/social.txt"],
+    tiktok: [env("SOCIAL_COOKIES"), "./cookies/social.txt"],
+  };
+  return loadCookieHeaderFromFiles(byPlatform[platform] || [env("SOCIAL_COOKIES")]);
+}
+
+export function buildYtDlpFetchArgs(platform, extraArgs = []) {
+  const args = ["--no-playlist", "--no-warnings"];
+  args.push("--user-agent", platform === "douyin" ? MOBILE_UA : DESKTOP_UA);
+  const referer = PLATFORM_REFERERS[platform];
+  if (referer) args.push("--referer", referer);
+  args.push(...extraArgs);
+  return args;
+}
+
 export function detectPlatform(url) {
   const u = url.toLowerCase();
   for (const { id, pattern } of PLATFORM_RULES) {
@@ -108,6 +155,7 @@ export function usesYtDlp(platform) {
 export function sortFormatsByQuality(platform) {
   return [
     "weixin-channels",
+    "douyin",
     "bilibili",
     "youtube",
     "twitter",
@@ -123,7 +171,13 @@ export function sortFormatsByQuality(platform) {
 
 /** X 帖文 / t.co：yt-dlp 自行跳转，Node fetch 对 t.co 常失败 */
 export function shouldResolveFinalUrl(url, platform) {
-  if (platform === "weixin-channels") return false;
+  if (platform === "weixin-channels") {
+    if (/^https?:\/\/[^/]*weixin\.qq\.com/i.test(url) && !/channels\.weixin\.qq\.com/i.test(url)) {
+      return true;
+    }
+    if (/weixin110\.qq\.com/i.test(url)) return true;
+    return false;
+  }
   if (platform === "twitter") {
     if (/t\.co\//i.test(url)) return false;
     if (/\/status(?:es)?\/\d+/i.test(url)) return false;
@@ -311,7 +365,7 @@ export function formatYtDlpError(stderr, platform) {
     return "Instagram 通常需要登录 Cookie。请在 Safari 登录 instagram.com 后配置 SOCIAL_COOKIES";
   }
   if (platform === "weixin-channels") {
-    return "微信视频号解析失败。请粘贴含 oid 的完整分享链接，并运行 ./scripts/setup-yuanbao-cookies.sh（Safari 登录元宝）";
+    return "微信视频号解析失败。请粘贴从微信「复制链接」得到的完整分享链接，并确保已在浏览器登录腾讯元宝（yuanbao.tencent.com）。";
   }
   if (/Unsupported URL|invalid url|no video/i.test(text)) {
     const label = PLATFORM_LABELS[platform] || platform;

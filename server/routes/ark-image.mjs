@@ -3,10 +3,12 @@ import {
   arkImageConfigured,
   beautifyArkImage,
   editArkImage,
+  eraseArkImage,
   generateArkImage,
   removeWatermarkArkImage,
   replaceBackgroundArkImage,
 } from "../lib/ark-image.mjs";
+import { extractTextFromImageDataUrl, photoVisionConfigured } from "../lib/photo-vision.mjs";
 import { HttpError, sendError } from "../lib/http-error.mjs";
 
 const router = Router();
@@ -256,6 +258,75 @@ router.post("/replace-background", async (req, res) => {
       sendError(res, new HttpError(429, "火山方舟请求过于频繁，请稍后再试"));
       return;
     }
+    sendError(res, err);
+  }
+});
+
+router.post("/erase", async (req, res) => {
+  try {
+    if (!arkImageConfigured()) {
+      throw new HttpError(503, "未配置 ARK_API_KEY。请在 .env 中填入火山方舟 API Key。");
+    }
+
+    const { imageDataUrl, level, hint, resolution } = req.body ?? {};
+    if (!imageDataUrl?.trim()) throw new HttpError(400, "请上传图片");
+
+    const validLevels = ["light", "standard", "strong"];
+    const eraseLevel = validLevels.includes(level) ? level : "standard";
+
+    const result = await eraseArkImage({
+      imageDataUrl: imageDataUrl.trim(),
+      level: eraseLevel,
+      hint: hint?.trim(),
+      resolution: resolution || "2k",
+    });
+
+    if (result.imageBase64) {
+      res.json({
+        ok: true,
+        imageBase64: result.imageBase64,
+        mimeType: result.mimeType || "image/png",
+        message: "智能消除完成",
+      });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      imageUrl: result.imageUrl,
+      message: "智能消除完成",
+    });
+  } catch (err) {
+    if (err.message === "ARK_KEYS_MISSING") {
+      sendError(res, new HttpError(503, "未配置 ARK_API_KEY"));
+      return;
+    }
+    sendError(res, err);
+  }
+});
+
+router.post("/ocr", async (req, res) => {
+  try {
+    if (!photoVisionConfigured()) {
+      throw new HttpError(
+        503,
+        "未配置 ARK_VISION_API_KEY 或 ARK_API_KEY。请在 .env 中填入火山方舟视觉模型 Key。",
+      );
+    }
+
+    const { imageDataUrl } = req.body ?? {};
+    if (!imageDataUrl?.trim()) throw new HttpError(400, "请上传图片");
+
+    const result = await extractTextFromImageDataUrl(imageDataUrl.trim());
+    if (!result?.text) throw new HttpError(422, "未能识别出文字");
+
+    res.json({
+      ok: true,
+      text: result.text,
+      provider: result.providerLabel,
+      message: "文字提取完成",
+    });
+  } catch (err) {
     sendError(res, err);
   }
 });

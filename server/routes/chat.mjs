@@ -100,6 +100,7 @@ async function handleChat(req, res) {
       chatFiles: uploaded,
       rawFiles,
       userId: authUser?.id,
+      isAdmin: authUser?.isAdmin,
     });
 
     res.json({ ok: true, ...result });
@@ -141,6 +142,7 @@ async function handleRunTool(req, res) {
     const merged = await mergeToolResultIntoReply("", agentAction, {
       rawFiles,
       userId: authUser?.id,
+      isAdmin: authUser?.isAdmin,
       lastUserMessage: String(body.lastUserMessage || agentAction.summary || ""),
     });
 

@@ -2,6 +2,7 @@ import { env } from "./env.mjs";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { formatWeixinChannelsError } from "../../shared/public-error.mjs";
 import { MOBILE_UA } from "./video-download.mjs";
 import { refreshYuanbaoCookies } from "./refresh-yuanbao-cookies.mjs";
 
@@ -37,6 +38,16 @@ const DESKTOP_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
 /** 从分享文案/链接解析视频号 URL 与 oid/nid/eid/token */
+function isWeixinChannelsHost(hostname, pathname = "") {
+  if (/channels\.weixin\.qq\.com|finder\.video\.qq\.com|wxapp\.tc\.qq\.com|weixin110\.qq\.com/i.test(hostname)) {
+    return true;
+  }
+  if (/^weixin\.qq\.com$/i.test(hostname) && /\/sph|\/r\/|video|finder/i.test(pathname)) {
+    return true;
+  }
+  return false;
+}
+
 export function parseWeixinChannelsInput(raw) {
   let text = String(raw ?? "").trim();
   if (!text) return null;
@@ -44,7 +55,7 @@ export function parseWeixinChannelsInput(raw) {
   const urlMatch = text.match(/https?:\/\/[^\s<>"'\u4e00-\u9fff]+/i);
   if (urlMatch) {
     text = urlMatch[0].replace(/[，。；,.;!?！？]+$/, "");
-  } else if (/channels\.weixin\.qq\.com/i.test(text)) {
+  } else if (/channels\.weixin\.qq\.com|weixin\.qq\.com|weixin110\.qq\.com/i.test(text)) {
     text = `https://${text.replace(/^\/+/, "")}`;
   }
 
@@ -55,7 +66,7 @@ export function parseWeixinChannelsInput(raw) {
     return null;
   }
 
-  if (!/channels\.weixin\.qq\.com/i.test(parsed.hostname)) {
+  if (!isWeixinChannelsHost(parsed.hostname, parsed.pathname)) {
     return null;
   }
 
@@ -64,7 +75,8 @@ export function parseWeixinChannelsInput(raw) {
     parsed.searchParams.get("objectId") ||
     parsed.searchParams.get("feedid") ||
     parsed.searchParams.get("feedId") ||
-    parsed.searchParams.get("id");
+    parsed.searchParams.get("id") ||
+    parsed.searchParams.get("vid");
   const nid =
     parsed.searchParams.get("nid") ||
     parsed.searchParams.get("nonceId") ||
@@ -116,7 +128,7 @@ function buildFullMediaUrl(baseUrl, urlToken) {
   return `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${urlToken.replace(/^[?&]/, "")}`;
 }
 
-/** 腾讯元宝解析分享链接（参考 wx_channels_download/sph.go） */
+/** 腾讯元宝解析分享链接（参考 wx_channels_download/sph.go）；失败返回 null */
 async function parseShareViaYuanbao(shareUrl, cookie) {
   const headers = {
     accept: "application/json, text/plain, */*",
@@ -134,18 +146,22 @@ async function parseShareViaYuanbao(shareUrl, cookie) {
     signal: AbortSignal.timeout(20000),
   });
 
-  const data = await res.json().catch(() => ({}));
-  if (data?.error?.code && data.error.code !== "0") {
-    throw new Error(data.error.message || "元宝解析失败，请配置 YUANBAO_SPH_COOKIE");
-  }
-  if (data?.code !== 0 && data?.code !== undefined && data?.code !== 200) {
-    throw new Error(data?.msg || data?.message || "元宝解析失败");
+  const text = await res.text();
+  let data = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return null;
+    }
   }
 
+  if (!res.ok) return null;
+  if (data?.error?.code && data.error.code !== "0") return null;
+  if (data?.code !== 0 && data?.code !== undefined && data?.code !== 200) return null;
+
   const payload = data?.data ?? data;
-  if (!payload?.wx_export_id && !payload?.playable_url) {
-    throw new Error("元宝未返回视频信息，请检查分享链接或配置 YUANBAO_SPH_COOKIE");
-  }
+  if (!payload?.wx_export_id && !payload?.playable_url) return null;
 
   let generalToken = "";
   let exportId = payload.wx_export_id || "";
@@ -417,7 +433,7 @@ async function fetchWebFeedPage(params) {
     return mapFeedInfoToYtDlp(feedData, { shareUrl, title: "", author: "" });
   }
 
-  throw new Error("无法从分享页解析视频，请粘贴完整分享链接（含 exportkey）或配置 YUANBAO_SPH_COOKIE");
+  throw new Error("无法从分享页解析视频，请粘贴完整分享链接（含 exportkey）");
 }
 
 function isYuanbaoCookieError(message) {
@@ -427,49 +443,59 @@ function isYuanbaoCookieError(message) {
 async function attemptExtract(params, cookie) {
   const errors = [];
 
-  if (cookie || params.shareUrl.includes("exportkey") || params.shareUrl.includes("/sph")) {
+  const canTryYuanbao =
+    Boolean(cookie) ||
+    Boolean(params.exportKey) ||
+    /exportkey/i.test(params.shareUrl) ||
+    /\/sph/i.test(params.shareUrl);
+
+  if (canTryYuanbao) {
     try {
       const parsed = await parseShareViaYuanbao(params.shareUrl, cookie);
-      const meta = {
-        shareUrl: params.shareUrl,
-        title: parsed.title,
-        author: parsed.author,
-        cover: parsed.cover,
-        thumbnail: parsed.thumbnail,
-      };
+      if (!parsed) {
+        errors.push("元宝未能解析该分享链接");
+      } else {
+        const meta = {
+          shareUrl: params.shareUrl,
+          title: parsed.title,
+          author: parsed.author,
+          cover: parsed.cover,
+          thumbnail: parsed.thumbnail,
+        };
 
-      if (parsed.directVideoUrl) {
-        const info = mapDirectUrlToYtDlp(parsed.directVideoUrl, meta);
-        if (info?.formats.length) {
-          return { info, cookieSource: parsed.source, errors };
-        }
-      }
-
-      if (parsed.exportId) {
-        try {
-          const feedData = await fetchFeedInfo(parsed.exportId, parsed.generalToken);
-          const info = mapFeedInfoToYtDlp(feedData, meta);
-          if (info.formats.length) {
+        if (parsed.directVideoUrl) {
+          const info = mapDirectUrlToYtDlp(parsed.directVideoUrl, meta);
+          if (info?.formats.length) {
             return { info, cookieSource: parsed.source, errors };
           }
-        } catch (e) {
-          errors.push(e instanceof Error ? e.message : String(e));
         }
-      }
 
-      if (parsed.playableUrl) {
-        const pageParams =
-          parseWeixinChannelsInput(parsed.playableUrl) || {
-            ...params,
-            shareUrl: parsed.playableUrl,
-          };
-        try {
-          const info = await fetchWebFeedPage(pageParams);
-          if (info.formats.length) {
-            return { info, cookieSource: `${parsed.source}-playable`, errors };
+        if (parsed.exportId) {
+          try {
+            const feedData = await fetchFeedInfo(parsed.exportId, parsed.generalToken);
+            const info = mapFeedInfoToYtDlp(feedData, meta);
+            if (info.formats.length) {
+              return { info, cookieSource: parsed.source, errors };
+            }
+          } catch (e) {
+            errors.push(e instanceof Error ? e.message : String(e));
           }
-        } catch (e) {
-          errors.push(e instanceof Error ? e.message : String(e));
+        }
+
+        if (parsed.playableUrl) {
+          const pageParams =
+            parseWeixinChannelsInput(parsed.playableUrl) || {
+              ...params,
+              shareUrl: parsed.playableUrl,
+            };
+          try {
+            const info = await fetchWebFeedPage(pageParams);
+            if (info.formats.length) {
+              return { info, cookieSource: `${parsed.source}-playable`, errors };
+            }
+          } catch (e) {
+            errors.push(e instanceof Error ? e.message : String(e));
+          }
         }
       }
     } catch (e) {
@@ -540,16 +566,7 @@ export async function extractWeixinChannels(rawUrl) {
     }
   }
 
-  const hints = [];
-  if (!cookie) {
-    hints.push("请运行 ./scripts/setup-yuanbao-cookies.sh --install-cron（Safari 登录元宝）");
-  } else {
-    hints.push("请确认 Safari 已登录 yuanbao.tencent.com");
-  }
-  throw new Error(
-    (errors[errors.length - 1] || "微信视频号解析失败") +
-      (hints.length ? "；" + hints.join("；") : ""),
-  );
+  throw new Error(formatWeixinChannelsError(errors[errors.length - 1] || "微信视频号解析失败"));
 }
 
 export { cleanVideoUrl, buildFullMediaUrl, mapObjectDescToYtDlp };

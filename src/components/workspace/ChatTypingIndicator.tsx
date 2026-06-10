@@ -7,35 +7,50 @@ type Props = {
 };
 
 export default function ChatTypingIndicator({ compact = false, label }: Props) {
-  return (
-    <div
-      className={`workspace-chat-row workspace-chat-row-assistant${
-        compact ? " workspace-dialog-typing-row" : ""
-      }`}
-      role="status"
-      aria-live="polite"
-      aria-label={label || "思考中"}
-    >
-      <div className="workspace-chat-avatar" aria-hidden>
-        ✦
+  if (compact) {
+    return (
+      <div className="workspace-chat-turn workspace-chat-turn-assistant workspace-chat-turn-compact">
+        <div className="workspace-chat-turn-inner">
+          <div className="workspace-chat-turn-content workspace-chat-turn-content-assistant">
+            <div className="workspace-chat-avatar workspace-chat-avatar-compact" aria-hidden>
+              ✦
+            </div>
+            <div
+              className="workspace-chat-typing workspace-chat-typing-compact"
+              role="status"
+              aria-live="polite"
+              aria-label={label || "思考中"}
+            >
+              {label ? <span className="workspace-chat-typing-label">{label}</span> : null}
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
+        </div>
       </div>
-      <div
-        className={`workspace-chat-bubble workspace-chat-bubble-assistant workspace-chat-typing${
-          compact ? " workspace-dialog-typing-bubble" : ""
-        }${label && !compact ? " workspace-chat-typing-labeled" : ""}`}
-      >
-        {label ? (
-          <span
-            className={
-              compact ? "workspace-dialog-typing-label" : "workspace-chat-typing-label"
-            }
+    );
+  }
+
+  return (
+    <div className="workspace-chat-turn workspace-chat-turn-assistant">
+      <div className="workspace-chat-turn-inner">
+        <div className="workspace-chat-turn-content workspace-chat-turn-content-assistant">
+          <div className="workspace-chat-avatar" aria-hidden>
+            ✦
+          </div>
+          <div
+            className={`workspace-chat-typing${label ? " workspace-chat-typing-labeled" : ""}`}
+            role="status"
+            aria-live="polite"
+            aria-label={label || "思考中"}
           >
-            {label}
-          </span>
-        ) : null}
-        <span />
-        <span />
-        <span />
+            {label ? <span className="workspace-chat-typing-label">{label}</span> : null}
+            <span />
+            <span />
+            <span />
+          </div>
+        </div>
       </div>
     </div>
   );

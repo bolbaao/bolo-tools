@@ -10,10 +10,12 @@
     "start": "node server/index.mjs",
     "clean": "rm -rf .next out",
     "preview": "npm run clean && npm run build && npm run start",
+    "setup:mac": "bash scripts/ensure-mac-native-deps.sh",
     "lint": "next lint",
     "test:weixin-channels": "node scripts/test-weixin-channels.mjs",
     "test:video-platforms": "node scripts/test-video-platforms.mjs",
-    "test:douyin-publish": "node scripts/test-douyin-publish.mjs"
+    "test:douyin-publish": "node scripts/test-douyin-publish.mjs",
+    "test:abc-features": "node scripts/test-abc-features.mjs"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

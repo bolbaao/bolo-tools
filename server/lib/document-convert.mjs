@@ -1,7 +1,14 @@
+import { execFile } from "child_process";
+import { promisify } from "util";
+import fs from "fs";
+import os from "os";
+import path from "path";
 import { PDFDocument } from "pdf-lib";
 import { pdf } from "pdf-to-img";
 import JSZip from "jszip";
 import { HttpError } from "./http-error.mjs";
+
+const execFileAsync = promisify(execFile);
 import { convertViaConvertApi, isOnlineDocConvertAvailable } from "./doc-convert-online.mjs";
 import { isLibreOfficeAvailable, libreConvert } from "./document-convert-local.mjs";
 
@@ -10,6 +17,9 @@ export const DOC_MODES = {
   "word-to-pdf": { input: [".doc", ".docx"], outputExt: "pdf", needsOffice: true },
   "pdf-to-images": { input: [".pdf"], outputExt: "zip", needsOffice: false },
   "images-to-pdf": { input: [".png", ".jpg", ".jpeg"], outputExt: "pdf", needsOffice: false },
+  "pdf-merge": { input: [".pdf"], outputExt: "pdf", needsOffice: false },
+  "pdf-split": { input: [".pdf"], outputExt: "zip", needsOffice: false },
+  "pdf-compress": { input: [".pdf"], outputExt: "pdf", needsOffice: false },
 };
 
 export function getDocumentCapabilities() {
@@ -106,6 +116,77 @@ async function pdfToImages(buffer, { scale = 2, format = "png" } = {}) {
   return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
 
+async function mergePdfs(files) {
+  const merged = await PDFDocument.create();
+  for (const file of files) {
+    const src = await PDFDocument.load(file.buffer, { ignoreEncryption: true });
+    const pages = await merged.copyPages(src, src.getPageIndices());
+    pages.forEach((p) => merged.addPage(p));
+  }
+  return Buffer.from(await merged.save({ useObjectStreams: true }));
+}
+
+async function splitPdfToZip(buffer) {
+  const src = await PDFDocument.load(buffer, { ignoreEncryption: true });
+  const zip = new JSZip();
+  const n = src.getPageCount();
+  if (n < 1) throw new HttpError(422, "PDF 没有可拆分的页面");
+  for (let i = 0; i < n; i++) {
+    const doc = await PDFDocument.create();
+    const [page] = await doc.copyPages(src, [i]);
+    doc.addPage(page);
+    zip.file(`page-${String(i + 1).padStart(3, "0")}.pdf`, await doc.save());
+  }
+  return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+}
+
+async function compressPdfLight(buffer) {
+  const src = await PDFDocument.load(buffer, { ignoreEncryption: true });
+  const out = await PDFDocument.create();
+  const pages = await out.copyPages(src, src.getPageIndices());
+  pages.forEach((p) => out.addPage(p));
+  return Buffer.from(await out.save({ useObjectStreams: true }));
+}
+
+async function compressPdfWithGhostscript(buffer) {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pdf-compress-"));
+  const inputPath = path.join(tmpDir, "input.pdf");
+  const outputPath = path.join(tmpDir, "output.pdf");
+  try {
+    fs.writeFileSync(inputPath, buffer);
+    await execFileAsync(
+      "gs",
+      [
+        "-sDEVICE=pdfwrite",
+        "-dCompatibilityLevel=1.4",
+        "-dPDFSETTINGS=/ebook",
+        "-dNOPAUSE",
+        "-dQUIET",
+        "-dBATCH",
+        `-sOutputFile=${outputPath}`,
+        inputPath,
+      ],
+      { timeout: 120000 },
+    );
+    if (!fs.existsSync(outputPath)) return null;
+    return fs.readFileSync(outputPath);
+  } catch {
+    return null;
+  } finally {
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+async function compressPdf(buffer) {
+  const gsOut = await compressPdfWithGhostscript(buffer);
+  if (gsOut?.length) return gsOut;
+  return compressPdfLight(buffer);
+}
+
 async function imagesToPdf(files) {
   const pdfDoc = await PDFDocument.create();
   for (const file of files) {
@@ -147,6 +228,15 @@ export async function convertDocuments(mode, files, opts = {}) {
     return { buffer: out, filename: name, contentType: "application/pdf" };
   }
 
+  if (mode === "pdf-merge") {
+    if (files.length < 2) throw new HttpError(400, "请至少上传 2 个 PDF 文件");
+    for (const f of files) {
+      if (extOf(f.originalname) !== ".pdf") throw new HttpError(400, "合并模式仅支持 PDF 文件");
+    }
+    const out = await mergePdfs(files);
+    return { buffer: out, filename: "merged.pdf", contentType: "application/pdf" };
+  }
+
   const file = files[0];
   const ext = extOf(file.originalname);
   const cfg = DOC_MODES[mode];
@@ -182,6 +272,24 @@ export async function convertDocuments(mode, files, opts = {}) {
       buffer: out,
       filename: `${stem}-pages.zip`,
       contentType: "application/zip",
+    };
+  }
+
+  if (mode === "pdf-split") {
+    const out = await splitPdfToZip(file.buffer);
+    return {
+      buffer: out,
+      filename: `${stem}-split.zip`,
+      contentType: "application/zip",
+    };
+  }
+
+  if (mode === "pdf-compress") {
+    const out = await compressPdf(file.buffer);
+    return {
+      buffer: out,
+      filename: `${stem}-compressed.pdf`,
+      contentType: "application/pdf",
     };
   }
 

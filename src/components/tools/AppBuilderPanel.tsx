@@ -1,6 +1,13 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
+import {
+  ToolError,
+  ToolNotice,
+  ToolPresetCard,
+  ToolPresetGrid,
+  ToolSection,
+} from "@/components/tools/ToolSection";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { ApiError, apiGet, apiPost, downloadText } from "@/lib/api";
 import { AI_SERVICE_UNAVAILABLE } from "@/lib/service-message";
@@ -41,7 +48,6 @@ export default function AppBuilderPanel() {
   const [styleThemes, setStyleThemes] = useState<StyleTheme[]>([]);
   const [presets, setPresets] = useState<AppPreset[]>([]);
   const [deployNotes, setDeployNotes] = useState<DeployNote[]>([]);
-  const [shortcutsNote, setShortcutsNote] = useState<string | null>(null);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [refining, setRefining] = useState(false);
@@ -201,13 +207,9 @@ export default function AppBuilderPanel() {
         setStyleThemes(d.styleThemes || []);
         setPresets(d.presets || []);
         setDeployNotes(d.deployNotes || []);
-        setShortcutsNote(d.notes?.shortcuts ?? null);
       })
       .catch(() => setAiConfigured(false));
   }, []);
-
-  const selectedTypeHint = appTypes.find((t) => t.id === appType)?.hint;
-  const selectedThemeHint = styleThemes.find((t) => t.id === styleTheme)?.hint;
 
   const applyPreset = (preset: AppPreset) => {
     setPresetId(preset.id);
@@ -242,7 +244,6 @@ export default function AppBuilderPanel() {
 
   const previewSrcDoc = useMemo(() => html ?? "", [html]);
 
-  const shortcutPresets = presets.filter((p) => p.appType === "shortcuts" || p.appType === "api");
   const otherPresets = presets.filter((p) => p.appType !== "shortcuts" && p.appType !== "api");
 
   const previewFrameClass =
@@ -252,200 +253,129 @@ export default function AppBuilderPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-cyan-500/15 bg-cyan-500/5 px-5 py-4 space-y-2">
-        <p className="text-sm text-white/65 leading-relaxed">
-          用平常话或<strong className="font-normal text-cyan-200/90">内置模板</strong>
-          描述你想做的小工具或页面，AI 会生成可直接使用的单页应用。生成后可
-          <strong className="font-normal text-cyan-200/90">继续对话式优化</strong>
-          、切换手机预览并下载源码。若要配合 iPhone
-          <strong className="font-normal text-cyan-200/90">快捷指令</strong>
-          ，请选「快捷指令配套」。
-        </p>
-      </div>
-
-      {aiConfigured === false && (
-        <p className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-amber-100/85">
-          {AI_SERVICE_UNAVAILABLE}
-        </p>
-      )}
-
-      {presets.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-sm text-white/60">内置需求模板（点击填入，可再修改）</p>
-          {shortcutPresets.length > 0 && (
-            <div>
-              <p className="text-xs text-cyan-300/70 mb-2">快捷指令 / API</p>
-              <div className="flex flex-wrap gap-2">
-                {shortcutPresets.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => applyPreset(p)}
-                    className={`rounded-xl border px-3 py-2 text-left text-xs transition-colors max-w-[220px] ${
-                      presetId === p.id
-                        ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-100"
-                        : "border-white/10 bg-white/[0.03] text-white/55 hover:border-cyan-500/30"
-                    }`}
-                  >
-                    <span className="block font-medium text-white/80">{p.title}</span>
-                    <span className="block mt-0.5 text-white/35 line-clamp-2">{p.descriptionPreview}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {otherPresets.length > 0 && (
-            <div>
-              <p className="text-xs text-white/40 mb-2">常用应用</p>
-              <div className="flex flex-wrap gap-2">
-                {otherPresets.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => applyPreset(p)}
-                    className={`rounded-xl border px-3 py-2 text-left text-xs transition-colors max-w-[200px] ${
-                      presetId === p.id
-                        ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-100"
-                        : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/20"
-                    }`}
-                  >
-                    <span className="block font-medium text-white/75">{p.title}</span>
-                    <span className="block mt-0.5 text-white/35 line-clamp-1">{p.descriptionPreview}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {aiConfigured === false && <ToolNotice>{AI_SERVICE_UNAVAILABLE}</ToolNotice>}
 
       <div>
-        <label htmlFor="app-name" className="block text-sm text-white/60 mb-2">
-          应用名称（可选）
-        </label>
-        <input
-          id="app-name"
-          type="text"
-          value={appName}
-          onChange={(e) => {
-            setAppName(e.target.value.slice(0, 60));
-            setPresetId(null);
-          }}
-          placeholder="留空则按功能自动命名，勿填平台名"
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm text-white/60 mb-2">应用类型</label>
-        <div className="flex flex-wrap gap-2">
-          {(appTypes.length
-            ? appTypes
-            : [
-                { id: "tool", label: "实用小工具" },
-                { id: "shortcuts", label: "快捷指令配套" },
-                { id: "api", label: "API 模拟" },
-                { id: "landing", label: "落地页" },
-                { id: "dashboard", label: "看板" },
-                { id: "form", label: "表单" },
-                { id: "game", label: "小游戏" },
-              ]
-          ).map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => {
-                setAppType(t.id);
-                setPresetId(null);
-              }}
-              className={`rounded-lg px-3 py-1.5 text-xs ${
-                appType === t.id
-                  ? "bg-cyan-600/30 text-cyan-100 ring-1 ring-cyan-500/40"
-                  : "bg-white/5 text-white/50 hover:bg-white/8"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        {selectedTypeHint && (
-          <p className="mt-2 text-xs text-white/40 leading-relaxed">{selectedTypeHint}</p>
-        )}
-        {(appType === "shortcuts" || appType === "api") && shortcutsNote && (
-          <p className="mt-2 text-xs text-cyan-200/60 leading-relaxed rounded-lg bg-cyan-500/5 border border-cyan-500/15 px-3 py-2">
-            {shortcutsNote}
-          </p>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-sm text-white/60 mb-2">视觉风格</label>
-        <div className="flex flex-wrap gap-2">
-          {(styleThemes.length
-            ? styleThemes
-            : [
-                { id: "auto", label: "智能匹配" },
-                { id: "dark", label: "深色现代" },
-                { id: "light", label: "清爽浅色" },
-                { id: "minimal", label: "极简黑白" },
-                { id: "colorful", label: "活力渐变" },
-                { id: "glass", label: "玻璃拟态" },
-              ]
-          ).map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setStyleTheme(t.id)}
-              className={`rounded-lg px-3 py-1.5 text-xs ${
-                styleTheme === t.id
-                  ? "bg-violet-600/25 text-violet-100 ring-1 ring-violet-500/35"
-                  : "bg-white/5 text-white/50 hover:bg-white/8"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        {selectedThemeHint && (
-          <p className="mt-2 text-xs text-white/40 leading-relaxed">{selectedThemeHint}</p>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor="app-desc" className="block text-sm text-white/60 mb-2">
-          需求描述
+        <label htmlFor="app-desc" className="block text-sm mb-2">
+          描述你想要的应用
         </label>
         <textarea
           id="app-desc"
+          data-tool-primary-input
           value={description}
           onChange={(e) => {
             setDescription(e.target.value.slice(0, 4000));
             setPresetId(null);
           }}
           rows={8}
-          placeholder={
-            appType === "shortcuts"
-              ? "例：action=encode 对 text 参数 Base64 编码；?format=json 纯 JSON 输出；含快捷指令 3 步配置向导…"
-              : "详细描述功能、界面风格、交互方式…越具体效果越好"
-          }
-          className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 min-h-[160px]"
+          placeholder="例如：记账本、待办清单、读书笔记…"
+          className="w-full resize-y min-h-[160px]"
         />
-        <p className="mt-1 text-right text-xs text-white/25">{description.length} / 4000</p>
+        <p className="mt-1 text-right text-xs opacity-40">{description.length} / 4000</p>
       </div>
 
-      {error && (
-        <p className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-200/90">
-          {error}
-        </p>
-      )}
+      <details className="tool-form-card">
+        <summary>高级选项（名称、类型、风格）</summary>
+        <div className="space-y-4 pt-2">
+          <div>
+            <label htmlFor="app-name" className="block text-sm mb-2">
+              应用名称（可选）
+            </label>
+            <input
+              id="app-name"
+              type="text"
+              value={appName}
+              onChange={(e) => {
+                setAppName(e.target.value.slice(0, 60));
+                setPresetId(null);
+              }}
+              placeholder="留空则按功能自动命名"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm mb-2">应用类型</label>
+            <div className="flex flex-wrap gap-2">
+              {(appTypes.length
+                ? appTypes
+                : [
+                    { id: "tool", label: "实用小工具" },
+                    { id: "shortcuts", label: "快捷指令配套" },
+                    { id: "api", label: "API 模拟" },
+                    { id: "landing", label: "落地页" },
+                    { id: "dashboard", label: "看板" },
+                    { id: "form", label: "表单" },
+                    { id: "game", label: "小游戏" },
+                  ]
+              ).map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    setAppType(t.id);
+                    setPresetId(null);
+                  }}
+                  className={`tool-chip${appType === t.id ? " tool-chip--active" : ""}`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm mb-2">视觉风格</label>
+            <div className="flex flex-wrap gap-2">
+              {(styleThemes.length
+                ? styleThemes
+                : [
+                    { id: "auto", label: "智能匹配" },
+                    { id: "dark", label: "深色现代" },
+                    { id: "light", label: "清爽浅色" },
+                    { id: "minimal", label: "极简黑白" },
+                    { id: "colorful", label: "活力渐变" },
+                    { id: "glass", label: "玻璃拟态" },
+                  ]
+              ).map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setStyleTheme(t.id)}
+                  className={`tool-chip${styleTheme === t.id ? " tool-chip--active" : ""}`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </details>
+
+      {error && <ToolError>{error}</ToolError>}
 
       <ActionButton
-        label="一键生成 App"
+        label="生成应用"
         loadingLabel="AI 正在编写应用…"
         onClick={() => void handleGenerate()}
         disabled={!description.trim() || aiConfigured === false}
         loading={loading}
       />
+
+      {otherPresets.length > 0 && (
+        <ToolSection title="热门模板" desc="点击填入，可再修改">
+          <ToolPresetGrid>
+            {otherPresets.slice(0, 4).map((p) => (
+              <ToolPresetCard
+                key={p.id}
+                title={p.title}
+                desc={p.descriptionPreview}
+                active={presetId === p.id}
+                onClick={() => applyPreset(p)}
+              />
+            ))}
+          </ToolPresetGrid>
+        </ToolSection>
+      )}
 
       {html && (
         <div className="space-y-4">
@@ -568,12 +498,6 @@ export default function AppBuilderPanel() {
                   </div>
                 ))}
             </div>
-          )}
-
-          {(appType === "shortcuts" || appType === "api") && (
-            <p className="text-xs text-white/40 leading-relaxed">
-              部署到可访问的 URL 后，在快捷指令中添加「获取 URL 内容」，填入带 action 参数的链接即可调用。
-            </p>
           )}
 
           <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">

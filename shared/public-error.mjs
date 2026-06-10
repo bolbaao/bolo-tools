@@ -28,6 +28,92 @@ export function formatResourceNotFound(query) {
 }
 
 /**
+ * 图片 / Logo 检索未命中
+ * @param {string} query
+ */
+export function formatImageNotFound(query) {
+  const raw = String(query || "该图片").trim() || "该图片";
+  const q = raw
+    .replace(/(?:的)?(?:相关)?(?:高清)?(?:宣传)?(?:配图|图片|照片|图像|素材)/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim() || raw;
+  return `未能检索到与「${q}」相关的可用图片。请补充更具体的描述（如门店外观、logo、宣传海报），或直接粘贴图片链接。`;
+}
+
+export function formatImageSearchUnavailable() {
+  return FEATURE_UNAVAILABLE;
+}
+
+export function formatPptGenerateUnavailable() {
+  return FEATURE_UNAVAILABLE;
+}
+
+/**
+ * 视频校验未通过
+ * @param {string} query
+ */
+export function formatVideoVerifyFailed(query) {
+  const q = String(query || "该视频").trim() || "该视频";
+  return `「${q}」的视频暂未通过校验：大模型全网检索结果与平台抓取内容不一致。请换链接或补充更明确的描述。`;
+}
+
+const WEIXIN_VIDEO_HINT =
+  /微信视频号|视频号解析|channels\.weixin|finder\.video|wxapp\.tc\.qq|weixin110\.qq|weixin\.qq\.com\/sph|元宝|yuanbao\.tencent/i;
+
+const VIDEO_EXTRACT_HINT =
+  /视频|channels\.weixin|finder\.video|wxapp\.tc\.qq|weixin110|weixin\.qq\.com|exportkey|分享链接|解析.*链接|douyin|bilibili|youtu|tiktok|v\.douyin|未找到可.*流|下载失败|无法解析该/i;
+
+/**
+ * 微信视频号提取失败：给出可操作的提示，不暴露 Cookie 路径或脚本命令
+ * @param {string | null | undefined} raw
+ */
+export function formatWeixinChannelsError(raw) {
+  const msg = String(raw ?? "").trim();
+  if (!msg) {
+    return "微信视频号解析失败。请粘贴从微信「复制链接」得到的完整分享文案后重试。";
+  }
+  if (/无法识别|微信公众号|mp\.weixin/i.test(msg)) return msg;
+  if (/cookie|登录|元宝|未知错误|20000|鉴权|失效/i.test(msg)) {
+    return "微信视频号解析需要登录腾讯元宝。请用 Safari 打开 yuanbao.tencent.com 并登录微信，然后重新提取；若仍失败，请粘贴完整的视频号分享链接（含 exportkey）。";
+  }
+  if (/exportkey|完整分享|分享页/i.test(msg)) {
+    return "请粘贴从微信「复制链接」得到的完整视频号分享链接（长链接，含 exportkey），不要只粘贴短链。";
+  }
+  if (/未找到|解析失败|fetch failed|403|401|被拒绝/i.test(msg)) {
+    return "未能解析该视频号链接。请确认链接未过期，并粘贴从微信复制的完整分享文案后重试。";
+  }
+  if (msg.length > 160) {
+    return "微信视频号解析失败。请粘贴完整分享链接，并确保已在浏览器登录腾讯元宝（yuanbao.tencent.com）。";
+  }
+  return msg;
+}
+
+/**
+ * 通用视频提取失败（避免误显示「该功能暂时不可用」）
+ * @param {string | null | undefined} raw
+ */
+export function formatVideoExtractError(raw) {
+  const msg = String(raw ?? "").trim();
+  if (!msg) return "视频解析失败，请确认链接完整且未过期。";
+  if (WEIXIN_VIDEO_HINT.test(msg) || /exportkey|视频号/i.test(msg)) {
+    return formatWeixinChannelsError(msg);
+  }
+  if (/yt-dlp|cookies\/|未配置|环境变量|YTDLP|pip install|\.env|start\.sh/i.test(msg)) {
+    return "视频解析暂时失败。若为微信视频号，请粘贴完整分享链接并在浏览器登录腾讯元宝（yuanbao.tencent.com）后重试。";
+  }
+  if (/douyin|抖音/i.test(msg)) {
+    return "抖音视频解析失败，请粘贴完整分享链接后重试。";
+  }
+  if (/bilibili|B站|哔哩/i.test(msg)) {
+    return "B 站视频解析失败，请粘贴 bilibili.com 或 b23.tv 链接。";
+  }
+  if (/无法解析|Unsupported URL|no video|403|401|502/i.test(msg)) {
+    return "无法解析该视频链接，请确认链接完整、未过期，且内容为公开视频。";
+  }
+  return msg.length > 160 ? "视频解析失败，请换链接或稍后重试。" : msg;
+}
+
+/**
  * 资源搜索失败时，避免向用户暴露接口、网盘、屏蔽规则等内部细节
  * @param {string | null | undefined} raw
  * @param {string} [query]
@@ -71,7 +157,18 @@ export function toUserFacingErrorMessage(raw) {
     return "服务暂时无法连接，请刷新页面或稍后再试";
   }
 
+  if (WEIXIN_VIDEO_HINT.test(msg)) {
+    return formatWeixinChannelsError(msg);
+  }
+
+  if (VIDEO_EXTRACT_HINT.test(msg)) {
+    return formatVideoExtractError(msg);
+  }
+
   if (DEV_HINT.test(msg)) {
+    if (VIDEO_EXTRACT_HINT.test(msg) || /yuanbao|YUANBAO|元宝|yt-dlp|YTDLP/i.test(msg)) {
+      return formatVideoExtractError(msg);
+    }
     return AI_HINT.test(msg) ? AI_SERVICE_UNAVAILABLE : FEATURE_UNAVAILABLE;
   }
 

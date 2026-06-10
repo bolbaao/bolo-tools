@@ -13,7 +13,11 @@ import {
   transcribeAudioFile,
 } from "./transcribe.mjs";
 import { toSimplifiedChinese } from "./zh-simplify.mjs";
-import { putChatArtifact, formatArtifactLink } from "./chat-tool-artifacts.mjs";
+import {
+  putChatArtifact,
+  formatArtifactLink,
+  formatArtifactImage,
+} from "./chat-tool-artifacts.mjs";
 
 const FORMAT_MAP = {
   MP3: { ext: "mp3", codec: "libmp3lame" },
@@ -129,7 +133,7 @@ export async function makeGifFromVideo(file, fields) {
       contentType: "image/gif",
     });
     return {
-      text: `**GIF 已生成**（${duration}s · ${width}px · ${fps}fps）\n\n${formatArtifactLink(id, "下载 GIF")}`,
+      text: `**GIF 已生成**（${duration}s · ${width}px · ${fps}fps）\n\n${formatArtifactImage(id, "GIF 动图")}`,
     };
   });
 }
@@ -167,7 +171,7 @@ export async function compressImageFile(file, quality = 80) {
     const before = file.buffer.length;
     const after = outBuf.length;
     return {
-      text: `**图片压缩完成**\n\n- 原始：${(before / 1024).toFixed(1)} KB\n- 压缩后：${(after / 1024).toFixed(1)} KB\n\n${formatArtifactLink(id, "下载压缩图")}`,
+      text: `**图片压缩完成**\n\n- 原始：${(before / 1024).toFixed(1)} KB\n- 压缩后：${(after / 1024).toFixed(1)} KB\n\n${formatArtifactImage(id, "压缩结果")}`,
     };
   });
 }

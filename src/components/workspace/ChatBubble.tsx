@@ -3,9 +3,10 @@
 import {
   ChatAttachmentGrid,
   ChatDownloadFileList,
+  ChatReplyImageGallery,
 } from "@/components/workspace/ChatMessageMedia";
 import type { ChatMessage } from "@/contexts/WorkspaceChatContext";
-import { extractChatArtifactDownloads, stripChatAttachmentNote } from "@/lib/chat-files";
+import { extractChatReplyMedia, stripChatAttachmentNote } from "@/lib/chat-files";
 import { markdownToHtml } from "@/lib/text-tools";
 import { useMemo } from "react";
 
@@ -13,6 +14,17 @@ type Props = {
   msg: ChatMessage;
   variant?: "panel" | "compact";
 };
+
+function AssistantAvatar({ compact }: { compact?: boolean }) {
+  return (
+    <div
+      className={`workspace-chat-avatar${compact ? " workspace-chat-avatar-compact" : ""}`}
+      aria-hidden
+    >
+      ✦
+    </div>
+  );
+}
 
 export default function ChatBubble({ msg, variant = "panel" }: Props) {
   const compact = variant === "compact";
@@ -24,7 +36,7 @@ export default function ChatBubble({ msg, variant = "panel" }: Props) {
 
   const assistantParts = useMemo(() => {
     if (msg.role !== "assistant") return null;
-    return extractChatArtifactDownloads(displayContent);
+    return extractChatReplyMedia(displayContent);
   }, [displayContent, msg.role]);
 
   const html = useMemo(() => {
@@ -36,7 +48,7 @@ export default function ChatBubble({ msg, variant = "panel" }: Props) {
   if (msg.role === "user") {
     if (compact) {
       return (
-        <div className="rounded-xl bg-black/[0.04] px-3 py-2 text-xs leading-relaxed text-black/72">
+        <div className="workspace-chat-bubble-compact-user">
           {msg.attachments?.length ? (
             <div className="mb-1.5">
               <ChatAttachmentGrid items={msg.attachments} />
@@ -48,11 +60,11 @@ export default function ChatBubble({ msg, variant = "panel" }: Props) {
     }
 
     return (
-      <div className="workspace-chat-row workspace-chat-row-user">
+      <div className="workspace-chat-turn-content workspace-chat-turn-content-user">
         <div className="workspace-chat-bubble workspace-chat-bubble-user">
           {msg.attachments?.length ? <ChatAttachmentGrid items={msg.attachments} /> : null}
           {displayContent ? (
-            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{displayContent}</p>
+            <p className="whitespace-pre-wrap break-words text-[0.9375rem] leading-relaxed">{displayContent}</p>
           ) : null}
         </div>
       </div>
@@ -61,31 +73,38 @@ export default function ChatBubble({ msg, variant = "panel" }: Props) {
 
   if (compact) {
     return (
-      <div className="space-y-2">
-        {html ? (
-          <div
-            className="workspace-chat-markdown rounded-xl border border-black/[0.06] bg-white px-3 py-2 text-xs leading-relaxed text-black/72"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-        ) : null}
-        {assistantParts?.downloads.length ? (
-          <ChatDownloadFileList items={assistantParts.downloads} />
-        ) : null}
+      <div className="workspace-chat-turn-content workspace-chat-turn-content-assistant">
+        <AssistantAvatar compact />
+        <div className="workspace-chat-assistant-body workspace-chat-assistant-body-compact">
+          {html ? (
+            <div
+              className="workspace-chat-markdown workspace-chat-markdown-compact"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          ) : null}
+          {assistantParts?.images.length ? (
+            <ChatReplyImageGallery items={assistantParts.images} />
+          ) : null}
+          {assistantParts?.downloads.length ? (
+            <ChatDownloadFileList items={assistantParts.downloads} />
+          ) : null}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="workspace-chat-row workspace-chat-row-assistant">
-      <div className="workspace-chat-avatar" aria-hidden>
-        ✦
-      </div>
+    <div className="workspace-chat-turn-content workspace-chat-turn-content-assistant">
+      <AssistantAvatar />
       <div className="workspace-chat-assistant-body">
         {html ? (
           <div
-            className="workspace-chat-bubble workspace-chat-bubble-assistant workspace-chat-markdown text-sm leading-relaxed"
+            className="workspace-chat-markdown text-[0.9375rem] leading-[1.7]"
             dangerouslySetInnerHTML={{ __html: html }}
           />
+        ) : null}
+        {assistantParts?.images.length ? (
+          <ChatReplyImageGallery items={assistantParts.images} />
         ) : null}
         {assistantParts?.downloads.length ? (
           <ChatDownloadFileList items={assistantParts.downloads} />
@@ -114,7 +133,7 @@ export function ChatAgentActionButton({
         type="button"
         onClick={onClick}
         disabled={loading}
-        className="mt-2 rounded-lg border border-accent/20 bg-accent-muted px-2.5 py-1.5 text-[11px] text-accent-deep/90 transition-colors hover:bg-accent/12 disabled:opacity-50"
+        className="workspace-chat-agent-action workspace-chat-agent-action-compact"
       >
         {label}
       </button>
@@ -122,13 +141,13 @@ export function ChatAgentActionButton({
   }
 
   return (
-    <div className="workspace-chat-row workspace-chat-row-assistant mt-3">
+    <div className="workspace-chat-agent-action-row">
       <div className="workspace-chat-avatar invisible" aria-hidden />
       <button
         type="button"
         onClick={onClick}
         disabled={loading}
-        className="rounded-xl border border-accent/20 bg-accent-muted px-3.5 py-2 text-xs text-accent-deep/90 transition-colors hover:bg-accent/12 disabled:opacity-50"
+        className="workspace-chat-agent-action"
       >
         {label}
       </button>

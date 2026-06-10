@@ -9,15 +9,14 @@ export function getWebSearchCapabilities() {
   return {
     tavily: Boolean(env("TAVILY_API_KEY")),
     serper: Boolean(env("SERPER_API_KEY")),
+    imageSearch: Boolean(env("SERPER_API_KEY") || env("TAVILY_API_KEY")),
     available: Boolean(env("TAVILY_API_KEY") || env("SERPER_API_KEY")),
-    /** @deprecated 使用 available */
-    searchConfigured: Boolean(env("TAVILY_API_KEY") || env("SERPER_API_KEY")),
   };
 }
 
 /**
  * @param {string} query
- * @param {{ depth?: 'basic'|'advanced', maxResults?: number, topic?: 'general'|'news', days?: number }} opts
+ * @param {{ depth?: 'basic'|'advanced', maxResults?: number, topic?: 'general'|'news', days?: number, region?: { gl?: string, hl?: string, tavilyCountry?: string } }} opts
  * @returns {Promise<{ query: string, provider: string, answer?: string, results: WebSearchResult[] }>}
  */
 export async function searchWeb(query, opts = {}) {
@@ -28,12 +27,13 @@ export async function searchWeb(query, opts = {}) {
   const maxResults = Math.min(12, Math.max(3, Number(opts.maxResults) || 8));
   const topic = opts.topic === "news" ? "news" : "general";
   const days = Math.min(30, Math.max(1, Number(opts.days) || (topic === "news" ? 3 : 0))) || undefined;
+  const region = opts.region || null;
 
   if (env("TAVILY_API_KEY")) {
-    return searchWithTavily(q, { depth, maxResults, topic, days });
+    return searchWithTavily(q, { depth, maxResults, topic, days, region });
   }
   if (env("SERPER_API_KEY")) {
-    return searchWithSerper(q, { maxResults, topic });
+    return searchWithSerper(q, { maxResults, topic, region });
   }
 
   throw new HttpError(
@@ -42,7 +42,7 @@ export async function searchWeb(query, opts = {}) {
   );
 }
 
-async function searchWithTavily(query, { depth, maxResults, topic, days }) {
+async function searchWithTavily(query, { depth, maxResults, topic, days, region }) {
   const apiKey = env("TAVILY_API_KEY");
   const body = {
     api_key: apiKey,
@@ -55,6 +55,9 @@ async function searchWithTavily(query, { depth, maxResults, topic, days }) {
   };
   if (topic === "news" && days) {
     body.days = days;
+  }
+  if (topic === "general" && region?.tavilyCountry) {
+    body.country = region.tavilyCountry;
   }
 
   let data;
@@ -89,7 +92,7 @@ async function searchWithTavily(query, { depth, maxResults, topic, days }) {
   };
 }
 
-async function searchWithSerper(query, { maxResults, topic }) {
+async function searchWithSerper(query, { maxResults, topic, region }) {
   const apiKey = env("SERPER_API_KEY");
   const endpoint = topic === "news" ? "https://google.serper.dev/news" : "https://google.serper.dev/search";
   let data;
@@ -103,6 +106,8 @@ async function searchWithSerper(query, { maxResults, topic }) {
       body: JSON.stringify({
         q: query,
         num: maxResults,
+        gl: region?.gl || "cn",
+        hl: region?.hl || "zh-cn",
       }),
     });
     data = await res.json().catch(() => ({}));

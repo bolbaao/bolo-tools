@@ -20,14 +20,14 @@ export default function WorkspaceChatPanel() {
   return (
     <div className="workspace-chat-panel flex min-h-0 flex-1 flex-col">
       {messages.length > 0 ? (
-        <div className="mb-4 flex items-center justify-end">
+        <div className="workspace-chat-toolbar">
           <button
             type="button"
             onClick={() => {
               if (!confirm("确定清空全部对话？")) return;
               clearMessages();
             }}
-            className="text-[11px] text-black/38 transition-colors hover:text-black/62"
+            className="workspace-chat-clear"
           >
             清空对话
           </button>
@@ -36,13 +36,11 @@ export default function WorkspaceChatPanel() {
 
       <div ref={scrollRef} className="workspace-chat-scroll custom-scrollbar min-h-0 flex-1 overflow-y-auto">
         {messages.length === 0 && !loading ? (
-          <div className="px-2 py-4 sm:px-4">
-            <HomeDiscoverPanel />
-          </div>
+          <HomeDiscoverPanel />
         ) : (
-          <div className="mx-auto w-full max-w-2xl space-y-6 pb-6">
+          <div className="workspace-chat-thread">
             {messages.map((msg) => (
-              <ChatMessageRow key={msg.id} messageId={msg.id} onDelete={deleteMessage}>
+              <ChatMessageRow key={msg.id} messageId={msg.id} role={msg.role} onDelete={deleteMessage}>
                 <ChatBubble msg={msg} />
                 {msg.agentAction ? (
                   <ChatAgentActionButton

@@ -146,40 +146,53 @@ function deepFindAwemeItem(obj, awemeId, depth = 0) {
   return null;
 }
 
+function normalizePlayCandidates(urls) {
+  return urls
+    .filter((u) => u && typeof u === "string")
+    .map((u) => u.replace(/playwm/g, "play"))
+    .filter((u) => !/\.mp3(\?|$)/i.test(u));
+}
+
 function pickPlayUrl(item) {
   const video = item.video || item;
-  const candidates = [];
-
   const playAddr = video.play_addr || video.playAddr;
-  if (playAddr?.url_list?.length) candidates.push(...playAddr.url_list);
-  if (playAddr?.urlList?.length) candidates.push(...playAddr.urlList);
+  const playList = normalizePlayCandidates([
+    ...(playAddr?.url_list || []),
+    ...(playAddr?.urlList || []),
+  ]);
+
+  // 默认播放地址通常已含音轨；高码率 bit_rate 常为纯视频
+  if (playList.length) {
+    const muxed = [...playList].sort((a, b) => scorePlayUrl(b) - scorePlayUrl(a));
+    if (muxed[0]) return muxed[0];
+  }
 
   const bitRates = video.bit_rate || video.bitRateList || item.bitRateList;
+  const bitCandidates = [];
   if (Array.isArray(bitRates)) {
     for (const br of bitRates) {
       const pa = br.play_addr || br.playAddr;
-      if (pa?.url_list?.[0]) candidates.push(pa.url_list[0]);
-      if (pa?.urlList?.[0]) candidates.push(pa.urlList[0]);
-      if (pa?.src) candidates.push(pa.src.startsWith("http") ? pa.src : `https:${pa.src}`);
+      if (pa?.url_list?.[0]) bitCandidates.push(pa.url_list[0]);
+      if (pa?.urlList?.[0]) bitCandidates.push(pa.urlList[0]);
+      if (pa?.src) {
+        bitCandidates.push(pa.src.startsWith("http") ? pa.src : `https:${pa.src}`);
+      }
     }
   }
 
   const uri = playAddr?.uri;
   if (uri && !String(uri).includes(".mp3")) {
-    candidates.push(
+    bitCandidates.push(
       String(uri).startsWith("http")
         ? uri
         : `https://www.douyin.com/aweme/v1/play/?video_id=${encodeURIComponent(uri)}`,
     );
   }
 
-  const normalized = candidates
-    .filter((u) => u && typeof u === "string")
-    .map((u) => u.replace(/playwm/g, "play"))
-    .filter((u) => !/\.mp3(\?|$)/i.test(u));
-
-  const scored = normalized.sort((a, b) => scorePlayUrl(b) - scorePlayUrl(a));
-  return scored[0] || null;
+  const fallback = normalizePlayCandidates(bitCandidates).sort(
+    (a, b) => scorePlayUrl(b) - scorePlayUrl(a),
+  );
+  return fallback[0] || null;
 }
 
 function scorePlayUrl(u) {
@@ -212,6 +225,8 @@ function itemToYtDlpInfo(item, webpageUrl) {
         ext: /\.m3u8/i.test(playUrl) ? "m3u8" : "mp4",
         url: playUrl,
         resolution: "默认",
+        vcodec: "h264",
+        acodec: "aac",
       },
     ],
   };

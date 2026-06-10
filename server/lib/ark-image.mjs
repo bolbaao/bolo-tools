@@ -198,3 +198,26 @@ export async function replaceBackgroundArkImage({
   const prompt = `将照片中主体的背景替换为：${bg}。完整保留前景人物或物品的细节、边缘和光影，主体不做变形，背景与主体自然融合，写实风格`;
   return editArkImage({ prompt, imageDataUrl, resolution });
 }
+
+const ERASE_PROMPTS = {
+  light:
+    "轻微去除图片中多余的小物体、路人或杂物，自然修复被遮挡区域，不改变画面主体与构图",
+  standard:
+    "智能消除图片中指定的多余物体、路人、电线或杂物，内容感知修复背景，保持画面主体完整自然",
+  strong:
+    "彻底清除图片中所有不需要的物体、文字标记、路人或遮挡物，对遮挡区域进行内容感知修复，尽量恢复干净画面",
+};
+
+/**
+ * @param {{ imageDataUrl: string; level?: string; hint?: string; resolution?: string }} opts
+ */
+export async function eraseArkImage({
+  imageDataUrl,
+  level = "standard",
+  hint,
+  resolution = "2k",
+}) {
+  const base = ERASE_PROMPTS[level] || ERASE_PROMPTS.standard;
+  const extra = hint?.trim() ? `，重点消除：${hint.trim()}` : "";
+  return editArkImage({ prompt: base + extra, imageDataUrl, resolution });
+}

@@ -13,20 +13,13 @@ type Props = {
   className?: string;
 };
 
-const ACCENT: Record<NonNullable<Props["accent"]>, string> = {
-  amber: "hover:border-amber-500/35 hover:bg-amber-500/5 border-amber-400/30",
-  cyan: "hover:border-cyan-500/35 hover:bg-cyan-500/5 border-cyan-400/30",
-  violet: "hover:border-violet-500/35 hover:bg-violet-500/5 border-violet-400/30",
-  teal: "hover:border-teal-500/35 hover:bg-teal-500/5 border-teal-400/30",
-};
-
 export default function FileDropZone({
   accept,
   multiple,
   icon = "📁",
   title,
   hint,
-  accent = "violet",
+  accent: _accent = "violet",
   onFiles,
   className = "",
 }: Props) {
@@ -43,11 +36,7 @@ export default function FileDropZone({
 
   return (
     <div
-      className={`flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed px-6 py-8 cursor-pointer transition-all ${
-        dragActive
-          ? `bg-white/[0.04] ${ACCENT[accent].split(" ").slice(2).join(" ")}`
-          : `border-white/15 bg-white/[0.02] ${ACCENT[accent].split(" ").slice(0, 2).join(" ")}`
-      } ${className}`}
+      className={`tool-drop-zone${dragActive ? " tool-drop-zone--active" : ""} ${className}`.trim()}
       onClick={() => inputRef.current?.click()}
       onDragOver={(e) => {
         e.preventDefault();
@@ -60,9 +49,9 @@ export default function FileDropZone({
         pick(e.dataTransfer.files);
       }}
     >
-      <span className="text-3xl opacity-60">{icon}</span>
-      <span className="text-sm text-white/50">{title}</span>
-      {hint ? <span className="text-xs text-white/25">{hint}</span> : null}
+      <span className="tool-drop-zone-icon">{icon}</span>
+      <span className="tool-drop-zone-title">{title}</span>
+      {hint ? <span className="tool-drop-zone-hint">{hint}</span> : null}
       <input
         ref={inputRef}
         type="file"

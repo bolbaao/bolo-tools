@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  artifactDownloadName,
   chatArtifactKindFromLabel,
   chatFileKindIcon,
   chatFileKindLabel,
   type ChatArtifactDownload,
   type ChatFileKind,
+  type ChatReplyImage,
 } from "@/lib/chat-files";
 
 export type AttachmentDisplayItem = {
@@ -109,13 +111,14 @@ export function ChatDownloadFileCard({ item }: { item: ChatArtifactDownload }) {
   const isImage = kind === "image" && !/gif|动图/i.test(item.label);
   const previewHref = item.href;
   const downloadHref = `${item.href}?download=1`;
+  const downloadFilename = artifactDownloadName(item.label);
 
   return (
     <a
       href={downloadHref}
-      download
+      download={downloadFilename}
       className="workspace-chat-download-card"
-      title={item.label}
+      title={downloadFilename || item.label}
     >
       {isImage ? (
         <div className="workspace-chat-download-preview">
@@ -132,6 +135,31 @@ export function ChatDownloadFileCard({ item }: { item: ChatArtifactDownload }) {
         <span className="workspace-chat-download-action">点击下载</span>
       </span>
     </a>
+  );
+}
+
+export function ChatReplyImageGallery({ items }: { items: ChatReplyImage[] }) {
+  if (!items.length) return null;
+  return (
+    <div className="workspace-chat-reply-images">
+      {items.map((item) => (
+        <figure key={item.id} className="workspace-chat-reply-image-figure">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={item.href}
+            alt={item.alt}
+            className="workspace-chat-reply-image"
+            loading="lazy"
+          />
+          <figcaption className="workspace-chat-reply-image-caption">
+            <span>{item.alt}</span>
+            <a href={`${item.href}?download=1`} download className="workspace-chat-reply-image-download">
+              下载
+            </a>
+          </figcaption>
+        </figure>
+      ))}
+    </div>
   );
 }
 

@@ -40,3 +40,13 @@ export function chatArtifactUrl(id) {
 export function formatArtifactLink(id, label) {
   return `[${label || "下载文件"}](${chatArtifactUrl(id)})`;
 }
+
+/** 对话内直接展示图片（Markdown 图片语法） */
+export function formatArtifactImage(id, alt = "图片") {
+  const safeAlt = String(alt || "图片").replace(/[\[\]]/g, "");
+  return `![${safeAlt}](${chatArtifactUrl(id)})`;
+}
+
+export function formatArtifactImageReply(title, id, alt = "图片") {
+  return `**${title}**\n\n${formatArtifactImage(id, alt)}`;
+}

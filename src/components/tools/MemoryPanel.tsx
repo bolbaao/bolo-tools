@@ -147,10 +147,6 @@ export default function MemoryPanel() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-white/45 leading-relaxed">
-        你好，<span className="text-white/70">{user.username}</span>。在这里保存你的偏好与常用信息，需要时随时更新。
-      </p>
-
       <div className="bento-card p-4 sm:p-5 space-y-3">
         <label className="block text-xs text-white/40">添加新记忆</label>
         <textarea

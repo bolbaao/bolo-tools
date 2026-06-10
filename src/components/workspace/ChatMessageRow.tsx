@@ -1,9 +1,11 @@
 "use client";
 
+import type { ChatMessage } from "@/contexts/WorkspaceChatContext";
 import type { ReactNode } from "react";
 
 type Props = {
   messageId: string;
+  role: ChatMessage["role"];
   onDelete: (id: string) => void;
   compact?: boolean;
   children: ReactNode;
@@ -31,24 +33,28 @@ function DeleteIcon() {
   );
 }
 
-export default function ChatMessageRow({ messageId, onDelete, compact, children }: Props) {
+export default function ChatMessageRow({ messageId, role, onDelete, compact, children }: Props) {
   return (
-    <div
-      className={`workspace-chat-message-group${compact ? " workspace-chat-message-group-compact" : ""}`}
+    <article
+      className={`workspace-chat-turn workspace-chat-turn-${role}${
+        compact ? " workspace-chat-turn-compact" : ""
+      }`}
     >
-      <button
-        type="button"
-        onClick={() => {
-          if (!confirm("确定删除这条消息？")) return;
-          onDelete(messageId);
-        }}
-        className="workspace-chat-message-delete"
-        title="删除消息"
-        aria-label="删除消息"
-      >
-        <DeleteIcon />
-      </button>
-      {children}
-    </div>
+      <div className="workspace-chat-turn-inner">
+        <button
+          type="button"
+          onClick={() => {
+            if (!confirm("确定删除这条消息？")) return;
+            onDelete(messageId);
+          }}
+          className="workspace-chat-message-delete"
+          title="删除消息"
+          aria-label="删除消息"
+        >
+          <DeleteIcon />
+        </button>
+        {children}
+      </div>
+    </article>
   );
 }

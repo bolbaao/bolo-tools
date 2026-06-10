@@ -93,10 +93,95 @@ def load_netscape_cookies(path: Path) -> list[dict]:
 
 
 def find_video(job_dir: Path) -> Path:
+    job_file = job_dir / "job.json"
+    if job_file.is_file():
+        job = json.loads(job_file.read_text(encoding="utf-8"))
+        video_name = job.get("videoFile")
+        if video_name:
+            candidate = job_dir / video_name
+            if candidate.is_file():
+                return candidate
     for name in sorted(job_dir.iterdir()):
         if name.is_file() and name.suffix.lower() in (".mp4", ".mov", ".webm", ".mkv"):
             return name
     raise RuntimeError("任务目录中未找到视频文件（mp4/mov/webm/mkv）")
+
+
+def find_cover(job_dir: Path) -> Path | None:
+    job_file = job_dir / "job.json"
+    if job_file.is_file():
+        job = json.loads(job_file.read_text(encoding="utf-8"))
+        cover_name = job.get("coverFile")
+        if cover_name:
+            candidate = job_dir / cover_name
+            if candidate.is_file():
+                return candidate
+    for name in sorted(job_dir.iterdir()):
+        if name.is_file() and name.name.startswith("cover") and name.suffix.lower() in (
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+        ):
+            return name
+    return None
+
+
+def upload_cover(page, cover: Path) -> bool:
+    """上传自定义封面（失败时不阻断发布流程）。"""
+    opened = False
+    for pat in (
+        re.compile(r"设置封面"),
+        re.compile(r"更换封面"),
+        re.compile(r"上传封面"),
+        re.compile(r"编辑封面"),
+        re.compile(r"选封面"),
+    ):
+        btn = page.get_by_text(pat)
+        if btn.count() == 0:
+            btn = page.get_by_role("button", name=pat)
+        if btn.count() == 0:
+            continue
+        try:
+            btn.first.click(timeout=5000)
+            page.wait_for_timeout(1200)
+            opened = True
+            break
+        except Exception:
+            continue
+
+    inputs = page.locator('input[type="file"]')
+    for i in range(inputs.count()):
+        inp = inputs.nth(i)
+        try:
+            accept = (inp.get_attribute("accept") or "").lower()
+            if "video" in accept:
+                continue
+            if accept and "image" not in accept and not opened:
+                continue
+            inp.set_input_files(str(cover.resolve()))
+            page.wait_for_timeout(1500)
+            for confirm_pat in (
+                re.compile(r"^确定$"),
+                re.compile(r"^完成$"),
+                re.compile(r"确认"),
+                re.compile(r"保存"),
+            ):
+                confirm = page.get_by_role("button", name=confirm_pat)
+                if confirm.count() == 0:
+                    confirm = page.get_by_text(confirm_pat)
+                if confirm.count() == 0:
+                    continue
+                try:
+                    confirm.first.click(timeout=4000)
+                    page.wait_for_timeout(1000)
+                    return True
+                except Exception:
+                    continue
+            return True
+        except Exception:
+            continue
+    return False
 
 
 def parse_caption(raw: str) -> dict:
@@ -310,6 +395,7 @@ def publish(job_dir: Path, dry_run: bool = False) -> dict:
     tags = job.get("tags") or ""
 
     video = find_video(job_dir)
+    cover = find_cover(job_dir)
     headed = os.environ.get("SOCIAL_PUBLISH_HEADED", "1") == "1"
     upload_timeout = int(os.environ.get("DOUYIN_PUBLISH_UPLOAD_TIMEOUT_SEC", "900"))
 
@@ -361,6 +447,13 @@ def publish(job_dir: Path, dry_run: bool = False) -> dict:
             file_input.set_input_files(str(video.resolve()))
             wait_upload_ready(page, timeout_sec=upload_timeout)
 
+            cover_note = ""
+            if cover:
+                if upload_cover(page, cover):
+                    cover_note = "，已设置封面"
+                else:
+                    cover_note = "，封面未能自动设置（请在创作者中心手动选择）"
+
             title = (caption.get("title") or "作品")[:30]
             desc = (caption.get("description") or "")[:1000]
             fill_first(
@@ -374,10 +467,10 @@ def publish(job_dir: Path, dry_run: bool = False) -> dict:
 
             page.wait_for_timeout(1000)
             if dry_run:
-                msg = "dry-run：已上传并填表，未点击发布"
+                msg = f"dry-run：已上传并填表{cover_note}，未点击发布"
             else:
                 click_publish(page)
-                msg = wait_publish_success(page)
+                msg = wait_publish_success(page) + cover_note
 
             if headed or not STORAGE_PATH.is_file():
                 context.storage_state(path=str(STORAGE_PATH))

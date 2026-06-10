@@ -339,7 +339,6 @@ export default function TextToolboxForm() {
         </div>
       )}
 
-      <p className="text-center text-xs text-white/25">即时处理，文本仅用于当次计算，不会保存</p>
     </div>
   );
 }

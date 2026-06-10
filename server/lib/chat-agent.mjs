@@ -1,7 +1,8 @@
-import { AGENT_TOOLS } from "../../shared/agent-tools.mjs";
+import { getAgentTools } from "../../shared/agent-tools.mjs";
 
-export function buildAgentSystemPrompt() {
-  const toolLines = AGENT_TOOLS.map(
+/** @param {boolean} [isAdmin] */
+export function buildAgentSystemPrompt(isAdmin = false) {
+  const toolLines = getAgentTools(isAdmin).map(
     (tool) =>
       `- ${tool.id} · ${tool.title}：${tool.description}\n  字段 ${JSON.stringify(tool.fields)}`,
   ).join("\n");
@@ -21,6 +22,14 @@ export function buildAgentSystemPrompt() {
 附件与工具：
 - 用户已上传图片/音视频/文档时，输出对应 toolId 的 agent JSON，系统会用附件执行
 - 生成类文件（图片、音频、GIF、HTML 等）会以下载链接形式返回
+- 用户要品牌 logo、商标、图标、配图、产品海报（如「康师傅冰红茶 产品海报」）→ 输出 image-fetch 的 agent JSON，不要拒绝或只说去官网找
+- 用户要多平台高清素材并打包（如「唱无界 微信/抖音/小红书/淘宝/美团 配图 压缩包」）→ 系统会先理解主题再批量搜图打包；不要只返回平台图标或无关图
+- 用户要 PPT/幻灯片/演示文稿 → 输出 ppt-generate 的 agent JSON，生成标准 .pptx 文件；禁止只返回 JSON 文本或 HTML 冒充 PPT
+- 用户指定平台找图（微信公众号/抖音/小红书/淘宝/美团）→ image-fetch，fields 写上 source=wechat/douyin/xiaohongshu/taobao/meituan
+- 用户明确说「在小红书找」「小红书配图」→ image-fetch，fields 写上 source=xiaohongshu 或把关键词写成「关键词 小红书」
+- image-fetch 用于检索已有图片；image-studio mode=generate 用于 AI 绘制新图，二者不要混用
+- 图片/视频会先经大模型全网检索建立预期，再与抖音/小红书/淘宝/美团/微信公众号等平台抓取结果比对；未通过校验时不要编造结果，如实说明校验失败
+- 用户要产品海报时，禁止用排行榜/商品列表/商城截图代替；校验未通过时不要描述错误图片内容，直接说明未通过并建议换关键词
 
 回答风格：
 - 用中文，语气友好、清晰
@@ -32,6 +41,7 @@ ${toolLines}
 
 何时输出 agent JSON：
 - 任务需要搜索全网、写长文、解析视频链接、查热点、检索影视资源、处理文本等
+- ai-search 会把用户原话交给系统理解并扩散检索，fields.query 填用户原话即可，不要自行改写检索词
 - 在 JSON 前可写一句简短说明；执行结果会自动追加，无需你编造工具输出
 
 格式（仅此一处）：
@@ -48,8 +58,9 @@ ${toolLines}
 
 /**
  * @param {string} reply
+ * @param {boolean} [isAdmin]
  */
-export function parseAgentAction(reply) {
+export function parseAgentAction(reply, isAdmin = false) {
   const raw = String(reply || "").trim();
   const match = raw.match(/```agent\s*([\s\S]*?)```/i);
   if (!match) return { reply: raw, agentAction: null };
@@ -59,7 +70,7 @@ export function parseAgentAction(reply) {
     const toolId = String(parsed.toolId || parsed.tool || "").trim();
     const fields =
       parsed.fields && typeof parsed.fields === "object" ? parsed.fields : {};
-    const tool = AGENT_TOOLS.find((t) => t.id === toolId);
+    const tool = getAgentTools(isAdmin).find((t) => t.id === toolId);
     if (!tool) {
       return { reply: raw.replace(match[0], "").trim() || raw, agentAction: null };
     }

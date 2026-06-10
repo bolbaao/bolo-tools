@@ -1,5 +1,6 @@
 import axios from "axios";
 import { HttpError } from "./http-error.mjs";
+import { parseInitialState } from "./xiaohongshu-state.mjs";
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
@@ -121,12 +122,6 @@ export async function fetchDouyinTrends({ force = false } = {}) {
   };
   cacheSet("douyin", payload);
   return payload;
-}
-
-function parseInitialState(html) {
-  const match = html.match(/window\.__INITIAL_STATE__\s*=\s*(\{[\s\S]*?\})\s*<\/script>/);
-  if (!match) throw new Error("missing xhs initial state");
-  return JSON.parse(match[1].replace(/undefined/g, "null"));
 }
 
 export async function fetchXiaohongshuTrends({ force = false } = {}) {

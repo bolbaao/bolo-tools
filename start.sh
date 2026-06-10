@@ -2,6 +2,17 @@
 cd "$(dirname "$0")"
 
 ROOT="$(pwd)"
+
+# 本机 Mac：npm 可选依赖锁定为 darwin 架构（避免误装 Linux/Windows 原生包）
+if [ "$(uname -s)" = "Darwin" ]; then
+  case "$(uname -m)" in
+    arm64) export npm_config_os=darwin npm_config_cpu=arm64 ;;
+    x86_64) export npm_config_os=darwin npm_config_cpu=x64 ;;
+  esac
+  # 构建 Next 时适当提高 Node 堆上限，降低 OOM 概率
+  export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--max-old-space-size=4096"
+fi
+
 if [ -d ".node-portable/bin" ]; then
   export PATH="$ROOT/.node-portable/bin:$PATH"
 fi
@@ -65,7 +76,12 @@ if command -v lsof >/dev/null 2>&1; then
   done
 fi
 
-if [ ! -d "node_modules" ]; then
+if [ "$(uname -s)" = "Darwin" ] && [ -f "scripts/ensure-mac-native-deps.sh" ]; then
+  bash scripts/ensure-mac-native-deps.sh || exit 1
+  if [ -f "scripts/ensure-mac-local-bins.sh" ]; then
+    bash scripts/ensure-mac-local-bins.sh || true
+  fi
+elif [ ! -d "node_modules" ]; then
   echo "📦 正在安装依赖…"
   npm install || exit 1
 fi

@@ -256,3 +256,55 @@ export async function prepareImageForEdit(
   }
   return dataUrl;
 }
+
+export type IdPhotoSize = "1inch" | "2inch";
+
+export const ID_PHOTO_SIZES: Record<IdPhotoSize, { width: number; height: number; label: string }> = {
+  "1inch": { width: 295, height: 413, label: "一寸 (295×413)" },
+  "2inch": { width: 413, height: 579, label: "二寸 (413×579)" },
+};
+
+/** 抠图 + 换底色 + 裁切为标准证件照尺寸 */
+export async function composeIdPhoto(
+  file: File,
+  options: { bgColor: string; size: IdPhotoSize },
+): Promise<Blob> {
+  const sourceUrl = URL.createObjectURL(file);
+  try {
+    const { removeBackground } = await import("@imgly/background-removal");
+    const subjectBlob = await removeBackground(sourceUrl);
+    const composed = await compositeSubjectOnBackground(subjectBlob, {
+      type: "color",
+      color: options.bgColor,
+    });
+
+    const spec = ID_PHOTO_SIZES[options.size];
+    const composedUrl = URL.createObjectURL(composed);
+    try {
+      const img = await loadImageFromUrl(composedUrl, () => URL.revokeObjectURL(composedUrl));
+      const canvas = document.createElement("canvas");
+      canvas.width = spec.width;
+      canvas.height = spec.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas 不可用");
+
+      ctx.fillStyle = options.bgColor;
+      ctx.fillRect(0, 0, spec.width, spec.height);
+
+      const targetH = spec.height * 0.78;
+      const scale = targetH / img.naturalHeight;
+      const drawW = img.naturalWidth * scale;
+      const drawH = img.naturalHeight * scale;
+      const x = (spec.width - drawW) / 2;
+      const y = spec.height - drawH - spec.height * 0.08;
+      ctx.drawImage(img, x, y, drawW, drawH);
+
+      return canvasToBlob(canvas, "image/jpeg", 0.92);
+    } catch (e) {
+      URL.revokeObjectURL(composedUrl);
+      throw e;
+    }
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
+}

@@ -25,18 +25,27 @@ export const AGENT_TOOLS = [
     id: "image-studio",
     title: "图像工坊",
     href: "/tools/image-studio",
-    description: "压缩、变清晰、抠图、换背景、去水印、美化人像，还能用文字描述生成新图",
+    description: "压缩、变清晰、抠图、换背景、去水印、AI消除、OCR提字、证件照、美化人像，还能用文字描述生成新图",
     fields: {
-      mode: "compress|sharpen|cutout|bgreplace|watermark|beautify|edit|generate",
+      mode: "compress|sharpen|cutout|bgreplace|watermark|beautify|edit|generate|erase|ocr|idphoto",
       prompt: "生图、修图或背景描述",
+    },
+  },
+  {
+    id: "image-fetch",
+    title: "图片检索",
+    href: "/tools/image-studio",
+    description: "按主题搜索 logo、海报、配图；支持美团/抖音/小红书/淘宝/微信公众号等平台高清素材，可批量整理为压缩包",
+    fields: {
+      query: "主题+图类型，如「唱无界 高清配图」；指定平台可写 source=wechat,douyin,xiaohongshu,taobao,meituan",
     },
   },
   {
     id: "ai-search",
     title: "AI 全网搜索",
     href: "/tools/ai-search",
-    description: "有问题直接问，搜遍全网并整理摘要，附带来源链接",
-    fields: { query: "搜索问题或关键词" },
+    description: "有问题直接问，系统会先理解意图再扩散检索全网，整理摘要并附来源链接",
+    fields: { query: "用户原话问题（系统会自动改写检索词，勿自行压缩）" },
   },
   {
     id: "app-builder",
@@ -51,11 +60,21 @@ export const AGENT_TOOLS = [
     },
   },
   {
+    id: "ppt-generate",
+    title: "PPT 生成",
+    href: "/tools/ai-writer",
+    description: "根据主题生成标准 .pptx 演示文稿，可下载后用 PowerPoint/WPS/Keynote 打开",
+    fields: { topic: "PPT 主题，如「唱无界 品牌宣传」" },
+  },
+  {
     id: "ai-writer",
     title: "AI 写作助手",
     href: "/tools/ai-writer",
-    description: "写文章、改写法、润色、扩写、摘要、社媒文案、邮件或翻译",
-    fields: { mode: "article|rewrite|polish|expand|summarize|social|email|translate", input: "文本或主题" },
+    description: "写文章、改写法、润色、扩写、摘要、社媒文案、邮件、翻译、工作报告、简历优化、文档速读",
+    fields: {
+      mode: "article|rewrite|polish|expand|summarize|social|email|translate|work-report|resume|doc-speedread",
+      input: "文本或主题",
+    },
   },
   {
     id: "ai-workflow",
@@ -94,8 +113,8 @@ export const AGENT_TOOLS = [
     id: "doc-convert",
     title: "文档转换",
     href: "/tools/doc-convert",
-    description: "PDF 与 Word 互转、PDF 变图片、多张图片合成 PDF",
-    fields: { mode: "pdf-to-word|word-to-pdf|pdf-to-images|images-to-pdf" },
+    description: "PDF 与 Word 互转、PDF 合并拆分压缩、PDF 变图片、多张图片合成 PDF",
+    fields: { mode: "pdf-to-word|word-to-pdf|pdf-to-images|images-to-pdf|pdf-merge|pdf-split|pdf-compress" },
   },
   {
     id: "subtitle-workshop",
@@ -126,4 +145,9 @@ export const AGENT_TOOLS = [
     fields: { content: "记忆内容" },
   },
 ];
+
+/** @param {boolean} [isAdmin] */
+export function getAgentTools(isAdmin = false) {
+  return AGENT_TOOLS.filter((t) => !t.adminOnly || isAdmin);
+}
 

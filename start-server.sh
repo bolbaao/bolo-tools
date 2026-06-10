@@ -3,6 +3,12 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+if [ "$(uname -s)" = "Darwin" ]; then
+  echo "❌ start-server.sh 仅用于 Linux 云服务器"
+  echo "   本机 Mac 请运行: ./start.sh"
+  exit 1
+fi
+
 ROOT="$(pwd)"
 export PATH="$ROOT/.local/bin:$PATH"
 

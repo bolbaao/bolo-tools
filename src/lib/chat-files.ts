@@ -108,37 +108,86 @@ export type ChatArtifactDownload = {
   href: string;
 };
 
+export type ChatReplyImage = {
+  id: string;
+  alt: string;
+  href: string;
+};
+
 const ATTACHMENT_NOTE_RE = /\n\[已附加 \d+ 个文件\]$/;
 
 export function stripChatAttachmentNote(content: string): string {
   return content.replace(ATTACHMENT_NOTE_RE, "").trim();
 }
 
+function normalizeArtifactHref(href: string): string {
+  return href.split("?")[0];
+}
+
+export function extractChatReplyMedia(content: string): {
+  text: string;
+  images: ChatReplyImage[];
+  downloads: ChatArtifactDownload[];
+} {
+  const images: ChatReplyImage[] = [];
+  const downloads: ChatArtifactDownload[] = [];
+  const seen = new Set<string>();
+
+  const ingest = (id: string, href: string, label: string, asImage: boolean) => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    const normalized = normalizeArtifactHref(href);
+    if (asImage) {
+      images.push({ id, alt: label, href: normalized });
+      return;
+    }
+    downloads.push({ id, label, href: normalized });
+  };
+
+  let text = content;
+
+  const imgMdRe = /!\[([^\]]*)\]\((\/api\/chat\/artifacts\/([a-f0-9]+)(?:\?[^)]*)?)\)/gi;
+  text = text.replace(imgMdRe, (_match, alt, href, id) => {
+    ingest(id, href, String(alt || "").trim() || "图片", true);
+    return "";
+  });
+
+  const linkRe = /\[([^\]]+)\]\((\/api\/chat\/artifacts\/([a-f0-9]+)(?:\?[^)]*)?)\)/gi;
+  text = text.replace(linkRe, (_match, label, href, id) => {
+    const trimmed = String(label || "").trim();
+    ingest(id, href, trimmed || "文件", chatArtifactKindFromLabel(trimmed) === "image");
+    return "";
+  });
+
+  text = text
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return { text, images, downloads };
+}
+
+/** @deprecated 使用 extractChatReplyMedia */
 export function extractChatArtifactDownloads(content: string): {
   text: string;
   downloads: ChatArtifactDownload[];
 } {
-  const downloads: ChatArtifactDownload[] = [];
-  const re = /\[([^\]]+)\]\((\/api\/chat\/artifacts\/([a-f0-9]+))\)/gi;
-  const seen = new Set<string>();
+  const { text, downloads, images } = extractChatReplyMedia(content);
+  return {
+    text,
+    downloads: [
+      ...images.map((img) => ({ id: img.id, label: img.alt, href: img.href })),
+      ...downloads,
+    ],
+  };
+}
 
-  for (const match of content.matchAll(re)) {
-    const id = match[3];
-    if (seen.has(id)) continue;
-    seen.add(id);
-    downloads.push({
-      label: match[1].trim(),
-      href: match[2],
-      id,
-    });
-  }
-
-  const text = content
-    .replace(re, "")
-    .replace(/\n{3,}/g, "\n\n")
+/** 从「下载 xxx.pptx」类标签提取建议文件名 */
+export function artifactDownloadName(label: string): string | undefined {
+  const trimmed = String(label || "")
+    .replace(/^下载\s*/i, "")
     .trim();
-
-  return { text, downloads };
+  if (/\.[a-z0-9]{2,5}$/i.test(trimmed)) return trimmed;
+  return undefined;
 }
 
 export function chatArtifactKindFromLabel(label: string): ChatFileKind {
@@ -146,7 +195,7 @@ export function chatArtifactKindFromLabel(label: string): ChatFileKind {
   if (/\.(png|jpe?g|webp|gif|bmp|svg)|图片|image/.test(s)) return "image";
   if (/\.(mp4|mov|webm|mkv)|视频|video/.test(s)) return "video";
   if (/\.(mp3|wav|flac|aac|ogg|m4a)|音频|audio/.test(s)) return "audio";
-  if (/\.(pdf|docx?|ppt|xlsx?)|文档|pdf|word/.test(s)) return "document";
+  if (/\.(pdf|docx?|pptx?|xlsx?)|文档|pdf|word|ppt|幻灯|演示/.test(s)) return "document";
   if (/\.(html?|htm)|应用|html/.test(s)) return "text";
   if (/\.(gif)|动图/.test(s)) return "image";
   return "unknown";

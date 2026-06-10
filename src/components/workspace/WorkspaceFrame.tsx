@@ -11,6 +11,7 @@ type Props = {
   dialog?: React.ReactNode;
   dialogPlaceholder?: string;
   className?: string;
+  variant?: "default" | "tool";
 };
 
 export default function WorkspaceFrame({
@@ -19,6 +20,7 @@ export default function WorkspaceFrame({
   dialog,
   dialogPlaceholder = "在此输入或选择工具开始…",
   className = "",
+  variant = "default",
 }: Props) {
   const chatCtx = useOptionalWorkspaceChat();
   const pathname = usePathname();
@@ -29,13 +31,17 @@ export default function WorkspaceFrame({
   const dialogExpanded = chatCtx?.dialogExpanded ?? true;
   const defaultDialog = chatCtx ? <WorkspaceDialogChat /> : null;
 
+  const isToolFrame = variant === "tool" || isToolRoute;
+
   return (
-    <div className={`workspace-frame flex min-h-0 flex-1 flex-col ${className}`}>
-      <div className="workspace-unified flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div
+      className={`workspace-frame flex min-h-0 flex-1 flex-col ${isToolFrame ? "workspace-frame--tool" : ""} ${className}`}
+    >
+      <div className={`workspace-unified flex min-h-0 flex-1 flex-col overflow-hidden ${isToolFrame ? "workspace-unified--tool" : ""}`}>
         <div className="workspace-panel workspace-light custom-scrollbar min-h-0 flex-1 overflow-y-auto">
-          <div className="workspace-panel-inner mx-auto flex min-h-full w-full flex-col px-4 py-5 sm:px-8 sm:py-8">
+          <div className={`workspace-panel-inner mx-auto flex min-h-full w-full flex-col ${isToolFrame ? "workspace-panel-inner--tool" : "px-4 py-5 sm:px-8 sm:py-8"}`}>
             {showToolHeader ? (
-              <header className="workspace-header mb-7 border-b pb-6 sm:mb-8 sm:pb-7">
+              <header className={`workspace-header ${isToolFrame ? "workspace-header--tool" : "mb-7 border-b pb-6 sm:mb-8 sm:pb-7"}`}>
                 {header}
               </header>
             ) : null}
@@ -47,7 +53,7 @@ export default function WorkspaceFrame({
         <div
           className={`workspace-dialog-bar shrink-0 ${
             dialogExpanded ? "" : "workspace-dialog-bar-collapsed"
-          } ${isHome ? "workspace-dialog-bar-home" : ""}`}
+          } ${isHome ? "workspace-dialog-bar-home" : ""} ${isToolFrame ? "workspace-dialog-bar--tool" : ""}`}
         >
           {dialog ?? defaultDialog ? (
             dialogExpanded ? (
@@ -56,10 +62,13 @@ export default function WorkspaceFrame({
                   <button
                     type="button"
                     onClick={() => chatCtx.setDialogExpanded(false)}
-                    className="absolute right-4 top-4 z-10 text-[11px] text-black/38 transition-colors hover:text-black/62 sm:right-6"
+                    className="tool-dialog-collapse absolute right-4 top-3.5 z-10 sm:right-6"
                     aria-label="收起对话框"
                   >
-                    收起
+                    <span className="tool-dialog-collapse-icon" aria-hidden>
+                      ▾
+                    </span>
+                    收起助手
                   </button>
                 ) : null}
                 {dialog ?? defaultDialog}
@@ -68,16 +77,23 @@ export default function WorkspaceFrame({
               <button
                 type="button"
                 onClick={() => chatCtx?.setDialogExpanded(true)}
-                className="workspace-dialog-collapsed flex w-full items-center gap-3 px-5 py-3.5 text-left sm:px-8"
+                className={`workspace-dialog-collapsed ${isToolFrame ? "workspace-dialog-collapsed--tool" : ""}`}
                 aria-label="展开对话"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-muted text-sm text-accent-deep/80 ring-1 ring-accent/15">
+                <span className="workspace-dialog-collapsed-icon" aria-hidden>
                   ✦
                 </span>
-                <span className="flex-1 text-sm text-black/42">
-                  {isToolRoute ? "需要 AI 协助？点击展开对话" : "有问题？点击展开对话"}
+                <span className="workspace-dialog-collapsed-text">
+                  <span className="workspace-dialog-collapsed-title">
+                    {isToolRoute ? "需要 AI 协助？" : "有什么可以帮你的？"}
+                  </span>
+                  <span className="workspace-dialog-collapsed-desc">
+                    {isToolRoute ? "随时向我提问，我会尽力为你解答" : "点击展开，开始对话"}
+                  </span>
                 </span>
-                <span className="text-xs text-black/30">展开</span>
+                <span className="workspace-dialog-collapsed-cta">
+                  {isToolRoute ? "展开对话" : "展开"}
+                </span>
               </button>
             )
           ) : (

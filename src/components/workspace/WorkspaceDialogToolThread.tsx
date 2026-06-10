@@ -20,12 +20,9 @@ export default function WorkspaceDialogToolThread() {
   if (messages.length === 0 && !loading) return null;
 
   return (
-    <div
-      ref={scrollRef}
-      className="workspace-dialog-tool-thread custom-scrollbar mb-3 max-h-[min(40vh,280px)] space-y-2.5 overflow-y-auto rounded-xl border border-black/[0.06] bg-black/[0.02] p-3"
-    >
+    <div ref={scrollRef} className="workspace-dialog-tool-thread custom-scrollbar">
       {messages.map((msg) => (
-        <ChatMessageRow key={msg.id} messageId={msg.id} onDelete={deleteMessage} compact>
+        <ChatMessageRow key={msg.id} messageId={msg.id} role={msg.role} onDelete={deleteMessage} compact>
           <ChatBubble msg={msg} variant="compact" />
           {msg.agentAction ? (
             <ChatAgentActionButton

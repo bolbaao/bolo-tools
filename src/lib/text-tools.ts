@@ -172,6 +172,11 @@ function markdownImageToHtml(block: string): string | null {
 function sanitizeImageHref(href: string): string | null {
   const trimmed = href.trim();
   if (!trimmed) return null;
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
+    if (/^\/api\/chat\/artifacts\/[a-f0-9]+/i.test(trimmed)) return trimmed.split("?")[0];
+    if (/^\/[\w\-./?=&%#+~:@!$'()*+,;[\]]*$/i.test(trimmed)) return trimmed;
+    return null;
+  }
   try {
     const parsed = new URL(trimmed);
     if (parsed.protocol === "http:" || parsed.protocol === "https:") {

@@ -1,9 +1,11 @@
 import { URL } from "url";
 import { assertPublicHttpUrl } from "./url-guard.mjs";
-import { DESKTOP_UA, PLATFORM_REFERERS } from "./video-platform.mjs";
-
-const MOBILE_UA =
-  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.42";
+import {
+  DESKTOP_UA,
+  loadCookieHeaderForPlatform,
+  MOBILE_UA,
+  PLATFORM_REFERERS,
+} from "./video-platform.mjs";
 
 /** 允许代理下载的 CDN 域名（防 SSRF） */
 const ALLOWED_HOST_SUFFIXES = [
@@ -14,6 +16,8 @@ const ALLOWED_HOST_SUFFIXES = [
   "wxqlogo.cn",
   "douyinvod.com",
   "douyinstatic.com",
+  "douyin.com",
+  "iesdouyin.com",
   "snssdk.com",
   "bytecdn.cn",
   "tiktokcdn.com",
@@ -71,6 +75,7 @@ export function buildProxyHeaders(platform, sourceUrl) {
   if (platform === "douyin") {
     headers["User-Agent"] = MOBILE_UA;
     headers.Referer = "https://www.douyin.com/";
+    headers.Origin = "https://www.douyin.com";
   } else if (platform === "weixin-channels") {
     headers["User-Agent"] = MOBILE_UA;
     headers.Referer = "https://channels.weixin.qq.com/";
@@ -84,6 +89,8 @@ export function buildProxyHeaders(platform, sourceUrl) {
       /* ignore */
     }
   }
+  const cookie = loadCookieHeaderForPlatform(platform);
+  if (cookie) headers.Cookie = cookie;
   return headers;
 }
 

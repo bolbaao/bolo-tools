@@ -7,20 +7,33 @@ import {
   generateArkImage,
   editArkImage,
   beautifyArkImage,
+  eraseArkImage,
   removeWatermarkArkImage,
   replaceBackgroundArkImage,
 } from "./ark-image.mjs";
+import { extractTextFromImageDataUrl } from "./photo-vision.mjs";
 import { HttpError } from "./http-error.mjs";
+import {
+  buildAgentImageFetchPlan,
+  runImageFetchPlan,
+  wantsXiaohongshuImageSource,
+} from "./chat-image-intent.mjs";
+import { normalizePlatformIds } from "./image-search.mjs";
+import { generatePptx } from "./ppt-generate.mjs";
 import { formatMediaSearchReply } from "./chat-media-intent.mjs";
 import { formatResourceNotFound, formatSearchNotFound } from "../../shared/public-error.mjs";
 import { assertSearchAllowed, searchMediaResources } from "./media-resource-fetch.mjs";
 import { fetchTrends, formatHeat } from "./trends-fetch.mjs";
-import { searchWeb } from "./web-search.mjs";
-import { extractVideoByUrl } from "./video-extract-service.mjs";
+import { searchWebWithUnderstanding } from "./web-search-understand.mjs";
+import { extractVerifiedVideoByUrl } from "./video-extract-service.mjs";
 import { runSpider, SPIDER_PRESETS } from "./spider-run.mjs";
 import { adaptCaptionsForPlatforms, runSocialPublish } from "./social-publish.mjs";
 import { addUserMemory, listUserMemories, formatMemoriesForPrompt } from "./user-memory.mjs";
-import { putChatArtifact, formatArtifactLink } from "./chat-tool-artifacts.mjs";
+import {
+  putChatArtifact,
+  formatArtifactLink,
+  formatArtifactImageReply,
+} from "./chat-tool-artifacts.mjs";
 import { getLatestChatUpload } from "./user-media-library.mjs";
 import {
   pickFirstRaw,
@@ -68,6 +81,9 @@ function formatVideoExtractResult(data) {
     lines.push(`- ${f.resolution} · ${f.ext} → [点击下载](${f.downloadUrl})`);
   }
 
+  if (data.verified) {
+    lines.push("", `_✓ 已通过大模型检索与平台内容校验_`);
+  }
   lines.push("", `_来源：${data.webpageUrl}_`);
   return lines.join("\n");
 }
@@ -194,9 +210,12 @@ async function runImageStudio(fields, context) {
         filename: `generated-${Date.now()}.png`,
         contentType: result.mimeType || "image/png",
       });
-      return `**图片已生成**\n\n${formatArtifactLink(id, "下载图片")}`;
+      return formatArtifactImageReply("图片已生成", id, "生成的图片");
     }
-    return `**图片已生成**\n\n[查看图片](${result.imageUrl})`;
+    if (result.imageUrl) {
+      return `**图片已生成**\n\n![生成的图片](${result.imageUrl})`;
+    }
+    throw new HttpError(502, "未返回图片");
   }
 
   const imageDataUrl = getImageDataUrl(context.chatFiles, context.rawFiles);
@@ -213,9 +232,12 @@ async function runImageStudio(fields, context) {
         filename: `beautify-${Date.now()}.png`,
         contentType: result.mimeType || "image/png",
       });
-      return `**人像美化完成**\n\n${formatArtifactLink(id, "下载图片")}`;
+      return formatArtifactImageReply("人像美化完成", id, "美化结果");
     }
-    return `**人像美化完成**\n\n[查看图片](${result.imageUrl})`;
+    if (result.imageUrl) {
+      return `**人像美化完成**\n\n![美化结果](${result.imageUrl})`;
+    }
+    throw new HttpError(502, "未返回图片");
   }
 
   if (mode === "watermark") {
@@ -229,9 +251,12 @@ async function runImageStudio(fields, context) {
         filename: `watermark-${Date.now()}.png`,
         contentType: result.mimeType || "image/png",
       });
-      return `**水印已去除**\n\n${formatArtifactLink(id, "下载图片")}`;
+      return formatArtifactImageReply("水印已去除", id, "去水印结果");
     }
-    return `**水印已去除**\n\n[查看图片](${result.imageUrl})`;
+    if (result.imageUrl) {
+      return `**水印已去除**\n\n![去水印结果](${result.imageUrl})`;
+    }
+    throw new HttpError(502, "未返回图片");
   }
 
   if (mode === "bgreplace") {
@@ -246,9 +271,12 @@ async function runImageStudio(fields, context) {
         filename: `bg-${Date.now()}.png`,
         contentType: result.mimeType || "image/png",
       });
-      return `**背景已替换**\n\n${formatArtifactLink(id, "下载图片")}`;
+      return formatArtifactImageReply("背景已替换", id, "换背景结果");
     }
-    return `**背景已替换**\n\n[查看图片](${result.imageUrl})`;
+    if (result.imageUrl) {
+      return `**背景已替换**\n\n![换背景结果](${result.imageUrl})`;
+    }
+    throw new HttpError(502, "未返回图片");
   }
 
   if (mode === "edit" || mode === "cutout") {
@@ -263,9 +291,14 @@ async function runImageStudio(fields, context) {
         filename: `${mode}-${Date.now()}.png`,
         contentType: result.mimeType || "image/png",
       });
-      return `**${mode === "cutout" ? "抠图" : "修图"}完成**\n\n${formatArtifactLink(id, "下载图片")}`;
+      const title = mode === "cutout" ? "抠图完成" : "修图完成";
+      const alt = mode === "cutout" ? "抠图结果" : "修图结果";
+      return formatArtifactImageReply(title, id, alt);
     }
-    return `**处理完成**\n\n[查看图片](${result.imageUrl})`;
+    if (result.imageUrl) {
+      return `**处理完成**\n\n![处理结果](${result.imageUrl})`;
+    }
+    throw new HttpError(502, "未返回图片");
   }
 
   if (mode === "compress") {
@@ -287,9 +320,38 @@ async function runImageStudio(fields, context) {
         filename: `sharpen-${Date.now()}.png`,
         contentType: result.mimeType || "image/png",
       });
-      return `**清晰化完成**\n\n${formatArtifactLink(id, "下载图片")}`;
+      return formatArtifactImageReply("清晰化完成", id, "清晰化结果");
     }
-    return `**清晰化完成**\n\n[查看图片](${result.imageUrl})`;
+    if (result.imageUrl) {
+      return `**清晰化完成**\n\n![清晰化结果](${result.imageUrl})`;
+    }
+    throw new HttpError(502, "未返回图片");
+  }
+
+  if (mode === "erase") {
+    const result = await eraseArkImage({
+      imageDataUrl,
+      level: pickField(fields, ["level"], "standard") || "standard",
+      hint: prompt,
+    });
+    if (result.imageBase64) {
+      const id = putChatArtifact({
+        buffer: Buffer.from(result.imageBase64, "base64"),
+        filename: `erase-${Date.now()}.png`,
+        contentType: result.mimeType || "image/png",
+      });
+      return formatArtifactImageReply("智能消除完成", id, "消除结果");
+    }
+    if (result.imageUrl) {
+      return `**智能消除完成**\n\n![消除结果](${result.imageUrl})`;
+    }
+    throw new HttpError(502, "未返回图片");
+  }
+
+  if (mode === "ocr") {
+    const result = await extractTextFromImageDataUrl(imageDataUrl);
+    if (!result?.text) throw new HttpError(422, "未能识别出文字");
+    return `**图片文字提取完成**（${result.providerLabel}）\n\n${result.text}`;
   }
 
   throw new HttpError(400, "不支持的图像处理模式");
@@ -304,6 +366,10 @@ async function runAgentTool(action, context = {}) {
   const fields = action?.fields && typeof action.fields === "object" ? action.fields : {};
   const fallback = String(context.lastUserMessage || "").replace(/\n\[已附加.*\]$/, "").trim();
   const toolContext = { ...context, rawFiles: resolveToolRawFiles(context) };
+  const toolMeta = AGENT_TOOLS.find((t) => t.id === toolId);
+  if (toolMeta?.adminOnly && !context.isAdmin) {
+    return { ok: false, error: "需要管理员权限" };
+  }
 
   try {
     switch (toolId) {
@@ -317,14 +383,39 @@ async function runAgentTool(action, context = {}) {
 
       case "ai-search": {
         const query = pickField(fields, ["query", "q"], fallback);
-        const searchPayload = await searchWeb(query, { depth: "advanced" });
+        const searchPayload = await searchWebWithUnderstanding(query, {
+          depth: "advanced",
+          history: context.history,
+        });
         let summary = searchPayload.answer || "";
         try {
-          summary = await synthesizeSearchAnswer(query, searchPayload);
+          summary = await synthesizeSearchAnswer(query, searchPayload, {
+            topic: searchPayload.topic,
+          });
         } catch {
           summary = summary || "未能生成 AI 摘要，请查看下方来源。";
         }
-        return { ok: true, text: formatSearchResult(query, summary, searchPayload.results) };
+        const understandingHint = searchPayload.understanding
+          ? `**检索理解**：${searchPayload.understanding}\n\n`
+          : "";
+        return {
+          ok: true,
+          text: `${understandingHint}${formatSearchResult(query, summary, searchPayload.results)}`,
+        };
+      }
+
+      case "ppt-generate": {
+        const topic = pickField(fields, ["topic", "title", "input", "query"], fallback);
+        const result = await generatePptx(topic, { history: context.history });
+        const id = putChatArtifact({
+          buffer: result.buffer,
+          filename: result.filename,
+          contentType: result.contentType,
+        });
+        return {
+          ok: true,
+          text: `**PPT 已生成：${result.title}**\n\n_共 ${result.slideCount} 页_\n\n${formatArtifactLink(id, `下载 ${result.filename}`)}`,
+        };
       }
 
       case "ai-writer": {
@@ -371,7 +462,7 @@ async function runAgentTool(action, context = {}) {
 
       case "video-extract": {
         const url = pickField(fields, ["url", "link"], fallback);
-        const data = await extractVideoByUrl(url);
+        const data = await extractVerifiedVideoByUrl(url, { query: fallback });
         return { ok: true, text: formatVideoExtractResult(data) };
       }
 
@@ -478,6 +569,20 @@ async function runAgentTool(action, context = {}) {
         }
         const r = await transcribeMediaFile(media, "text");
         return { ok: true, text: r.text };
+      }
+
+      case "image-fetch": {
+        const query = pickField(fields, ["query", "keyword", "q"], fallback);
+        const source = pickField(fields, ["source", "platform", "platforms"], "");
+        const platforms = normalizePlatformIds(source);
+        const preferXhs =
+          platforms.includes("xiaohongshu") ||
+          /xiaohongshu|xhs|小红书/i.test(source) ||
+          wantsXiaohongshuImageSource(fallback);
+        const plan = buildAgentImageFetchPlan(query, fallback || query, { platforms, preferXhs });
+        if (!plan) throw new HttpError(400, "请说明要找什么图片");
+        const text = await runImageFetchPlan(plan, fallback || query);
+        return { ok: true, text };
       }
 
       case "image-studio": {

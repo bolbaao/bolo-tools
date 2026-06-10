@@ -64,6 +64,8 @@ type FetchOpts = {
   credentials?: RequestCredentials;
   /** 超时毫秒数，超时后抛出 ApiError */
   timeoutMs?: number;
+  /** 外部传入时可主动取消请求（如切换搜索模式） */
+  signal?: AbortSignal;
 };
 
 export async function apiPost<T>(
@@ -71,10 +73,17 @@ export async function apiPost<T>(
   body: unknown,
   opts?: FetchOpts,
 ): Promise<T> {
-  const controller = new AbortController();
+  const timeoutController = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   if (opts?.timeoutMs && opts.timeoutMs > 0) {
-    timer = setTimeout(() => controller.abort(), opts.timeoutMs);
+    timer = setTimeout(() => timeoutController.abort(), opts.timeoutMs);
+  }
+
+  if (opts?.signal?.aborted) {
+    throw new DOMException("The operation was aborted.", "AbortError");
+  }
+  if (opts?.signal) {
+    opts.signal.addEventListener("abort", () => timeoutController.abort(), { once: true });
   }
 
   try {
@@ -83,12 +92,13 @@ export async function apiPost<T>(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       credentials: opts?.credentials,
-      signal: controller.signal,
+      signal: timeoutController.signal,
     });
     return parseJson<T>(res);
   } catch (e) {
     if (e instanceof ApiError) throw e;
     if (e instanceof Error && e.name === "AbortError") {
+      if (opts?.signal?.aborted) throw e;
       throw new ApiError("请求超时，文件较大或网络较慢，请稍后重试", 408);
     }
     if (e instanceof TypeError) {

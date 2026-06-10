@@ -29,7 +29,7 @@ export default function ActionButton({
       type="button"
       onClick={() => void onClick()}
       disabled={disabled || loading}
-      className={`action-btn w-full rounded-xl px-6 py-3.5 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${base} ${className}`}
+      className={`action-btn tool-action-btn w-full rounded-xl px-6 py-3.5 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${base} ${className}`}
     >
       {loading ? (
         <span className="inline-flex items-center justify-center gap-2">

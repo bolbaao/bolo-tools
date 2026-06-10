@@ -57,7 +57,6 @@ export default function HotTrendsPanel() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [source, setSource] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,13 +87,11 @@ export default function HotTrendsPanel() {
       setList(data.list || []);
       setUpdatedAt(data.updatedAt || null);
       setSource(data.source || null);
-      setNotice(data.notice || null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "加载失败");
       setList([]);
       setUpdatedAt(null);
       setSource(null);
-      setNotice(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -220,9 +217,6 @@ export default function HotTrendsPanel() {
         </p>
       )}
 
-      {notice && viewMode === "trends" && (
-        <p className="text-xs text-white/35 leading-relaxed">{notice}</p>
-      )}
       {error && viewMode === "trends" && (
         <p className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs text-red-300/90">
           {error}

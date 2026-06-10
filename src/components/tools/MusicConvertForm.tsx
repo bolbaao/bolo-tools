@@ -17,14 +17,6 @@ import { ENCRYPTED_ACCEPT } from "@/lib/music-unlock";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { useCallback, useMemo, useRef, useState } from "react";
 
-const PLATFORMS = [
-  { label: "网易云", tone: "from-rose-500/20 to-pink-500/5 text-rose-200/90 ring-rose-500/25" },
-  { label: "QQ音乐", tone: "from-green-500/20 to-lime-500/5 text-green-200/90 ring-green-500/25" },
-  { label: "酷狗", tone: "from-amber-500/20 to-orange-500/5 text-amber-200/90 ring-amber-500/25" },
-  { label: "酷我", tone: "from-sky-500/20 to-cyan-500/5 text-sky-200/90 ring-sky-500/25" },
-  { label: "虾米", tone: "from-emerald-500/20 to-teal-500/5 text-emerald-200/90 ring-emerald-500/25" },
-] as const;
-
 type MusicItem = {
   id: string;
   file: File;
@@ -202,47 +194,6 @@ export default function MusicConvertForm() {
 
   return (
     <div className="space-y-8">
-      {/* 能力概览 */}
-      <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.04] to-transparent p-5 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-violet-300/70">
-              音乐工坊
-            </p>
-            <h2 className="mt-1 text-lg font-semibold tracking-tight text-white/95">
-              解锁 · 转码 · 一站完成
-            </h2>
-            <p className="mt-2 text-sm text-white/40 leading-relaxed max-w-md font-light">
-              把各平台下载的音乐转成 MP3、FLAC 等常用格式，可一次选很多首，完成后单首下载或打包带走。
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 sm:justify-end">
-            {PLATFORMS.map((p) => (
-              <span
-                key={p.label}
-                className={`inline-flex items-center rounded-full bg-gradient-to-r px-3 py-1 text-[11px] font-medium ring-1 ${p.tone}`}
-              >
-                {p.label}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="mt-5 flex flex-wrap gap-3 text-[11px] text-white/35">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-1 w-1 rounded-full bg-emerald-400/80" />
-            安全处理，注重隐私
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-1 w-1 rounded-full bg-violet-400/80" />
-            批量：建议 ≤50 首
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-1 w-1 rounded-full bg-green-400/80" />
-            支持 QQ 音乐 QMC / mflac / mgg
-          </span>
-        </div>
-      </section>
-
       {/* 输出格式 */}
       <section>
         <div className="flex items-baseline justify-between mb-3">
@@ -483,12 +434,6 @@ export default function MusicConvertForm() {
             清空队列
           </button>
         </section>
-      )}
-
-      {items.length === 0 && !loading && (
-        <p className="text-center text-xs text-white/25 -mt-2">
-          选择输出格式后，添加文件并点击「开始转换」
-        </p>
       )}
 
       {error && (

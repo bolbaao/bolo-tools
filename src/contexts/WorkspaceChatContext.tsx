@@ -59,6 +59,7 @@ type WorkspaceChatContextValue = {
   caps: Capabilities | null;
   backToChat: () => void;
   backChatTransition: boolean;
+  toolPageExiting: boolean;
   dialogExpanded: boolean;
   setDialogExpanded: (expanded: boolean) => void;
   provider: string;
@@ -83,12 +84,25 @@ function newId() {
 
 const isToolPath = isToolPathname;
 
+const BACK_EXIT_MS = 320;
+const BACK_ENTER_MS = 480;
+
+function backTransitionDelay(kind: "exit" | "enter") {
+  if (typeof window === "undefined") return kind === "exit" ? BACK_EXIT_MS : BACK_ENTER_MS;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? 0
+    : kind === "exit"
+      ? BACK_EXIT_MS
+      : BACK_ENTER_MS;
+}
+
 export function WorkspaceChatProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [caps, setCaps] = useState<Capabilities | null>(null);
   const [backChatTransition, setBackChatTransition] = useState(false);
+  const [toolPageExiting, setToolPageExiting] = useState(false);
   const [dialogExpanded, setDialogExpanded] = useState(true);
   const [provider, setProvider] = useState("");
   const [loading, setLoading] = useState(false);
@@ -100,6 +114,7 @@ export function WorkspaceChatProvider({ children }: { children: ReactNode }) {
       if (!backChatTransition) setDialogExpanded(false);
       return;
     }
+    setToolPageExiting(false);
     setDialogExpanded(true);
   }, [backChatTransition, pathname]);
 
@@ -135,13 +150,28 @@ export function WorkspaceChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const backToChat = useCallback(() => {
-    setBackChatTransition(true);
-    router.push("/", { scroll: false });
-  }, [router]);
+    const goHome = () => {
+      setBackChatTransition(true);
+      router.push("/", { scroll: false });
+    };
+
+    if (isToolPath(pathname)) {
+      setToolPageExiting(true);
+      window.setTimeout(() => {
+        goHome();
+      }, backTransitionDelay("exit"));
+      return;
+    }
+
+    goHome();
+  }, [pathname, router]);
 
   useEffect(() => {
     if (!backChatTransition || pathname !== "/") return;
-    const timer = window.setTimeout(() => setBackChatTransition(false), 420);
+    const timer = window.setTimeout(
+      () => setBackChatTransition(false),
+      backTransitionDelay("enter"),
+    );
     return () => window.clearTimeout(timer);
   }, [backChatTransition, pathname]);
 
@@ -271,6 +301,7 @@ export function WorkspaceChatProvider({ children }: { children: ReactNode }) {
       caps,
       backToChat,
       backChatTransition,
+      toolPageExiting,
       dialogExpanded,
       setDialogExpanded,
       provider,
@@ -291,6 +322,7 @@ export function WorkspaceChatProvider({ children }: { children: ReactNode }) {
       caps,
       backToChat,
       backChatTransition,
+      toolPageExiting,
       dialogExpanded,
       provider,
       loading,

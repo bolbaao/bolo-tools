@@ -2,6 +2,7 @@
 
 import ActionButton from "@/components/ActionButton";
 import FileDropZone from "@/components/FileDropZone";
+import { ToolError, ToolPresetCard, ToolPresetGrid, ToolSection } from "@/components/tools/ToolSection";
 import { ApiError, apiUpload, downloadBlob } from "@/lib/api";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -89,9 +90,8 @@ export default function GifMakerForm() {
       <FileDropZone
         icon="🎞"
         accept="video/*"
-        accent="amber"
-        title={file?.name ?? "拖入或点击上传视频"}
-        hint="MP4 / MOV / WebM 等，建议片段 ≤ 30 秒"
+        title={file?.name ?? "点击上传视频 或 拖拽到此处"}
+        hint="MP4 / MOV，建议片段 ≤ 30 秒"
         onFiles={(files) => {
           setFile(files[0] ?? null);
           setError(null);
@@ -117,23 +117,7 @@ export default function GifMakerForm() {
         </div>
       )}
 
-      <div>
-        <p className="text-xs text-white/40 mb-2">快捷预设</p>
-        <div className="flex flex-wrap gap-2">
-          {PRESETS.map((p) => (
-            <button
-              key={p.label}
-              type="button"
-              onClick={() => applyPreset(p)}
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:border-amber-500/30 hover:text-amber-200/90"
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
+      <div className="tool-form-row tool-form-row--2">
         <div>
           <label htmlFor="gif-start" className="block text-sm text-white/60 mb-2">
             起始时间（秒）
@@ -200,15 +184,27 @@ export default function GifMakerForm() {
         预计约 {frameCount} 帧 · 帧率越高、时长越长，文件越大
       </p>
 
-      {error && <p className="text-sm text-red-400/90 text-center">{error}</p>}
+      {error && <ToolError>{error}</ToolError>}
 
       <ActionButton
-        label="生成 GIF 并下载"
+        label="生成 GIF"
         loading={loading}
         disabled={!file}
         onClick={handleGenerate}
       />
-      <p className="text-center text-xs text-white/25">上传视频并设置片段参数，即可生成并下载 GIF</p>
+
+      <ToolSection title="快捷预设">
+        <ToolPresetGrid>
+          {PRESETS.map((p) => (
+            <ToolPresetCard
+              key={p.label}
+              title={p.label}
+              desc={`${p.width}px · ${p.fps}fps · ${p.duration}s`}
+              onClick={() => applyPreset(p)}
+            />
+          ))}
+        </ToolPresetGrid>
+      </ToolSection>
     </div>
   );
 }

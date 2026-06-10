@@ -37,8 +37,8 @@ export default function ToolTaskRoot({ toolId, children, className = "" }: Props
   }, [toolId]);
 
   return (
-    <div ref={rootRef} className={`tool-task-root space-y-6 ${className}`.trim()}>
-      {children}
+    <div ref={rootRef} className={`tool-task-root ${className}`.trim()}>
+      <div className="tool-task-main">{children}</div>
     </div>
   );
 }

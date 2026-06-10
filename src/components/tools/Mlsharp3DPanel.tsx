@@ -1,6 +1,7 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
+import { ToolNotice, ToolPresetCard, ToolPresetGrid, ToolSection } from "@/components/tools/ToolSection";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { ApiError, apiGet, apiUpload, downloadBlob } from "@/lib/api";
 import { useCallback, useEffect, useState } from "react";
@@ -16,6 +17,14 @@ type MlsharpStatus = {
 type QualityId = "standard" | "high" | "ultra";
 
 type QualityPreset = { id: QualityId; label: string; internalSize: number };
+
+const FEATURED_MODELS = [
+  { title: "椅子", icon: "🪑" },
+  { title: "汽车", icon: "🚗" },
+  { title: "机器人", icon: "🤖" },
+  { title: "房屋", icon: "🏠" },
+  { title: "小屋", icon: "🏡" },
+];
 
 const QUALITY_HINTS: Record<QualityId, string> = {
   standard: "速度最快，适合预览",
@@ -112,35 +121,24 @@ export default function Mlsharp3DPanel() {
   return (
     <>
       {status && !status.available && (
-        <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
-          <p className="font-medium text-amber-50/95">
-            {status.installed && !status.runtimeReady
-              ? "3D 生成功能正在初始化"
-              : "3D 生成功能暂不可用"}
-          </p>
-          <p className="mt-1 text-amber-100/75">
-            {status.hint || "请稍后再试，或联系站点管理员"}
-          </p>
-        </div>
+        <ToolNotice>
+          {status.installed && !status.runtimeReady
+            ? "3D 生成功能正在初始化"
+            : status.hint || "3D 生成功能暂不可用，请稍后再试"}
+        </ToolNotice>
       )}
 
       <label
-        className={`flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed px-6 py-8 transition-all ${
-          ready
-            ? "border-white/15 bg-white/[0.02] cursor-pointer hover:border-violet-500/35 hover:bg-violet-500/5"
-            : "border-white/10 bg-white/[0.01] cursor-not-allowed opacity-60"
-        }`}
+        className={`tool-drop-zone${!ready ? " opacity-60 cursor-not-allowed" : ""}`}
       >
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={preview} alt="预览" className="max-h-48 rounded-lg object-contain" />
         ) : (
-          <span className="text-3xl opacity-60">🧊</span>
+          <span className="tool-drop-zone-icon">🧊</span>
         )}
-        <span className="text-sm text-white/50">{file?.name ?? "上传一张照片"}</span>
-        <span className="text-xs text-white/25 text-center">
-          JPG / PNG / WebP，单张即可生成 3D Gaussian Splatting 模型（.ply）
-        </span>
+        <span className="tool-drop-zone-title">{file?.name ?? "点击上传图片 或 拖拽到此处"}</span>
+        <span className="tool-drop-zone-hint">JPG / PNG / WebP，单张即可生成 3D 模型</span>
         <input
           type="file"
           accept="image/*"
@@ -202,15 +200,20 @@ export default function Mlsharp3DPanel() {
       ) : null}
 
       <ActionButton
-        label={render ? "生成 3D 模型与预览" : "生成 3D 模型并下载"}
+        label="生成 3D 模型"
         loading={loading}
         disabled={!file || !ready}
         onClick={handleGenerate}
       />
 
-      <p className="text-center text-xs text-white/25 leading-relaxed">
-        建议上传主体清晰、光线均匀的照片；精细度越高，细节越好，但耗时也更长。
-      </p>
+      <ToolSection title="精选模型" desc="示例类型，上传同类照片效果更佳">
+        <ToolPresetGrid className="tool-preset-grid--5">
+          {FEATURED_MODELS.map((m) => (
+            <ToolPresetCard key={m.title} title={m.title} icon={m.icon} disabled />
+          ))}
+        </ToolPresetGrid>
+      </ToolSection>
+
     </>
   );
 }

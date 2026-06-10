@@ -8,6 +8,8 @@ export type Tool = {
   tag: string;
   /** 不出现在侧边栏工具列表，改在个人中心展示 */
   personalCenter?: boolean;
+  /** 仅管理员可见、可用 */
+  adminOnly?: boolean;
 };
 
 export const tools: Tool[] = [
@@ -16,7 +18,7 @@ export const tools: Tool[] = [
     title: "音乐工坊",
     description: "把各平台下载的歌曲转成 MP3、FLAC 等常用格式，支持多首一起转、打包下载。",
     href: "/tools/music-convert",
-    gradient: "from-violet-500/20 to-fuchsia-500/10",
+    gradient: "from-teal-500/20 to-cyan-500/10",
     tag: "音频",
   },
   {
@@ -30,9 +32,9 @@ export const tools: Tool[] = [
   {
     id: "image-studio",
     title: "图像工坊",
-    description: "让图片更小、更清晰，一键抠图、换背景、去水印、美化人像，还能用文字描述生成新图。",
+    description: "压缩、抠图、证件照、AI 消除、OCR 提字、去水印、美化人像，还能用文字描述生成新图。",
     href: "/tools/image-studio",
-    gradient: "from-sky-500/20 via-violet-500/15 to-emerald-500/10",
+    gradient: "from-sky-500/20 via-teal-500/15 to-emerald-500/10",
     tag: "图像",
   },
   {
@@ -40,7 +42,7 @@ export const tools: Tool[] = [
     title: "3D 工坊",
     description: "上传一张照片，快速生成可旋转查看的 3D 模型，下载后可在 Blender、SuperSplat 等软件中打开。",
     href: "/tools/mlsharp-3d",
-    gradient: "from-violet-500/20 via-indigo-500/15 to-cyan-500/10",
+    gradient: "from-cyan-500/20 via-teal-500/15 to-sky-500/10",
     tag: "图像",
   },
   {
@@ -57,7 +59,7 @@ export const tools: Tool[] = [
     title: "AI 全网搜索",
     description: "有问题直接问，帮你搜遍全网并整理摘要，附带来源链接，查资料更省力。",
     href: "/tools/ai-search",
-    gradient: "from-indigo-500/20 via-violet-500/15 to-blue-500/10",
+    gradient: "from-teal-500/20 via-cyan-500/15 to-blue-500/10",
     tag: "AI",
   },
   {
@@ -71,9 +73,9 @@ export const tools: Tool[] = [
   {
     id: "ai-writer",
     title: "AI 写作助手",
-    description: "写文章、改写法、润色、扩写、写摘要、社媒文案、邮件或翻译，选对模式就能开始。",
+    description: "写文章、润色扩写、工作报告、简历优化、文档速读、社媒文案、邮件或翻译，选对模式就能开始。",
     href: "/tools/ai-writer",
-    gradient: "from-indigo-500/20 via-blue-500/15 to-violet-500/10",
+    gradient: "from-teal-500/20 via-sky-500/15 to-cyan-500/10",
     tag: "AI",
   },
   {
@@ -81,7 +83,7 @@ export const tools: Tool[] = [
     title: "AI 工作流",
     description: "选一条创作流程，从成稿、社媒文案到视频脚本，可以一步步做，也能一键跑完。",
     href: "/tools/ai-workflow",
-    gradient: "from-purple-500/20 via-violet-500/15 to-fuchsia-500/10",
+    gradient: "from-teal-500/20 via-emerald-500/15 to-cyan-500/10",
     tag: "AI",
   },
   {
@@ -119,7 +121,7 @@ export const tools: Tool[] = [
   {
     id: "doc-convert",
     title: "文档转换",
-    description: "PDF 和 Word 互转、把 PDF 变成图片、多张图片合成一份 PDF，在浏览器里就能完成。",
+    description: "PDF 与 Word 互转、PDF 合并拆分压缩、PDF 转图片、多图合成 PDF，在浏览器里就能完成。",
     href: "/tools/doc-convert",
     gradient: "from-teal-500/20 to-emerald-500/10",
     tag: "文档",
@@ -154,8 +156,8 @@ export function getToolById(id: string): Tool | undefined {
   return tools.find((t) => t.id === id);
 }
 
-export function getSidebarTools(): Tool[] {
-  return tools.filter((t) => !t.personalCenter);
+export function getSidebarTools(isAdmin = false): Tool[] {
+  return tools.filter((t) => !t.personalCenter && (!t.adminOnly || isAdmin));
 }
 
 export function getPersonalCenterTools(): Tool[] {

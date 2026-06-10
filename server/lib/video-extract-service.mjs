@@ -9,55 +9,27 @@ import {
   isSupportedPlatform,
   resolveFinalUrl,
   shouldResolveFinalUrl,
-  sortFormatsByQuality,
 } from "./video-platform.mjs";
 import { safeFilename } from "./video-download.mjs";
+import { mapFormatsWithFallback } from "./video-formats.mjs";
+import {
+  buildMediaVerifyBrief,
+  mediaVerifyEnabled,
+  verifyVideoAgainstBrief,
+} from "./media-verify.mjs";
+import { formatVideoVerifyFailed } from "../../shared/public-error.mjs";
 import { runYtDlpJson } from "./ytdlp-runner.mjs";
 
-function formatResolution(f) {
-  if (f.resolution && f.resolution !== "audio only") return f.resolution;
-  if (f.height) return `${f.height}p`;
-  if (f.format_note) return f.format_note;
-  return f.ext || "默认";
-}
-
-function mapFormats(info, platform) {
-  let list = (info.formats || []).filter(
-    (f) => f.url && (f.vcodec !== "none" || f.acodec !== "none"),
-  );
-
-  if (sortFormatsByQuality(platform)) {
-    const combined = list.filter((f) => f.vcodec !== "none" && f.acodec !== "none");
-    const videoOnly = list.filter((f) => f.vcodec !== "none" && f.acodec === "none");
-    list = combined.length ? combined : videoOnly;
-    list.sort((a, b) => (b.height || 0) - (a.height || 0));
-    const seen = new Set();
-    list = list.filter((f) => {
-      const key = `${f.height || 0}-${f.ext}-${f.format_id}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  } else {
-    list = list.slice(-12);
-  }
-
-  return list.slice(0, 8).map((f) => ({
-    formatId: f.format_id,
-    ext: f.ext,
-    resolution: formatResolution(f),
-    url: f.url,
-    decodeKey: f._decodeKey || undefined,
-  }));
-}
-
-function buildDownloadPath(mediaUrl, platform, title, ext, decodeKey) {
+function buildDownloadPath(mediaUrl, platform, title, ext, decodeKey, audioUrl, webpageUrl, formatId) {
   const params = new URLSearchParams({
     url: mediaUrl,
     platform: platform || "generic",
     name: safeFilename(title, ext || "mp4"),
   });
   if (decodeKey) params.set("decodeKey", String(decodeKey));
+  if (audioUrl) params.set("audioUrl", audioUrl);
+  if (webpageUrl) params.set("webpageUrl", webpageUrl);
+  if (formatId) params.set("formatId", String(formatId));
   return `/api/video/download?${params.toString()}`;
 }
 
@@ -92,9 +64,19 @@ export async function extractVideoByUrl(url) {
   }
 
   const title = info.title || "未命名视频";
-  const formats = mapFormats(info, platform).map((f) => ({
+  const webpageUrl = info.webpage_url || info.webpageUrl || safeUrl;
+  const formats = mapFormatsWithFallback(info, platform).map((f) => ({
     ...f,
-    downloadUrl: buildDownloadPath(f.url, platform, title, f.ext, f.decodeKey),
+    downloadUrl: buildDownloadPath(
+      f.url,
+      platform,
+      title,
+      f.ext,
+      f.decodeKey,
+      f.audioUrl,
+      webpageUrl,
+      f.formatId,
+    ),
   }));
 
   if (!formats.length) throw new HttpError(502, "未找到可下载的视频流");
@@ -104,7 +86,39 @@ export async function extractVideoByUrl(url) {
     title,
     duration: info.duration,
     uploader: info.uploader || info.channel,
-    webpageUrl: info.webpage_url || info.webpageUrl || safeUrl,
+    webpageUrl,
     formats,
+  };
+}
+
+/** @param {string} url @param {{ verify?: boolean, query?: string }} opts */
+export async function extractVerifiedVideoByUrl(url, opts = {}) {
+  const data = await extractVideoByUrl(url);
+  if (opts.verify === false || !mediaVerifyEnabled()) {
+    return { ...data, verified: false };
+  }
+
+  const query = String(opts.query || data.title || url).trim();
+  const brief = await buildMediaVerifyBrief(query, "video");
+  const check = await verifyVideoAgainstBrief(
+    {
+      title: data.title,
+      uploader: data.uploader,
+      duration: data.duration,
+      webpageUrl: data.webpageUrl,
+      platform: data.platform,
+    },
+    brief,
+    query,
+  );
+
+  if (!check.match) {
+    throw new HttpError(422, formatVideoVerifyFailed(query));
+  }
+
+  return {
+    ...data,
+    verified: true,
+    verifyReason: check.reason,
   };
 }

@@ -186,7 +186,6 @@ export default function SubtitleWorkshopForm() {
             }`}
           >
             <span className="block text-sm font-medium">{t.label}</span>
-            <span className="block text-[10px] opacity-60 mt-0.5">{t.hint}</span>
           </button>
         ))}
       </div>
@@ -195,10 +194,6 @@ export default function SubtitleWorkshopForm() {
         <p className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90 leading-relaxed">
           {transcribeStatus.hint || "语音转写暂不可用"}
         </p>
-      )}
-
-      {tab === "transcribe" && transcribeStatus?.hint && transcribeStatus.available && (
-        <p className="text-xs text-center text-white/35 leading-relaxed">{transcribeStatus.hint}</p>
       )}
 
       {tab === "transcribe" &&
@@ -369,11 +364,6 @@ export default function SubtitleWorkshopForm() {
         />
       )}
 
-      <p className="text-center text-xs text-white/25 leading-relaxed">
-        {tab === "transcribe"
-          ? "本地转写开箱即用；云端转写需站点已开通。可导出字幕文件或纯文本"
-          : "仅当视频本身带有字幕轨时，才能提取内嵌字幕"}
-      </p>
     </div>
   );
 }

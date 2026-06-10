@@ -5,7 +5,9 @@ export function inferDocConvertModeFromFiles(files: File[]): DocConvertMode | nu
   if (!files.length) return null;
   const exts = files.map((f) => f.name.split(".").pop()?.toLowerCase() ?? "");
   const allImages = exts.every((e) => e === "png" || e === "jpg" || e === "jpeg");
+  const allPdfs = exts.every((e) => e === "pdf");
   if (files.length > 1 && allImages) return "images-to-pdf";
+  if (files.length > 1 && allPdfs) return "pdf-merge";
   const ext = exts[0];
   if (ext === "pdf") return "pdf-to-word";
   if (ext === "doc" || ext === "docx") return "word-to-pdf";

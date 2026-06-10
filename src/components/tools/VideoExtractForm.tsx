@@ -2,8 +2,13 @@
 
 import ActionButton from "@/components/ActionButton";
 import CopyButton from "@/components/CopyButton";
+import {
+  ToolError,
+  ToolSection,
+} from "@/components/tools/ToolSection";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { ApiError, apiNotFoundMessage, apiPost, apiUrl, downloadBlob } from "@/lib/api";
+import { toUserFacingErrorMessage } from "@/lib/service-message";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const RECENT_URLS_KEY = "video-extract-recent";
@@ -29,21 +34,14 @@ type ExtractResult = {
 };
 
 const SUPPORTED_PLATFORMS = [
-  { id: "weixin-channels", label: "视频号" },
-  { id: "douyin", label: "抖音" },
-  { id: "bilibili", label: "哔哩哔哩" },
-  { id: "youtube", label: "YouTube" },
-  { id: "twitter", label: "X" },
-  { id: "telegram", label: "Telegram" },
-  { id: "instagram", label: "Instagram" },
-  { id: "tiktok", label: "TikTok" },
-  { id: "facebook", label: "Facebook" },
-  { id: "reddit", label: "Reddit" },
-  { id: "vimeo", label: "Vimeo" },
-  { id: "pinterest", label: "Pinterest" },
-  { id: "threads", label: "Threads" },
-  { id: "twitch", label: "Twitch" },
-] as const;
+  { id: "weixin-channels", label: "视频号", icon: "📱" },
+  { id: "youtube", label: "YouTube", icon: "▶️" },
+  { id: "bilibili", label: "Bilibili", icon: "📺" },
+  { id: "douyin", label: "抖音", icon: "🎵" },
+  { id: "tiktok", label: "TikTok", icon: "🎬" },
+  { id: "twitter", label: "X", icon: "𝕏" },
+  { id: "generic", label: "更多", icon: "⋯" },
+];
 
 const platformLabel: Record<string, string> = {
   "weixin-channels": "微信视频号",
@@ -67,7 +65,7 @@ const platformLabel: Record<string, string> = {
 
 function detectClientPlatform(text: string): string | null {
   const u = text.toLowerCase();
-  if (u.includes("channels.weixin.qq.com") || u.includes("finder.video.qq.com")) {
+  if (u.includes("channels.weixin.qq.com") || u.includes("finder.video.qq.com") || u.includes("wxapp.tc.qq.com") || u.includes("weixin110.qq.com") || u.includes("weixin.qq.com/sph")) {
     return "weixin-channels";
   }
   if (u.includes("douyin") || u.includes("iesdouyin")) return "douyin";
@@ -144,7 +142,7 @@ export default function VideoExtractForm() {
       setResult(data);
       saveRecent(target);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "解析失败");
+      setError(e instanceof ApiError ? e.message : toUserFacingErrorMessage("解析失败"));
     } finally {
       setLoading(false);
     }
@@ -176,7 +174,7 @@ export default function VideoExtractForm() {
           throw new Error(apiNotFoundMessage());
         }
         const data = await res.json().catch(() => ({}));
-        throw new Error((data as { error?: string }).error || "下载失败");
+        throw new Error(toUserFacingErrorMessage((data as { error?: string }).error || "下载失败"));
       }
       const blob = await res.blob();
       const ext = fmt.ext || "mp4";
@@ -194,20 +192,7 @@ export default function VideoExtractForm() {
 
   return (
     <>
-      <div>
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <label htmlFor="video-url" className="text-sm text-white/60">
-            视频链接
-            <span className="ml-2 text-xs font-normal text-white/30">视频号链接可在手机端分享处查看</span>
-          </label>
-          <button
-            type="button"
-            onClick={() => void pasteFromClipboard()}
-            className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:bg-white/10 hover:text-white/80"
-          >
-            粘贴链接
-          </button>
-        </div>
+      <div className="tool-inline-form">
         <input
           id="video-url"
           type="text"
@@ -221,47 +206,45 @@ export default function VideoExtractForm() {
               void handleExtract();
             }
           }}
-          placeholder="YouTube / 视频号 / X / 抖音 / B 站 等分享链接…"
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/30"
+          placeholder="粘贴视频链接到这里…"
         />
-        {detected ? (
-          <p className="mt-2 text-xs text-blue-300/70">
-            已识别为 {platformLabel[detected] || detected}
-          </p>
-        ) : null}
-        {recentUrls.length > 0 && !url && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {recentUrls.map((u) => (
-              <button
-                key={u}
-                type="button"
-                onClick={() => setUrl(u)}
-                className="max-w-full truncate rounded-full bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40 hover:bg-white/10 hover:text-white/60"
-                title={u}
-              >
-                {u.replace(/^https?:\/\//, "").slice(0, 40)}
-              </button>
-            ))}
-          </div>
-        )}
+        <ActionButton
+          label="提取"
+          loading={loading}
+          loadingLabel="正在解析…"
+          disabled={!url.trim()}
+          onClick={() => void handleExtract()}
+          className="!w-auto shrink-0"
+        />
       </div>
+      {detected ? (
+        <p className="text-xs opacity-60">
+          已识别为 {platformLabel[detected] || detected}
+        </p>
+      ) : null}
+      {recentUrls.length > 0 && !url && (
+        <div className="flex flex-wrap gap-1.5">
+          {recentUrls.map((u) => (
+            <button
+              key={u}
+              type="button"
+              onClick={() => setUrl(u)}
+              className="max-w-full truncate rounded-full bg-black/[0.04] px-2.5 py-0.5 text-[10px] opacity-50 hover:opacity-80"
+              title={u}
+            >
+              {u.replace(/^https?:\/\//, "").slice(0, 40)}
+            </button>
+          ))}
+        </div>
+      )}
 
-      <ActionButton
-        label="解析并提取"
-        loading={loading}
-        loadingLabel="正在解析…"
-        disabled={!url.trim()}
-        onClick={() => void handleExtract()}
-      />
+      {error && <ToolError>{error}</ToolError>}
 
-      <div
-        className="rounded-xl bg-white/[0.02] border border-white/8 p-4"
-        data-tool-result={result ? "" : undefined}
-      >
+      <div data-tool-result={result ? "" : undefined}>
         {result ? (
-          <div className="space-y-3">
+          <section className="tool-form-card space-y-4">
             {result.platform && (
-              <span className="inline-flex rounded-full bg-violet-500/15 px-2.5 py-0.5 text-[10px] text-violet-200 ring-1 ring-violet-500/25">
+              <span className="inline-flex rounded-full bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-medium text-violet-700 ring-1 ring-violet-500/15">
                 {platformLabel[result.platform] || result.platform}
               </span>
             )}
@@ -270,11 +253,11 @@ export default function VideoExtractForm() {
               <img
                 src={result.thumbnail}
                 alt=""
-                className="w-full max-h-48 object-cover rounded-lg"
+                className="w-full max-h-48 object-cover rounded-lg border border-black/6"
               />
             )}
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <p className="text-sm font-medium text-white/90 flex-1">{result.title}</p>
+              <p className="text-sm font-medium flex-1">{result.title}</p>
               <div className="flex gap-1.5 shrink-0">
                 <CopyButton text={result.title} label="复制标题" className="!px-2 !py-1" />
                 {result.webpageUrl && (
@@ -282,15 +265,50 @@ export default function VideoExtractForm() {
                 )}
               </div>
             </div>
-            <p className="text-xs text-white/40">
-              {result.uploader && `${result.uploader} · `}
-              {result.duration ? `${Math.round(result.duration)} 秒` : ""}
-            </p>
+            {(result.uploader || result.duration) && (
+              <p className="text-xs opacity-50">
+                {result.uploader && `${result.uploader} · `}
+                {result.duration ? `${Math.round(result.duration)} 秒` : ""}
+              </p>
+            )}
+
+            {best?.url ? (
+              <div className="flex flex-wrap gap-2">
+                <ActionButton
+                  label={
+                    downloading
+                      ? "正在下载…"
+                      : `下载视频 (${best.resolution || best.ext || "默认"})`
+                  }
+                  loading={!!downloading}
+                  loadingLabel="正在下载…"
+                  disabled={!!downloading}
+                  onClick={() => handleDownload(best, result.title)}
+                  className="!w-auto"
+                />
+                <a
+                  href={apiUrl(
+                    best.downloadUrl ||
+                      `/api/video/download?${new URLSearchParams({
+                        url: best.url,
+                        platform: result.platform || "generic",
+                        name: `${result.title.slice(0, 60).replace(/[<>:"/\\|?*]/g, "_") || "video"}.${best.ext || "mp4"}`,
+                      })}`,
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-medium opacity-70 hover:opacity-100"
+                >
+                  新标签页打开
+                </a>
+              </div>
+            ) : null}
+
             {result.formats.length > 1 && (
-              <ul className="space-y-2 max-h-40 overflow-y-auto">
+              <ul className="space-y-2 max-h-48 overflow-y-auto border-t border-black/6 pt-3">
                 {result.formats.map((f, i) => (
                   <li key={i} className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-white/50 truncate">
+                    <span className="text-xs opacity-60 truncate">
                       {f.resolution || f.ext || `清晰度 ${i + 1}`}
                       {f.ext ? ` · ${f.ext}` : ""}
                     </span>
@@ -298,7 +316,7 @@ export default function VideoExtractForm() {
                       type="button"
                       onClick={() => handleDownload(f, result.title)}
                       disabled={!!downloading}
-                      className="shrink-0 text-xs text-blue-300/90 hover:text-blue-200 underline-offset-2 hover:underline disabled:opacity-50"
+                      className="shrink-0 text-xs font-medium text-blue-600 hover:text-blue-700 underline-offset-2 hover:underline disabled:opacity-50"
                     >
                       {downloading === (f.formatId || f.url) ? "下载中…" : "下载"}
                     </button>
@@ -306,67 +324,27 @@ export default function VideoExtractForm() {
                 ))}
               </ul>
             )}
-            {best?.url && (
-              <div className="flex flex-wrap gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => handleDownload(best, result.title)}
-                  disabled={!!downloading}
-                  className="inline-flex rounded-xl bg-gradient-to-r from-blue-600/50 to-violet-600/50 border border-blue-500/45 px-4 py-2.5 text-sm font-medium text-blue-50 hover:brightness-110 disabled:opacity-60"
-                >
-                  {downloading ? "正在下载…" : `直接下载 (${best.resolution || best.ext || "默认"})`}
-                </button>
-                <a
-                  href={best.downloadUrl || best.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center rounded-xl border border-white/15 px-4 py-2.5 text-sm text-white/55 hover:text-white/80 hover:border-white/25"
-                >
-                  新标签页打开
-                </a>
-              </div>
-            )}
-          </div>
+          </section>
         ) : (
-          <div className="aspect-video rounded-lg bg-gradient-to-br from-white/5 to-white/[0.02] flex items-center justify-center">
-            <span className="text-white/20 text-sm">
-              {loading ? "解析中，请稍候…" : url ? "点击解析" : "输入链接后解析"}
+          <div className="tool-form-card aspect-video flex items-center justify-center">
+            <span className="text-sm opacity-35">
+              {loading ? "解析中，请稍候…" : url ? "点击「提取」开始解析" : "输入链接后提取"}
             </span>
           </div>
         )}
       </div>
 
-      {error ? <p className="text-center text-sm leading-relaxed text-red-400/90">{error}</p> : null}
-
-      <details className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-        <summary className="cursor-pointer text-xs font-medium text-white/50 marker:content-none [&::-webkit-details-marker]:hidden">
-          已支持平台与说明
-        </summary>
-        <div className="mt-3 space-y-3">
-          <div className="flex flex-wrap gap-1.5">
-            {SUPPORTED_PLATFORMS.map((p) => (
-              <span
-                key={p.id}
-                className={`rounded-full px-2.5 py-0.5 text-[10px] ring-1 ${
-                  detected === p.id
-                    ? "bg-blue-500/20 text-blue-200 ring-blue-500/35"
-                    : "bg-white/5 text-white/40 ring-white/10"
-                }`}
-              >
-                {p.label}
-              </span>
-            ))}
-          </div>
-          <p className="text-[11px] leading-relaxed text-white/30">
-            粘贴分享链接或整段文案即可。抖音、B 站、YouTube、X、微信视频号、Telegram、Instagram
-            等均支持多清晰度与本页直接下载。部分平台需登录或权限，解析失败时请换链接重试。
-          </p>
+      <ToolSection title="支持的平台">
+        <div className="tool-platform-row">
+          {SUPPORTED_PLATFORMS.map((p) => (
+            <span key={p.id} className="tool-platform-badge">
+              <span aria-hidden>{p.icon}</span>
+              {p.label}
+            </span>
+          ))}
         </div>
-      </details>
+      </ToolSection>
 
-      <p className="text-center text-xs leading-relaxed text-white/25">
-        下载经本机处理，请遵守各平台使用条款与版权规定
-      </p>
     </>
   );
 }

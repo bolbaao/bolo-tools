@@ -2,11 +2,13 @@ import OpenAI from "openai";
 import { HttpError } from "./http-error.mjs";
 import { resolveChatConfig } from "./chat-config.mjs";
 import { env } from "./env.mjs";
+import { getSearchTimeContext } from "./search-time-context.mjs";
+import { getModeSynthesisHint } from "./ai-search-modes.mjs";
 
 /**
  * @param {string} query
  * @param {{ answer?: string, results: Array<{ title: string, url: string, snippet: string }> }} searchPayload
- * @param {{ topic?: 'general'|'news' }} opts
+ * @param {{ topic?: 'general'|'news', mode?: string }} opts
  */
 export async function synthesizeSearchAnswer(query, searchPayload, opts = {}) {
   const chatConfig = resolveChatConfig();
@@ -26,12 +28,28 @@ export async function synthesizeSearchAnswer(query, searchPayload, opts = {}) {
     ? `\n搜索引擎初步摘要（仅供参考，请核实并改写）：\n${searchPayload.answer}\n`
     : "";
 
+  const time = searchPayload.timeContext || getSearchTimeContext();
+  const effectiveTopic = searchPayload.topic || opts.topic;
+  const recencyIntent = Boolean(searchPayload.recencyIntent);
+
+  const region = searchPayload.region;
+  const regionLabel = region?.label || "中国";
+  const staleYear = time.year - 1;
+
   const newsHint =
-    opts.topic === "news"
-      ? "6. 用户关注当下时事热点，请突出「最新进展、时间线、各方反应」，避免过时信息"
+    effectiveTopic === "news" || recencyIntent
+      ? `6. 用户关注近期/当下信息。今天是 ${time.dateLabel}，今年是 ${time.year} 年。只把 ${time.year} 年信息当作「最近/很火」的答案；${staleYear} 年及更早内容只能作为背景补充，且必须标注年份，禁止把 ${staleYear} 年热播剧说成用户问的「最近很火」
+7. 若来源不足以确认 ${time.year} 年近期答案，直接说明「暂未检索到 ${time.year} 年明确热播的同类作品」，不要硬答 ${staleYear} 年片单`
       : "";
 
+  const regionHint = region?.userSpecified
+    ? `8. 用户指定关注「${regionLabel}」地区信息，优先采用该地区来源`
+    : `8. 默认以中国国内信息为主，优先中文来源与国内平台（豆瓣、微博、知乎、B站等）`;
+
+  const modeHint = getModeSynthesisHint(searchPayload.mode || opts.mode);
+
   const system = `你是春雨集的 AI 全网搜索助手。根据用户问题与检索到的网页摘要，给出准确、有条理的中文回答。
+当前日期：${time.dateLabel}（今年是 ${time.year} 年，回答时效性问题必须以此时刻为准）。
 
 要求：
 1. 优先依据「检索来源」中的信息，不要编造无法验证的事实
@@ -39,10 +57,24 @@ export async function synthesizeSearchAnswer(query, searchPayload, opts = {}) {
 3. 若信息不足或来源矛盾，明确说明不确定之处
 4. 回答简洁实用，可用小标题与列表
 5. 末尾单独一行「参考来源」列出用到的编号与标题
-${newsHint}`;
+${newsHint}
+${regionHint}
+${modeHint}`;
+
+  const planHint = searchPayload.understanding
+    ? `\n检索意图理解（系统已据此扩散检索，勿复述给用户）：\n${searchPayload.understanding}\n`
+    : "";
+  const queryHint =
+    searchPayload.searchQuery && searchPayload.searchQuery !== query
+      ? `\n实际检索词：${searchPayload.searchQuery}${
+          searchPayload.searchVariants?.length
+            ? `；扩散：${searchPayload.searchVariants.slice(0, 4).join("、")}`
+            : ""
+        }\n`
+      : "";
 
   const user = `用户问题：${query}
-${tavilyHint}
+${planHint}${queryHint}${tavilyHint}
 检索来源：
 ${sources || "（无有效来源）"}`;
 

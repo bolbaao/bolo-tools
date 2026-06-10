@@ -1,4 +1,4 @@
-import { getToolById, tools, type Tool } from "@/lib/tools";
+import { getToolById, type Tool } from "@/lib/tools";
 
 /** 管理员 · 站点副标题 */
 export const SITE_TAGLINE = "创作者的一站式工具箱 · 音乐 · 视频 · 图像 · AI 创作";
@@ -64,18 +64,18 @@ export const USER_QUICK_CHAT_PROMPTS = [
 export const TOOL_HIGHLIGHTS: Record<string, string[]> = {
   "music-convert": ["多格式互转", "批量打包", "本机 ffmpeg"],
   "video-extract": ["14+ 平台", "多清晰度", "本页直接下载"],
-  "image-studio": ["压缩 · 抠图 · 生图", "换背景 · 去水印", "AI 人像美化"],
+  "image-studio": ["AI 消除 · OCR 提字", "证件照 · 去水印", "压缩 · 抠图 · 生图"],
   "mlsharp-3d": ["单图生成 3D", "可调精细度", "导出主流格式"],
   memory: ["跨工具同步", "个人偏好", "随时编辑"],
   "ai-search": ["全网检索", "摘要 + 来源", "可调搜索深度"],
   "app-builder": ["自然语言生成", "对话式优化", "风格与多端预览"],
-  "ai-writer": ["10+ 写作模式", "扩写润色", "配合记忆库"],
+  "ai-writer": ["工作报告 · 简历", "文档速读", "扩写润色"],
   "ai-workflow": ["成稿到脚本", "分步或一键", "模板化流程"],
   "social-publish": ["多平台分发", "少重复粘贴", "按平台提示"],
   "hot-trends": ["抖音 · 小红书", "实时榜单", "话题详情"],
   "media-download": ["片名检索", "网盘资源", "一键复制"],
   "spider-builder": ["零代码抓取", "表格导出", "常见场景预设"],
-  "doc-convert": ["PDF ↔ Word", "PDF 转图", "多图合成 PDF"],
+  "doc-convert": ["PDF 合并拆分", "PDF 压缩", "PDF ↔ Word"],
   "subtitle-workshop": ["语音转字幕", "提取硬字幕", "在线编辑导出"],
   "gif-maker": ["视频截 GIF", "时长可调", "体积可控"],
   "text-toolbox": ["字数统计", "JSON 整理", "Markdown 预览"],
@@ -123,30 +123,12 @@ export const USER_TOOL_DESCRIPTIONS: Record<string, string> = {
   "text-toolbox": "统计字数、去掉重复行、整理文本、预览 Markdown，粘贴就能用。",
 };
 
-/** 管理员 · 站点数据概览 */
-export const SITE_STATS = [
-  { value: `${tools.filter((t) => !t.personalCenter).length}+`, label: "创作工具" },
-  { value: "14+", label: "视频平台" },
-  { value: "10+", label: "写作模式" },
-] as const;
-
-/** 用户 · 站点数据概览 */
-export const USER_SITE_STATS = [
-  { value: `${tools.filter((t) => !t.personalCenter).length}+`, label: "实用工具" },
-  { value: "14+", label: "视频平台" },
-  { value: "10+", label: "写作模式" },
-] as const;
-
 export function getSiteTagline(isAdmin: boolean): string {
   return isAdmin ? SITE_TAGLINE : USER_SITE_TAGLINE;
 }
 
 export function getSiteValueProps(isAdmin: boolean): readonly SiteValueProp[] {
   return isAdmin ? (SITE_VALUE_PROPS as readonly SiteValueProp[]) : USER_SITE_VALUE_PROPS;
-}
-
-export function getSiteStats(isAdmin: boolean) {
-  return isAdmin ? SITE_STATS : USER_SITE_STATS;
 }
 
 export function getQuickChatPrompts(isAdmin: boolean): readonly string[] {
@@ -165,6 +147,32 @@ export function getToolDescription(toolId: string, isAdmin = false): string {
   return USER_TOOL_DESCRIPTIONS[toolId] ?? tool.description;
 }
 
+/** 工具页 Hero 副标题（较 tools.ts 描述更短、偏 landing 向） */
+export const TOOL_HERO_SUBTITLES: Record<string, string> = {
+  "app-builder": "用 AI 帮你快速生成一个完整的应用",
+  "ai-writer": "智能写作，激发灵感，高效创作",
+  "ai-workflow": "自动化你的工作流程，提升效率",
+  "image-studio": "AI 图像处理，创意无限",
+  "mlsharp-3d": "从文本或图像生成 3D 模型",
+  "video-extract": "提取视频链接，支持多平台",
+  "subtitle-workshop": "AI 语音识别，快速生成字幕",
+  "gif-maker": "轻松制作 GIF 动图",
+  memory: "你的个人知识库，随时调用",
+  "ai-search": "基于全网数据和 AI 智能，为你提供准确、全面的搜索结果",
+  "music-convert": "各平台歌曲一键转格式，多首打包下载",
+  "social-publish": "同一条内容，尽量帮你发到多个平台",
+  "hot-trends": "看看抖音、小红书上正在火什么",
+  "media-download": "输入名称搜索，找到链接一键复制",
+  "spider-builder": "不会写代码也能从网页整理出列表",
+  "doc-convert": "PDF 与 Word 互转，浏览器里就能完成",
+  "text-toolbox": "统计字数、整理文本，粘贴就能用",
+};
+
+export function getToolHeroSubtitle(toolId: string, isAdmin = false): string {
+  if (TOOL_HERO_SUBTITLES[toolId]) return TOOL_HERO_SUBTITLES[toolId];
+  return getToolDescription(toolId, isAdmin);
+}
+
 export function getToolDialogPlaceholder(toolId: string, title: string, isAdmin = false): string {
   if (isAdmin) {
     return `描述你想用「${title}」做什么，AI 可帮你预填并执行…`;
@@ -178,6 +186,9 @@ type ImageStudioTab =
   | "cutout"
   | "bgreplace"
   | "watermark"
+  | "erase"
+  | "ocr"
+  | "idphoto"
   | "beautify"
   | "edit"
   | "generate";
@@ -200,6 +211,9 @@ export function getImageStudioFooterHint(
     if (tab === "watermark") {
       return "去水印：AI 智能修复遮挡区域，需配置 ARK_API_KEY · 请仅处理你有权使用的图片";
     }
+    if (tab === "erase") return "AI 消除：智能去除路人、杂物等，需配置 ARK_API_KEY";
+    if (tab === "ocr") return "提文字：OCR 识别图中文字，需配置 ARK_VISION_API_KEY 或 ARK_API_KEY";
+    if (tab === "idphoto") return "证件照：本地抠图 + 标准尺寸输出，无需 API Key";
     return "压缩、变清晰、抠图：上传图片即可处理并下载";
   }
 
@@ -212,6 +226,9 @@ export function getImageStudioFooterHint(
       : "纯色或上传背景图，本地抠图合成，更快也更隐私";
   }
   if (tab === "watermark") return "智能去除角标与水印，请仅处理你有权使用的图片";
+  if (tab === "erase") return "智能消除路人、杂物，请仅处理你有权使用的图片";
+  if (tab === "ocr") return "从截图、海报中提取文字，可复制使用";
+  if (tab === "idphoto") return "一键生成标准证件照，本地处理更隐私";
   return "上传图片即可处理，本地完成的步骤不会上传";
 }
 

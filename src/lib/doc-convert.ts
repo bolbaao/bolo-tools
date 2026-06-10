@@ -2,7 +2,10 @@ export type DocConvertMode =
   | "pdf-to-word"
   | "word-to-pdf"
   | "pdf-to-images"
-  | "images-to-pdf";
+  | "images-to-pdf"
+  | "pdf-merge"
+  | "pdf-split"
+  | "pdf-compress";
 
 export type DocConvertModeMeta = {
   id: DocConvertMode;
@@ -44,6 +47,30 @@ export const DOC_CONVERT_MODES: DocConvertModeMeta[] = [
     hint: "多张图片按顺序合成一份 PDF",
     accept: ".png,.jpg,.jpeg,image/png,image/jpeg",
     multiple: true,
+    needsOffice: false,
+  },
+  {
+    id: "pdf-merge",
+    label: "PDF 合并",
+    hint: "按顺序合并多份 PDF 为一份",
+    accept: ".pdf,application/pdf",
+    multiple: true,
+    needsOffice: false,
+  },
+  {
+    id: "pdf-split",
+    label: "PDF 拆分",
+    hint: "按页拆成多份 PDF，打包下载",
+    accept: ".pdf,application/pdf",
+    multiple: false,
+    needsOffice: false,
+  },
+  {
+    id: "pdf-compress",
+    label: "PDF 压缩",
+    hint: "减小 PDF 体积（本机有 Ghostscript 时效果更佳）",
+    accept: ".pdf,application/pdf",
+    multiple: false,
     needsOffice: false,
   },
 ];

@@ -1,6 +1,13 @@
 "use client";
 
 import ActionButton from "@/components/ActionButton";
+import {
+  ToolError,
+  ToolNotice,
+  ToolPresetCard,
+  ToolPresetGrid,
+  ToolSection,
+} from "@/components/tools/ToolSection";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 import { ApiError, apiGet, apiPost, downloadText } from "@/lib/api";
 import { AI_SERVICE_UNAVAILABLE } from "@/lib/service-message";
@@ -129,43 +136,41 @@ export default function AiWorkflowPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-violet-500/15 bg-violet-500/5 px-5 py-4">
-        <p className="text-sm text-white/65 leading-relaxed">
-          选好一条创作流程，AI 会按步骤帮你写完文章、社媒内容或视频脚本；可以一步一步看结果，也可以一键跑完。
-        </p>
-      </div>
+      {aiConfigured === false && <ToolNotice>{AI_SERVICE_UNAVAILABLE}</ToolNotice>}
 
-      {aiConfigured === false && (
-        <p className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-amber-100/85">
-          {AI_SERVICE_UNAVAILABLE}
-        </p>
-      )}
-
-      <div>
-        <label className="block text-sm text-white/60 mb-2">工作流模板</label>
-        <div className="grid gap-2 sm:grid-cols-3">
-          {workflows.map((w) => (
-            <button
-              key={w.id}
-              type="button"
-              onClick={() => {
-                setWorkflowId(w.id);
-                reset();
-              }}
-              className={`rounded-xl border px-4 py-3 text-left transition-all ${
-                workflowId === w.id
-                  ? "border-violet-500/40 bg-violet-500/10"
-                  : "border-white/8 bg-white/[0.02] hover:bg-white/[0.04]"
-              }`}
-            >
-              <p className="text-sm font-medium text-white/85">{w.label}</p>
-              <p className="mt-1 text-[11px] text-white/40 leading-snug">{w.description}</p>
-            </button>
-          ))}
+      <div className="tool-workflow-visual" aria-hidden>
+        <div className="tool-workflow-node">
+          <span className="tool-workflow-node-icon">📥</span>
+          <span>输入</span>
+        </div>
+        <span className="tool-workflow-arrow">→</span>
+        <div className="tool-workflow-node">
+          <span className="tool-workflow-node-icon">✦</span>
+          <span>AI 处理</span>
+        </div>
+        <span className="tool-workflow-arrow">→</span>
+        <div className="tool-workflow-node">
+          <span className="tool-workflow-node-icon">📤</span>
+          <span>输出</span>
         </div>
       </div>
 
-      {workflow && (
+      <div>
+        <label htmlFor="workflow-input" className="block text-sm mb-2">
+          主题 / 初始素材
+        </label>
+        <textarea
+          id="workflow-input"
+          data-tool-primary-input
+          value={input}
+          onChange={(e) => setInput(e.target.value.slice(0, 4000))}
+          rows={5}
+          placeholder="例如：写一篇关于「春季露营装备清单」的种草内容，面向都市年轻人"
+          className="w-full resize-none"
+        />
+      </div>
+
+      {workflow && results.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {workflow.steps.map((s, i) => {
             const done = results.some((r) => r.stepId === s.id);
@@ -175,10 +180,10 @@ export default function AiWorkflowPanel() {
                 key={s.id}
                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs ${
                   done
-                    ? "bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/25"
+                    ? "bg-emerald-500/15 text-emerald-700 ring-1 ring-emerald-500/25"
                     : active
-                      ? "bg-violet-500/20 text-violet-100 ring-1 ring-violet-500/35"
-                      : "bg-white/5 text-white/35 ring-1 ring-white/8"
+                      ? "bg-violet-500/15 text-violet-700 ring-1 ring-violet-500/25"
+                      : "bg-black/[0.03] text-black/40 ring-1 ring-black/6"
                 }`}
               >
                 <span className="font-mono text-[10px] opacity-60">{i + 1}</span>
@@ -190,49 +195,56 @@ export default function AiWorkflowPanel() {
         </div>
       )}
 
-      <div>
-        <label htmlFor="workflow-input" className="block text-sm text-white/60 mb-2">
-          主题 / 初始素材
-        </label>
-        <textarea
-          id="workflow-input"
-          value={input}
-          onChange={(e) => setInput(e.target.value.slice(0, 4000))}
-          rows={5}
-          placeholder="例如：写一篇关于「春季露营装备清单」的种草内容，面向都市年轻人"
-          className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
-        />
-      </div>
+      {error && <ToolError>{error}</ToolError>}
 
-      {error && (
-        <p className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-200/90">
-          {error}
-        </p>
+      <ActionButton
+        label="创建工作流"
+        loadingLabel="工作流执行中…"
+        onClick={() => void runWorkflow(true)}
+        disabled={!input.trim() || aiConfigured === false}
+        loading={loading}
+      />
+
+      {workflows.length > 0 && (
+        <ToolSection title="模板推荐" desc="选择一条创作流程，分步或一键跑完">
+          <ToolPresetGrid>
+            {workflows.slice(0, 4).map((w) => (
+              <ToolPresetCard
+                key={w.id}
+                title={w.label}
+                desc={w.description}
+                active={workflowId === w.id}
+                onClick={() => {
+                  setWorkflowId(w.id);
+                  reset();
+                }}
+              />
+            ))}
+          </ToolPresetGrid>
+        </ToolSection>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <ActionButton
-          label="一键跑完全流程"
-          loadingLabel="工作流执行中…"
-          onClick={() => void runWorkflow(true)}
-          disabled={!input.trim() || aiConfigured === false}
-          loading={loading}
-        />
-        <ActionButton
-          variant="secondary"
-          label={
-            completed
-              ? "已完成"
-              : nextStepIndex === 0
-                ? "逐步执行（第一步）"
-                : `逐步执行（第 ${nextStepIndex + 1} 步）`
-          }
-          loadingLabel="执行中…"
-          onClick={() => void runWorkflow(false)}
-          disabled={!input.trim() || aiConfigured === false || completed}
-          loading={loading}
-        />
-      </div>
+      {workflow && (
+        <details className="tool-form-card">
+          <summary>分步执行</summary>
+          <div className="pt-3">
+            <ActionButton
+              variant="secondary"
+              label={
+                completed
+                  ? "已完成"
+                  : nextStepIndex === 0
+                    ? "逐步执行（第一步）"
+                    : `逐步执行（第 ${nextStepIndex + 1} 步）`
+              }
+              loadingLabel="执行中…"
+              onClick={() => void runWorkflow(false)}
+              disabled={!input.trim() || aiConfigured === false || completed}
+              loading={loading}
+            />
+          </div>
+        </details>
+      )}
 
       {results.length > 0 && (
         <div className="space-y-4">

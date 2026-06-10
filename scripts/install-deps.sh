@@ -75,19 +75,6 @@ else
   fi
 fi
 
-# edge-tts（AI 剪口播 · 人声合成）
-if python3 -c "import edge_tts" 2>/dev/null; then
-  echo "✓ edge-tts 已安装"
-else
-  echo "→ 安装 edge-tts (pip)…"
-  python3 -m pip install --user edge-tts
-  if python3 -c "import edge_tts" 2>/dev/null; then
-    echo "✓ edge-tts 已安装（AI 剪口播可用）"
-  else
-    echo "⚠️  edge-tts 安装失败，口播合成需手动: python3 -m pip install --user edge-tts"
-  fi
-fi
-
 # playwright（社媒分发 · 抖音全自动，可选）
 if python3 -c "import playwright" 2>/dev/null; then
   echo "✓ playwright 已安装"

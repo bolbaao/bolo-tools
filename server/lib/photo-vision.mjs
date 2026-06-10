@@ -109,6 +109,58 @@ export async function describePhotoDataUrl(dataUrl, userContext) {
   return { description, providerLabel: VISION_PROVIDER_LABEL };
 }
 
+const OCR_PROMPT =
+  "提取图片中的所有可见文字，按阅读顺序逐行输出。保留段落换行，不要添加解释或 Markdown。若图中无文字，只输出「（未识别到文字）」。";
+
+/**
+ * @param {string} dataUrl
+ * @returns {Promise<{ text: string; providerLabel: string } | null>}
+ */
+export async function extractTextFromImageDataUrl(dataUrl) {
+  const cfg = resolveVisionConfig();
+  if (!cfg) return null;
+
+  ensureArkNoProxy();
+  const response = await fetch(`${cfg.baseURL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${cfg.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: cfg.model,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: dataUrl } },
+            { type: "text", text: OCR_PROMPT },
+          ],
+        },
+      ],
+      max_tokens: 2048,
+      temperature: 0.1,
+    }),
+    signal: AbortSignal.timeout(120000),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errBody =
+      typeof data?.error === "string"
+        ? data.error
+        : data?.error?.message || data?.message || data?.code;
+    const msg = errBody ? String(errBody) : `vision HTTP ${response.status}`;
+    const err = new Error(msg);
+    err.status = response.status;
+    throw err;
+  }
+
+  const text = data?.choices?.[0]?.message?.content?.trim();
+  if (!text) return null;
+  return { text, providerLabel: VISION_PROVIDER_LABEL };
+}
+
 function visionMissingHint() {
   return `（${IMAGE_VISION_UNAVAILABLE}）`;
 }

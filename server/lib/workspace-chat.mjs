@@ -10,6 +10,8 @@ import {
 import { env } from "./env.mjs";
 import { buildAgentSystemPrompt, parseAgentAction } from "./chat-agent.mjs";
 import { mergeToolResultIntoReply } from "./chat-tool-runner.mjs";
+import { tryImageFetchReply } from "./chat-image-intent.mjs";
+import { tryPptGenerateReply } from "./chat-ppt-intent.mjs";
 import { tryMediaSearchReply } from "./chat-media-intent.mjs";
 import { trySubtitleToolReply } from "./chat-subtitle-intent.mjs";
 import {
@@ -17,13 +19,14 @@ import {
   getChatAttachmentCapabilities,
   processChatUploadFiles,
 } from "./chat-attachments.mjs";
+import { verifyAssistantReply } from "./chat-thinking.mjs";
 
 const CHAT_SYSTEM = `你是春雨集的工作区 AI 助手，帮助用户处理创作、工具使用与日常问题。
 要求：用中文回答，简洁实用；若用户在使用某工具，可结合上下文给出操作建议；不要编造无法验证的事实。`;
 
 /**
  * @param {{ role: string, content: string }[]} messages
- * @param {{ provider?: string, mode?: string, pageContext?: object, chatFiles?: object[], rawFiles?: object[], userId?: string }} opts
+ * @param {{ provider?: string, mode?: string, pageContext?: object, chatFiles?: object[], rawFiles?: object[], userId?: string, isAdmin?: boolean }} opts
  */
 export async function runWorkspaceChat(messages, opts = {}) {
   const chatConfig = resolveChatConfigByProvider(opts.provider);
@@ -55,8 +58,45 @@ export async function runWorkspaceChat(messages, opts = {}) {
   ];
   const rawFiles = Array.isArray(opts.rawFiles) ? opts.rawFiles : [];
   const userId = opts.userId;
+  const isAdmin = Boolean(opts.isAdmin);
+
+  const pptReply = await tryPptGenerateReply(lastUser, history);
+  if (pptReply) {
+    return {
+      reply: pptReply,
+      provider: chatConfig.provider,
+      providerLabel: getChatProviderLabel(chatConfig.provider),
+      model: chatConfig.model,
+      mode,
+      chatImageVision: [],
+      chatFiles: chatFiles.map((f) => ({
+        name: f.name,
+        kind: f.kind,
+        description: f.description,
+        transcript: f.transcript ? `${f.transcript.slice(0, 200)}…` : undefined,
+        contentPreview: f.content ? `${f.content.slice(0, 120)}…` : undefined,
+        metadata: f.metadata,
+        error: f.error,
+      })),
+      agentAction: null,
+    };
+  }
 
   if (!chatFiles.length) {
+    const imageReply = await tryImageFetchReply(lastUser, history);
+    if (imageReply) {
+      return {
+        reply: imageReply,
+        provider: chatConfig.provider,
+        providerLabel: getChatProviderLabel(chatConfig.provider),
+        model: chatConfig.model,
+        mode,
+        chatImageVision: [],
+        chatFiles: [],
+        agentAction: null,
+      };
+    }
+
     const mediaReply = await tryMediaSearchReply(lastUser);
     if (mediaReply) {
       return {
@@ -106,7 +146,7 @@ export async function runWorkspaceChat(messages, opts = {}) {
 
   const system =
     mode === "agent"
-      ? `${buildAgentSystemPrompt()}${pathHint}${fileBlock}${imageBlock}`
+      ? `${buildAgentSystemPrompt(isAdmin)}${pathHint}${fileBlock}${imageBlock}`
       : `${CHAT_SYSTEM}${pathHint}${fileBlock}${imageBlock}`;
 
   const timeoutMs = Number(env("CHAT_TIMEOUT_MS", "120000")) || 120000;
@@ -125,12 +165,18 @@ export async function runWorkspaceChat(messages, opts = {}) {
       max_tokens: 2048,
     });
 
-    let reply = completion.choices?.[0]?.message?.content?.trim();
+    let reply = completion.choices?.[0]?.message?.content?.trim() || "";
     if (!reply) throw new HttpError(502, "AI 未返回有效回复");
 
     let agentAction = null;
     if (mode === "agent") {
-      const parsed = parseAgentAction(reply);
+      const verified = await verifyAssistantReply(client, chatConfig, {
+        userMessage: lastUser,
+        reply,
+      });
+      reply = verified.reply;
+
+      const parsed = parseAgentAction(reply, isAdmin);
       reply = parsed.reply;
       agentAction = parsed.agentAction;
       if (agentAction) {
@@ -139,6 +185,8 @@ export async function runWorkspaceChat(messages, opts = {}) {
           chatFiles,
           rawFiles,
           userId,
+          isAdmin,
+          history,
         });
         reply = merged.reply;
         agentAction = merged.agentAction;

@@ -123,7 +123,10 @@ export default function DocumentConvertForm() {
       const ext =
         mode === "pdf-to-word"
           ? "docx"
-          : mode === "word-to-pdf" || mode === "images-to-pdf"
+          : mode === "word-to-pdf" ||
+              mode === "images-to-pdf" ||
+              mode === "pdf-merge" ||
+              mode === "pdf-compress"
             ? "pdf"
             : "zip";
 
@@ -157,7 +160,7 @@ export default function DocumentConvertForm() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {DOC_CONVERT_MODES.map((m) => {
           const active = mode === m.id;
           const available = caps ? caps.modes[m.id]?.available !== false : true;
@@ -177,8 +180,6 @@ export default function DocumentConvertForm() {
           );
         })}
       </div>
-
-      <p className="text-sm text-white/45 leading-relaxed">{meta.hint}</p>
 
       <div
         className="rounded-2xl border border-dashed border-white/12 bg-white/[0.02] px-5 py-8 text-center transition-colors hover:border-white/20 hover:bg-white/[0.03]"
@@ -204,7 +205,11 @@ export default function DocumentConvertForm() {
           onChange={(e) => onPickFiles(e.target.files)}
         />
         <p className="text-sm text-white/55">
-          {meta.multiple ? "拖入或选择多张图片" : "拖入或选择文件"}
+          {meta.multiple
+            ? mode === "pdf-merge"
+              ? "拖入或选择多个 PDF（按列表顺序合并）"
+              : "拖入或选择多个文件"
+            : "拖入或选择文件"}
         </p>
         <button
           type="button"
@@ -289,9 +294,6 @@ export default function DocumentConvertForm() {
         disabled={!files.length || !modeAvailable}
       />
 
-      <p className="text-center text-xs text-white/25 leading-relaxed">
-        上传文件后自动转换，PDF ↔ Word 与图片类任务均在本页完成下载
-      </p>
     </div>
   );
 }

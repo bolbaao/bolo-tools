@@ -222,8 +222,6 @@ export default function SpiderBuilderPanel() {
               >
                 <span className="text-2xl">{p.emoji}</span>
                 <p className="mt-2 font-medium text-white/90">{p.title}</p>
-                <p className="mt-1 text-xs text-white/40 leading-relaxed">{p.description}</p>
-                <p className="mt-2 text-[10px] text-slate-400/80">{p.tip}</p>
               </button>
             ))}
           </div>
@@ -440,9 +438,6 @@ export default function SpiderBuilderPanel() {
         </div>
       )}
 
-      <p className="text-center text-[11px] text-white/25 leading-relaxed">
-        请遵守目标网站 robots 协议与法律法规 · 仅抓取你有权访问的公开页面
-      </p>
     </div>
   );
 }

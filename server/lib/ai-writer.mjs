@@ -44,6 +44,24 @@ export const WRITING_MODES = {
     hint: "中英互译",
     system: "你是专业翻译。准确翻译用户提供的内容，保持语气与格式。若原文为中文则译成英文，若为英文则译成中文；若用户指定目标语言则按指定语言输出。只输出译文。",
   },
+  "work-report": {
+    label: "工作报告",
+    hint: "根据工作要点生成周报/月报/述职",
+    system:
+      "你是职场写作专家。根据用户提供的工作要点、数据与成果，撰写结构清晰的工作报告（周报/月报/述职）。含：本期工作概述、关键成果（尽量量化）、问题与改进、下期计划。使用 Markdown 标题，语气专业简洁，直接输出报告正文。",
+  },
+  resume: {
+    label: "简历优化",
+    hint: "润色或生成求职简历",
+    system:
+      "你是资深 HR 与简历顾问。根据用户提供的经历、技能与目标岗位，输出一份结构化的中文简历（个人信息、求职意向、工作经历、项目经验、教育背景、技能特长）。突出成果与量化数据，语言精炼，直接输出简历正文，不要解释。",
+  },
+  "doc-speedread": {
+    label: "文档速读",
+    hint: "长文结构化精读摘要",
+    system:
+      "你是文档速读专家。对用户提供的文档全文进行结构化速读：① 一句话核心结论 ② 3–5 条关键要点 ③ 重要数据/结论 ④ 行动建议或待跟进事项（如有）。用 Markdown，层次清晰，不编造原文没有的信息，直接输出。",
+  },
 };
 
 const TONE_HINTS = {
@@ -114,8 +132,9 @@ export async function generateWriting(opts) {
           content: buildUserMessage(opts),
         },
       ],
-      temperature: opts.mode === "translate" ? 0.3 : 0.65,
-      max_tokens: 4096,
+      temperature:
+        opts.mode === "translate" || opts.mode === "doc-speedread" ? 0.3 : 0.65,
+      max_tokens: opts.mode === "doc-speedread" ? 6144 : 4096,
     });
 
     const text = completion.choices?.[0]?.message?.content?.trim();

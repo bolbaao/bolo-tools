@@ -7,7 +7,7 @@ const developerTool: Tool = {
   title: "开发者手册",
   description: "部署说明、环境变量、开发命令与项目结构，仅供管理员查看。",
   href: "/tools/developer",
-  gradient: "from-sky-500/20 to-indigo-500/10",
+  gradient: "from-sky-500/20 to-teal-500/10",
   tag: "管理",
 };
 

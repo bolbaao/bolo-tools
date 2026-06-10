@@ -2,8 +2,17 @@
 
 import ActionButton from "@/components/ActionButton";
 import CopyButton from "@/components/CopyButton";
+import {
+  ToolChip,
+  ToolChipBar,
+  ToolError,
+  ToolNotice,
+  ToolPresetCard,
+  ToolPresetGrid,
+  ToolSection,
+} from "@/components/tools/ToolSection";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
-import { ApiError, apiGet, apiPost, downloadText } from "@/lib/api";
+import { ApiError, apiGet, apiPost, apiUpload, downloadText } from "@/lib/api";
 import { AI_SERVICE_UNAVAILABLE } from "@/lib/service-message";
 import { useCallback, useEffect, useState } from "react";
 
@@ -23,6 +32,13 @@ const LENGTHS = [
   { id: "long", label: "长" },
 ];
 
+const WRITING_TEMPLATES = [
+  { mode: "article", title: "文章标题", desc: "快速生成吸睛标题", icon: "📝" },
+  { mode: "work-report", title: "工作总结", desc: "周报月报轻松写", icon: "📊" },
+  { mode: "social", title: "小红书文案", desc: "种草笔记一键生成", icon: "✨" },
+  { mode: "email", title: "演讲稿", desc: "邮件与演讲稿", icon: "🎤" },
+];
+
 const EXAMPLES: Record<string, string> = {
   article: "写一篇关于远程办公效率提升的短文，面向职场新人",
   rewrite: "这个产品非常好用，我每天都用，推荐给大家。",
@@ -33,6 +49,12 @@ const EXAMPLES: Record<string, string> = {
   social: "分享一款提高专注力的番茄钟 App，适合学生和自由职业者",
   email: "给合作方写一封邮件，确认下周会议时间并附上议程要点",
   translate: "The quick brown fox jumps over the lazy dog.",
+  "work-report":
+    "本周完成：1）上线新版首页；2）修复 3 个用户反馈 bug；3）撰写 2 篇社媒文案。数据：日活 +12%。下周计划：推进视频工具优化。",
+  resume:
+    "张三，5 年产品经理经验。曾负责 XX App 从 0 到 1，DAU 50 万。擅长用户增长、数据分析、跨团队协作。目标岗位：高级产品经理。",
+  "doc-speedread":
+    "（可粘贴长文，或上传 PDF/Word 后自动提取）这是一份关于 2025 年远程办公趋势的行业报告……",
 };
 
 export default function AiWriterPanel() {
@@ -47,6 +69,7 @@ export default function AiWriterPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [output, setOutput] = useState<string | null>(null);
+  const [docExtracting, setDocExtracting] = useState(false);
 
   const handleGenerate = useCallback(
     async (overrides?: { mode?: string; input?: string; topic?: string }) => {
@@ -73,7 +96,10 @@ export default function AiWriterPanel() {
             input: inputVal,
             topic: topicVal.trim() || undefined,
             tone,
-            length: modeVal === "article" || modeVal === "social" ? length : undefined,
+            length:
+              modeVal === "article" || modeVal === "social" || modeVal === "work-report"
+                ? length
+                : undefined,
             targetLang: modeVal === "translate" ? targetLang || undefined : undefined,
           },
           { timeoutMs: 120000 },
@@ -115,8 +141,6 @@ export default function AiWriterPanel() {
       .catch(() => setAiConfigured(false));
   }, []);
 
-  const activeMode = modes.find((m) => m.id === mode);
-
   const downloadOutput = () => {
     if (!output) return;
     downloadText(output, `ai-writer-${mode}-${Date.now()}.md`, "text/markdown;charset=utf-8");
@@ -124,46 +148,34 @@ export default function AiWriterPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-indigo-500/15 bg-indigo-500/5 px-5 py-4">
-        <p className="text-sm text-white/65 leading-relaxed">
-          写文章、改写法、润色、扩写、写摘要、社媒文案、邮件或翻译——选好模式，输入内容，一键生成。
-        </p>
-      </div>
+      {aiConfigured === false && <ToolNotice>{AI_SERVICE_UNAVAILABLE}</ToolNotice>}
 
-      {aiConfigured === false && (
-        <p className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-amber-100/85">
-          {AI_SERVICE_UNAVAILABLE}
-        </p>
-      )}
-
-      <div className="flex flex-wrap gap-1.5 p-1 rounded-xl bg-white/[0.03] border border-white/8">
+      <ToolChipBar>
         {modes.map((m) => (
-          <button
+          <ToolChip
             key={m.id}
-            type="button"
+            label={m.label}
+            active={mode === m.id}
             onClick={() => {
               setMode(m.id);
               setError(null);
             }}
-            className={`flex-1 min-w-[4.5rem] rounded-lg px-2 py-2 text-center transition-all ${
-              mode === m.id
-                ? "bg-indigo-600/25 text-indigo-100 border border-indigo-500/30"
-                : "text-white/45 hover:text-white/70 hover:bg-white/5"
-            }`}
-          >
-            <span className="block text-xs font-medium">{m.label}</span>
-          </button>
+          />
         ))}
-      </div>
+      </ToolChipBar>
 
-      {activeMode && (
-        <p className="text-xs text-white/35 -mt-2">{activeMode.hint}</p>
-      )}
-
-      {(mode === "article" || mode === "social" || mode === "email") && (
+      {(mode === "article" ||
+        mode === "social" ||
+        mode === "email" ||
+        mode === "work-report" ||
+        mode === "resume") && (
         <div>
           <label htmlFor="writer-topic" className="block text-sm text-white/60 mb-2">
-            主题说明（可选）
+            {mode === "work-report"
+              ? "报告类型（可选，如：周报 / 月报 / 述职）"
+              : mode === "resume"
+                ? "目标岗位（可选）"
+                : "主题说明（可选）"}
           </label>
           <input
             id="writer-topic"
@@ -177,9 +189,44 @@ export default function AiWriterPanel() {
       )}
 
       <div>
-        <label htmlFor="writer-input" className="block text-sm text-white/60 mb-2">
-          {mode === "article" || mode === "social" || mode === "email" ? "主题 / 要点" : "待处理文本"}
+        <label htmlFor="writer-input" className="block text-sm mb-2">
+          请输入你想写的内容或主题
         </label>
+        {mode === "doc-speedread" && (
+          <div className="mb-3">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 hover:bg-white/8">
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="hidden"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  setDocExtracting(true);
+                  setError(null);
+                  try {
+                    const fd = new FormData();
+                    fd.append("file", f);
+                    const raw = await apiUpload("/api/chat/extract-document", fd, {
+                      timeoutMs: 120000,
+                    });
+                    if (raw instanceof Blob) throw new ApiError("服务返回异常");
+                    const data = raw as { ok: boolean; file?: { content?: string } };
+                    const text = data.file?.content?.trim();
+                    if (!text) throw new ApiError("未能提取文档文字");
+                    setInput(text.slice(0, 8000));
+                  } catch (err) {
+                    setError(err instanceof ApiError ? err.message : "文档提取失败");
+                  } finally {
+                    setDocExtracting(false);
+                    e.target.value = "";
+                  }
+                }}
+              />
+              {docExtracting ? "正在提取文档…" : "上传 PDF / Word 提取文字"}
+            </label>
+          </div>
+        )}
         <textarea
           id="writer-input"
           data-tool-primary-input
@@ -193,22 +240,9 @@ export default function AiWriterPanel() {
           }}
           rows={8}
           placeholder={EXAMPLES[mode] || "输入内容…"}
-          className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/30"
+          className="w-full resize-none"
         />
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-1.5">
-            {EXAMPLES[mode] && (
-              <button
-                type="button"
-                onClick={() => setInput(EXAMPLES[mode])}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/50 hover:border-indigo-500/30 hover:text-indigo-200/80"
-              >
-                填入示例
-              </button>
-            )}
-          </div>
-          <p className="text-xs text-white/25">{input.length} / 8000 · Ctrl+Enter 生成</p>
-        </div>
+        <p className="mt-2 text-right text-xs opacity-40">{input.length} / 8000</p>
       </div>
 
       <div className="flex flex-wrap gap-4">
@@ -232,7 +266,7 @@ export default function AiWriterPanel() {
           </div>
         </div>
 
-        {(mode === "article" || mode === "social") && (
+        {(mode === "article" || mode === "social" || mode === "work-report") && (
           <div>
             <label className="block text-sm text-white/60 mb-2">篇幅</label>
             <div className="flex flex-wrap gap-2">
@@ -271,11 +305,7 @@ export default function AiWriterPanel() {
         )}
       </div>
 
-      {error && (
-        <p className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-200/90">
-          {error}
-        </p>
-      )}
+      {error && <ToolError>{error}</ToolError>}
 
       <ActionButton
         label="开始写作"
@@ -284,6 +314,25 @@ export default function AiWriterPanel() {
         disabled={!input.trim() || aiConfigured === false}
         loading={loading}
       />
+
+      <ToolSection title="写作模板" desc="点击快速填入示例">
+        <ToolPresetGrid>
+          {WRITING_TEMPLATES.map((t) => (
+            <ToolPresetCard
+              key={t.mode}
+              title={t.title}
+              desc={t.desc}
+              icon={t.icon}
+              active={mode === t.mode}
+              onClick={() => {
+                setMode(t.mode);
+                if (EXAMPLES[t.mode]) setInput(EXAMPLES[t.mode]);
+                setError(null);
+              }}
+            />
+          ))}
+        </ToolPresetGrid>
+      </ToolSection>
 
       {output && (
         <div className="space-y-3" data-tool-result="">
