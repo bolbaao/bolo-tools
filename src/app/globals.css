@@ -839,11 +839,6 @@ body.sidebar-open-mobile {
 .workspace-chat-turn {
   position: relative;
   width: 100%;
-  transition: background-color 0.15s ease;
-}
-
-.workspace-chat-turn:hover {
-  background: rgba(0, 0, 0, 0.018);
 }
 
 .workspace-chat-turn-inner {
