@@ -14,7 +14,7 @@ import { tryImageFetchReply } from "./chat-image-intent.mjs";
 import { tryPptGenerateReply } from "./chat-ppt-intent.mjs";
 import { tryMediaSearchReply } from "./chat-media-intent.mjs";
 import { trySubtitleToolReply } from "./chat-subtitle-intent.mjs";
-import { tryWeatherReply } from "./chat-weather-intent.mjs";
+import { tryLiveInfoReply } from "./live-info-intent.mjs";
 import {
   buildAttachmentContext,
   getChatAttachmentCapabilities,
@@ -84,10 +84,10 @@ export async function runWorkspaceChat(messages, opts = {}) {
   }
 
   if (!chatFiles.length) {
-    const weatherReply = await tryWeatherReply(lastUser, { pageContext: opts.pageContext });
-    if (weatherReply) {
+    const liveInfoReply = await tryLiveInfoReply(lastUser, { pageContext: opts.pageContext });
+    if (liveInfoReply) {
       return {
-        reply: weatherReply,
+        reply: liveInfoReply,
         provider: chatConfig.provider,
         providerLabel: getChatProviderLabel(chatConfig.provider),
         model: chatConfig.model,

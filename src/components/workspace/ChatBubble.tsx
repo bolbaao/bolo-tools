@@ -5,6 +5,7 @@ import {
   ChatDownloadFileList,
   ChatReplyImageGallery,
 } from "@/components/workspace/ChatMessageMedia";
+import ChatLiveInfoCard from "@/components/workspace/ChatLiveInfoCard";
 import ChatWeatherCard from "@/components/workspace/ChatWeatherCard";
 import type { ChatMessage } from "@/contexts/WorkspaceChatContext";
 import { extractChatReplyMedia, stripChatAttachmentNote } from "@/lib/chat-files";
@@ -89,6 +90,9 @@ export default function ChatBubble({ msg, variant = "panel" }: Props) {
           {assistantParts?.weather ? (
             <ChatWeatherCard card={assistantParts.weather} compact />
           ) : null}
+          {assistantParts?.liveInfo ? (
+            <ChatLiveInfoCard card={assistantParts.liveInfo} compact />
+          ) : null}
           {assistantParts?.downloads.length ? (
             <ChatDownloadFileList items={assistantParts.downloads} />
           ) : null}
@@ -111,6 +115,7 @@ export default function ChatBubble({ msg, variant = "panel" }: Props) {
           <ChatReplyImageGallery items={assistantParts.images} />
         ) : null}
         {assistantParts?.weather ? <ChatWeatherCard card={assistantParts.weather} /> : null}
+        {assistantParts?.liveInfo ? <ChatLiveInfoCard card={assistantParts.liveInfo} /> : null}
         {assistantParts?.downloads.length ? (
           <ChatDownloadFileList items={assistantParts.downloads} />
         ) : null}

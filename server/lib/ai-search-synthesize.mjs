@@ -48,18 +48,36 @@ export async function synthesizeSearchAnswer(query, searchPayload, opts = {}) {
 
   const modeHint = getModeSynthesisHint(searchPayload.mode || opts.mode);
 
+  const liveInfoHint = opts.liveInfo
+    ? `9. 这是主页实时问答：只回答问题本身，禁止在末尾添加「更新于…」「基于实时检索」「未参考历史对话」等元信息脚注
+10. 禁止主动追问用户是否需要下载链接、观看链接、播放地址或网盘资源，除非用户原话明确在索要
+11. 正文不要出现 [1]、[2] 等引用编号，不要输出「参考来源」段落或来源链接列表`
+    : "";
+
+  const listQueryHint =
+    opts.liveInfo && /(?:有哪些|什么剧|哪些剧|片单|榜单|排行|列表)/.test(query)
+      ? `12. 用户在要列表/片单：直接列作品名与一句简介即可，结尾不要加引导性问句`
+      : "";
+
+  const citationRules = opts.liveInfo
+    ? `2. 依据检索来源组织答案，但正文不要标注 [1]、[2] 等引用编号
+5. 不要输出「参考来源」或来源标题列表`
+    : `2. 在正文中用 [1]、[2] 标注引用（对应来源编号）
+5. 末尾单独一行「参考来源」列出用到的编号与标题`;
+
   const system = `你是春雨集的 AI 全网搜索助手。根据用户问题与检索到的网页摘要，给出准确、有条理的中文回答。
 当前日期：${time.dateLabel}（今年是 ${time.year} 年，回答时效性问题必须以此时刻为准）。
 
 要求：
 1. 优先依据「检索来源」中的信息，不要编造无法验证的事实
-2. 在正文中用 [1]、[2] 标注引用（对应来源编号）
+${citationRules}
 3. 若信息不足或来源矛盾，明确说明不确定之处
 4. 回答简洁实用，可用小标题与列表
-5. 末尾单独一行「参考来源」列出用到的编号与标题
 ${newsHint}
 ${regionHint}
-${modeHint}`;
+${modeHint}
+${liveInfoHint}
+${listQueryHint}`;
 
   const planHint = searchPayload.understanding
     ? `\n检索意图理解（系统已据此扩散检索，勿复述给用户）：\n${searchPayload.understanding}\n`

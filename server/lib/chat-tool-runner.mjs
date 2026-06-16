@@ -25,6 +25,8 @@ import { formatResourceNotFound, formatSearchNotFound } from "../../shared/publi
 import { assertSearchAllowed, searchMediaResources } from "./media-resource-fetch.mjs";
 import { fetchTrends, formatHeat } from "./trends-fetch.mjs";
 import { searchWebWithUnderstanding } from "./web-search-understand.mjs";
+import { shouldSkipSearchHistory, classifyLiveInfoQuery } from "./live-info-detect.mjs";
+import { formatLiveInfoReply } from "./live-info-format.mjs";
 import { extractVerifiedVideoByUrl } from "./video-extract-service.mjs";
 import { runSpider, SPIDER_PRESETS } from "./spider-run.mjs";
 import { adaptCaptionsForPlatforms, runSocialPublish } from "./social-publish.mjs";
@@ -384,15 +386,28 @@ async function runAgentTool(action, context = {}) {
         const query = pickField(fields, ["query", "q"], fallback);
         const searchPayload = await searchWebWithUnderstanding(query, {
           depth: "advanced",
-          history: context.history,
+          history: shouldSkipSearchHistory(query) ? undefined : context.history,
         });
         let summary = searchPayload.answer || "";
         try {
           summary = await synthesizeSearchAnswer(query, searchPayload, {
             topic: searchPayload.topic,
+            liveInfo: shouldSkipSearchHistory(query) || undefined,
           });
         } catch {
           summary = summary || "未能生成 AI 摘要，请查看下方来源。";
+        }
+        if (shouldSkipSearchHistory(query)) {
+          return {
+            ok: true,
+            text: formatLiveInfoReply({
+              kind: classifyLiveInfoQuery(query),
+              query,
+              summary,
+              results: searchPayload.results,
+              fetchedAt: new Date().toISOString(),
+            }),
+          };
         }
         return {
           ok: true,

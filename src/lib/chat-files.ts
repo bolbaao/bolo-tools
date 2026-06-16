@@ -1,5 +1,7 @@
 export type ChatFileKind = "image" | "video" | "audio" | "document" | "text" | "unknown";
 
+import type { ChatLiveInfoCard } from "@/lib/chat-liveinfo";
+import { parseChatLiveInfoCard, stripChatLiveInfoBlock } from "@/lib/chat-liveinfo";
 import type { ChatWeatherCard } from "@/lib/chat-weather";
 import { parseChatWeatherCard, stripChatWeatherBlock } from "@/lib/chat-weather";
 
@@ -132,9 +134,13 @@ export function extractChatReplyMedia(content: string): {
   images: ChatReplyImage[];
   downloads: ChatArtifactDownload[];
   weather: ChatWeatherCard | null;
+  liveInfo: ChatLiveInfoCard | null;
 } {
   const weather = parseChatWeatherCard(content);
-  const source = weather ? stripChatWeatherBlock(content) : content;
+  const liveInfo = parseChatLiveInfoCard(content);
+  let source = content;
+  if (weather) source = stripChatWeatherBlock(source);
+  if (liveInfo) source = stripChatLiveInfoBlock(source);
   const images: ChatReplyImage[] = [];
   const downloads: ChatArtifactDownload[] = [];
   const seen = new Set<string>();
@@ -169,7 +175,7 @@ export function extractChatReplyMedia(content: string): {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  return { text, images, downloads, weather };
+  return { text, images, downloads, weather, liveInfo };
 }
 
 /** @deprecated 使用 extractChatReplyMedia */

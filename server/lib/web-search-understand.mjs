@@ -22,7 +22,7 @@ import {
 import { searchMediaPlatforms } from "./media-search.mjs";
 import { searchWebImages } from "./web-image-search.mjs";
 import { searchWebVideos } from "./web-video-search.mjs";
-import { isWeatherQuery } from "./weather.mjs";
+import { shouldSkipSearchHistory } from "./live-info-detect.mjs";
 
 function formatHistory(history = []) {
   return (Array.isArray(history) ? history : [])
@@ -123,6 +123,9 @@ export async function planWebSearchQueries(userMessage, opts = {}) {
       ? "用户关注时事热点，topic 填 news，检索词应突出最新进展、时间、事件主体。"
       : "默认 topic 为 general。";
   const modeHint = getModePlanHint(modeConfig.mode);
+  const liveOnlyHint = shouldSkipSearchHistory(originalQuery)
+    ? `15. 这是实时信息查询：只根据当前问题提炼检索词，禁止引用或继承对话历史中的地点、实体或旧事件。`
+    : "";
 
   const client = new OpenAI({
     apiKey: chatConfig.apiKey,
@@ -159,6 +162,7 @@ export async function planWebSearchQueries(userMessage, opts = {}) {
 12. 不要把模型训练记忆里的年份当作「今年」；今年是 ${time.year}
 13. ${regionHint}
 14. ${modeHint}
+${liveOnlyHint}
 
 只输出 JSON：
 {"searchQuery":"主检索词","searchVariants":["扩散词1","扩散词2"],"topic":"general|news","understanding":"一句话说明你如何理解用户问题"}`,
@@ -250,7 +254,7 @@ export async function searchWebWithUnderstanding(userMessage, opts = {}) {
     return searchWebVideos(userMessage, { maxResults: modeConfig.maxResults });
   }
 
-  const skipHistory = isWeatherQuery(userMessage);
+  const skipHistory = shouldSkipSearchHistory(userMessage);
   const plan = await planWebSearchQueries(userMessage, {
     history: skipHistory ? undefined : opts.history,
     topic: modeConfig.topic,
