@@ -6,7 +6,7 @@ import { searchXiaohongshuNotes } from "./xiaohongshu-image-search.mjs";
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
-const CN_REGION = { id: "cn", label: "中国", gl: "cn", hl: "zh-cn", tavilyCountry: "cn" };
+const CN_REGION = { id: "cn", label: "中国", gl: "cn", hl: "zh-cn", tavilyCountry: "china" };
 
 export const MEDIA_PLATFORMS = {
   douyin: { id: "douyin", label: "抖音", siteFilter: "douyin.com" },

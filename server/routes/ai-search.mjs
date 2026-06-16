@@ -6,6 +6,8 @@ import { fetchDouyinTrends } from "../lib/trends-fetch.mjs";
 import { getWebSearchCapabilities } from "../lib/web-search.mjs";
 import { searchWebWithUnderstanding } from "../lib/web-search-understand.mjs";
 import { parseMediaPlatforms } from "../lib/media-search.mjs";
+import { webImageSearchReady } from "../lib/web-image-search.mjs";
+import { webVideoSearchReady } from "../lib/web-video-search.mjs";
 import { resolveChatConfig } from "../lib/chat-config.mjs";
 import { formatSearchNotFound } from "../../shared/public-error.mjs";
 
@@ -16,6 +18,8 @@ router.get("/capabilities", (_req, res) => {
   res.json({
     ok: true,
     ...search,
+    imageSearch: webImageSearchReady(),
+    videoSearch: webVideoSearchReady(),
     aiSynthesis: Boolean(resolveChatConfig()),
     mediaPlatforms: ["douyin", "xiaohongshu", "wechat"],
   });
@@ -52,11 +56,13 @@ router.post("/search", async (req, res) => {
       req.body?.synthesize !== "false" &&
       req.body?.synthesize !== 0 &&
       modeConfig.synthesize;
-    const forceChinese =
-      req.body?.forceChinese === true ||
-      req.body?.forceChinese === "true" ||
-      req.body?.forceChinese === 1 ||
-      modeConfig.forceChinese;
+    const explicitChinese = req.body?.forceChinese;
+    let forceChinese = true;
+    if (modeConfig.multilingual) {
+      forceChinese = explicitChinese === true || explicitChinese === "true" || explicitChinese === 1;
+    } else if (explicitChinese === false || explicitChinese === "false" || explicitChinese === 0) {
+      forceChinese = false;
+    }
     const mediaPlatforms = parseMediaPlatforms(req.body?.mediaPlatforms);
 
     const searchPayload = await searchWebWithUnderstanding(query, {
@@ -101,6 +107,7 @@ router.post("/search", async (req, res) => {
       summary,
       synthesized,
       results: searchPayload.results,
+      forceChinese,
       mediaPlatforms: searchPayload.platforms || (modeConfig.media ? mediaPlatforms : undefined),
     });
   } catch (err) {

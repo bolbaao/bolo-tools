@@ -37,7 +37,7 @@ export function formatImageNotFound(query) {
     .replace(/(?:的)?(?:相关)?(?:高清)?(?:宣传)?(?:配图|图片|照片|图像|素材)/gi, " ")
     .replace(/\s+/g, " ")
     .trim() || raw;
-  return `未能检索到与「${q}」相关的可用图片。请补充更具体的描述（如门店外观、logo、宣传海报），或直接粘贴图片链接。`;
+  return `暂时没找到「${q}」的可用图片，请换关键词或粘贴图片链接再试。`;
 }
 
 export function formatImageSearchUnavailable() {

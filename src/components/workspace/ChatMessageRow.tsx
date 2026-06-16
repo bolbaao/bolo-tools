@@ -41,18 +41,20 @@ export default function ChatMessageRow({ messageId, role, onDelete, compact, chi
       }`}
     >
       <div className="workspace-chat-turn-inner">
-        <button
-          type="button"
-          onClick={() => {
-            if (!confirm("确定删除这条消息？")) return;
-            onDelete(messageId);
-          }}
-          className="workspace-chat-message-delete"
-          title="删除消息"
-          aria-label="删除消息"
-        >
-          <DeleteIcon />
-        </button>
+        {role === "assistant" ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (!confirm("确定删除这段对话？")) return;
+              onDelete(messageId);
+            }}
+            className="workspace-chat-message-delete"
+            title="删除这段对话"
+            aria-label="删除这段对话"
+          >
+            <DeleteIcon />
+          </button>
+        ) : null}
         {children}
       </div>
     </article>

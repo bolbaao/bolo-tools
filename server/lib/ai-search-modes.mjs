@@ -1,4 +1,4 @@
-/** @typedef {'quick'|'deep'|'academic'|'news'|'multilingual'|'media'} AiSearchMode */
+/** @typedef {'quick'|'deep'|'academic'|'news'|'multilingual'|'media'|'web'|'images'|'videos'} AiSearchMode */
 
 export const AI_SEARCH_MODES = {
   quick: {
@@ -56,6 +56,34 @@ export const AI_SEARCH_MODES = {
     maxVariants: 0,
     synthesize: true,
   },
+  web: {
+    id: "web",
+    label: "网页搜索",
+    depth: "advanced",
+    topic: "general",
+    maxResults: 12,
+    maxVariants: 2,
+    synthesize: true,
+    includeRawContent: true,
+  },
+  images: {
+    id: "images",
+    label: "图片搜索",
+    depth: "basic",
+    topic: "general",
+    maxResults: 16,
+    maxVariants: 0,
+    synthesize: false,
+  },
+  videos: {
+    id: "videos",
+    label: "视频搜索",
+    depth: "basic",
+    topic: "general",
+    maxResults: 12,
+    maxVariants: 0,
+    synthesize: false,
+  },
 };
 
 const ACADEMIC_SOURCE_RE =
@@ -109,6 +137,10 @@ export function resolveSearchModeConfig(modeRaw, query = "") {
     academic: mode === "academic",
     multilingual: mode === "multilingual",
     media: mode === "media",
+    web: mode === "web",
+    images: mode === "images",
+    videos: mode === "videos",
+    includeRawContent: Boolean(base.includeRawContent),
     forceChinese: mode === "news" || mode === "media",
   };
 }
@@ -128,6 +160,12 @@ export function getModePlanHint(mode) {
       return "用户选择多语言搜索：保留用户原语言关键词，必要时补充英文/目标语言检索词，不要强行翻译成中文。";
     case "media":
       return "用户选择媒体搜索：检索词保持中文，面向抖音、小红书、微信公众号等平台内容，不要翻译成英文。";
+    case "web":
+      return "用户选择网页搜索：优先检索全网网页、博客、官网、论坛与文档站，检索词面向搜索引擎，扩散词覆盖教程/官方/问答等不同页面类型。";
+    case "images":
+      return "用户选择图片搜索：检索词应描述画面主体、风格或用途，面向图片搜索引擎。";
+    case "videos":
+      return "用户选择视频搜索：检索词应描述视频主题、教程名或片名，面向视频搜索引擎。";
     default:
       return "";
   }
@@ -146,6 +184,12 @@ export function getModeSynthesisHint(mode) {
       return "9. 多语言模式：可保留关键英文/外文专名，并给出中文解释。";
     case "media":
       return "9. 媒体模式：优先引用抖音、小红书、微信公众号来源，标注平台名称，链接必须是中文媒体页面。";
+    case "web":
+      return "9. 网页模式：优先引用可访问的网页来源，适合查资料、教程、官方说明，摘要中保留关键页面信息。";
+    case "images":
+      return "9. 图片模式：简要说明找到的图片类型与来源平台，不必编造未出现的画面细节。";
+    case "videos":
+      return "9. 视频模式：按平台与主题归纳检索到的视频，标注出处，不要编造未出现的视频内容。";
     default:
       return "";
   }

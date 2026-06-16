@@ -1,10 +1,20 @@
 "use client";
 
-import { readInitialSidebarCollapsed } from "@/hooks/useMobileLayout";
+import { readInitialSidebarCollapsed, SIDEBAR_COLLAPSED_KEY } from "@/hooks/useMobileLayout";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const MOBILE_QUERY = "(max-width: 1023px)";
+
+function isMobileViewport() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia(MOBILE_QUERY).matches;
+}
+
+function persistSidebarCollapsed(collapsed: boolean) {
+  if (typeof window === "undefined" || isMobileViewport()) return;
+  sessionStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+}
 
 export type WorkspacePhase = "intro" | "active";
 
@@ -20,6 +30,7 @@ type WorkspaceContextValue = {
   sidebarPinned: boolean;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  openSidebar: () => void;
   toggleSidebar: () => void;
   closeSidebar: () => void;
   startWorkspace: () => void;
@@ -66,12 +77,48 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   const toggleSidebar = useCallback(() => {
-    setSidebarCollapsed((prev) => !prev);
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      persistSidebarCollapsed(next);
+      return next;
+    });
+  }, []);
+
+  const openSidebar = useCallback(() => {
+    setSidebarCollapsed(false);
+    persistSidebarCollapsed(false);
   }, []);
 
   const closeSidebar = useCallback(() => {
     setSidebarCollapsed(true);
+    persistSidebarCollapsed(true);
   }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!sidebarPinned) return;
+      const target = e.target as HTMLElement | null;
+      const typing =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+      if (typing) return;
+
+      if (e.key === "Escape" && !sidebarCollapsed) {
+        e.preventDefault();
+        closeSidebar();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [sidebarPinned, sidebarCollapsed, toggleSidebar, closeSidebar]);
 
   const startWorkspace = useCallback(() => {
     sessionStorage.setItem(STORAGE_KEY, "1");
@@ -85,6 +132,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         sidebarPinned,
         sidebarCollapsed,
         setSidebarCollapsed,
+        openSidebar,
         toggleSidebar,
         closeSidebar,
         startWorkspace,

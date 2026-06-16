@@ -1,5 +1,41 @@
 import { env } from "./env.mjs";
+import { fetchWithProxyFallback } from "./fetch-helper.mjs";
 import { HttpError } from "./http-error.mjs";
+
+function formatSearchFetchError(provider, err) {
+  const msg = String(err?.message || err || "fetch failed");
+  const cause = String(err?.cause?.message || err?.cause?.code || "");
+  const hasProxy = Boolean(env("HTTPS_PROXY") || env("HTTP_PROXY"));
+  if (hasProxy && /ECONNREFUSED|connect ECONNREFUSED|proxy/i.test(`${msg} ${cause}`)) {
+    return `无法连接 ${provider}：网络代理未响应。请启动代理软件后重试，或关闭代理设置后重启应用`;
+  }
+  if (/fetch failed|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|network/i.test(`${msg} ${cause}`)) {
+    const proxyHint = hasProxy
+      ? "。请确认代理软件已启动"
+      : "。若网络受限，可在应用配置中启用代理后重启";
+    return `无法连接 ${provider}，请检查网络${proxyHint}`;
+  }
+  return `无法连接 ${provider}，请稍后再试`;
+}
+
+/** Tavily country 需完整英文名（如 china），不能传 cn/us 等缩写 */
+const TAVILY_COUNTRY_ALIASES = {
+  cn: "china",
+  us: "united states",
+  usa: "united states",
+  jp: "japan",
+  kr: "south korea",
+  gb: "united kingdom",
+  uk: "united kingdom",
+  tw: "taiwan",
+};
+
+function normalizeTavilyCountry(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return undefined;
+  if (TAVILY_COUNTRY_ALIASES[raw]) return TAVILY_COUNTRY_ALIASES[raw];
+  return raw;
+}
 
 /**
  * @typedef {{ title: string, url: string, snippet: string, score?: number }} WebSearchResult
@@ -16,7 +52,7 @@ export function getWebSearchCapabilities() {
 
 /**
  * @param {string} query
- * @param {{ depth?: 'basic'|'advanced', maxResults?: number, topic?: 'general'|'news', days?: number, region?: { gl?: string, hl?: string, tavilyCountry?: string } }} opts
+ * @param {{ depth?: 'basic'|'advanced', maxResults?: number, topic?: 'general'|'news', days?: number, region?: { gl?: string, hl?: string, tavilyCountry?: string }, includeRawContent?: boolean }} opts
  * @returns {Promise<{ query: string, provider: string, answer?: string, results: WebSearchResult[] }>}
  */
 export async function searchWeb(query, opts = {}) {
@@ -30,7 +66,7 @@ export async function searchWeb(query, opts = {}) {
   const region = opts.region || null;
 
   if (env("TAVILY_API_KEY")) {
-    return searchWithTavily(q, { depth, maxResults, topic, days, region });
+    return searchWithTavily(q, { depth, maxResults, topic, days, region, includeRawContent: opts.includeRawContent });
   }
   if (env("SERPER_API_KEY")) {
     return searchWithSerper(q, { maxResults, topic, region });
@@ -42,7 +78,7 @@ export async function searchWeb(query, opts = {}) {
   );
 }
 
-async function searchWithTavily(query, { depth, maxResults, topic, days, region }) {
+async function searchWithTavily(query, { depth, maxResults, topic, days, region, includeRawContent }) {
   const apiKey = env("TAVILY_API_KEY");
   const body = {
     api_key: apiKey,
@@ -50,19 +86,20 @@ async function searchWithTavily(query, { depth, maxResults, topic, days, region 
     search_depth: depth,
     topic,
     include_answer: true,
-    include_raw_content: false,
+    include_raw_content: includeRawContent === true,
     max_results: maxResults,
   };
   if (topic === "news" && days) {
     body.days = days;
   }
   if (topic === "general" && region?.tavilyCountry) {
-    body.country = region.tavilyCountry;
+    const country = normalizeTavilyCountry(region.tavilyCountry);
+    if (country) body.country = country;
   }
 
   let data;
   try {
-    const res = await fetch("https://api.tavily.com/search", {
+    const res = await fetchWithProxyFallback("https://api.tavily.com/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -74,13 +111,14 @@ async function searchWithTavily(query, { depth, maxResults, topic, days, region 
     }
   } catch (e) {
     if (e instanceof HttpError) throw e;
-    throw new HttpError(502, `无法连接 Tavily：${(e.message || String(e)).slice(0, 120)}`);
+    throw new HttpError(502, formatSearchFetchError("Tavily", e));
   }
 
+  const snippetLimit = includeRawContent ? 1200 : 600;
   const results = (data.results || []).map((r) => ({
     title: String(r.title || "").trim() || "未命名页面",
     url: String(r.url || "").trim(),
-    snippet: String(r.content || r.snippet || "").trim().slice(0, 600),
+    snippet: String(r.raw_content || r.content || r.snippet || "").trim().slice(0, snippetLimit),
     score: typeof r.score === "number" ? r.score : undefined,
   })).filter((r) => r.url);
 
@@ -97,7 +135,7 @@ async function searchWithSerper(query, { maxResults, topic, region }) {
   const endpoint = topic === "news" ? "https://google.serper.dev/news" : "https://google.serper.dev/search";
   let data;
   try {
-    const res = await fetch(endpoint, {
+    const res = await fetchWithProxyFallback(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -116,7 +154,7 @@ async function searchWithSerper(query, { maxResults, topic, region }) {
     }
   } catch (e) {
     if (e instanceof HttpError) throw e;
-    throw new HttpError(502, `无法连接 Serper：${(e.message || String(e)).slice(0, 120)}`);
+    throw new HttpError(502, formatSearchFetchError("Serper", e));
   }
 
   const organic = topic === "news" ? data.news || [] : data.organic || [];

@@ -20,6 +20,8 @@ import {
   resolveSearchModeConfig,
 } from "./ai-search-modes.mjs";
 import { searchMediaPlatforms } from "./media-search.mjs";
+import { searchWebImages } from "./web-image-search.mjs";
+import { searchWebVideos } from "./web-video-search.mjs";
 
 function formatHistory(history = []) {
   return (Array.isArray(history) ? history : [])
@@ -239,6 +241,14 @@ export async function searchWebWithUnderstanding(userMessage, opts = {}) {
     return mediaPayload;
   }
 
+  if (modeConfig.images) {
+    return searchWebImages(userMessage, { maxResults: modeConfig.maxResults });
+  }
+
+  if (modeConfig.videos) {
+    return searchWebVideos(userMessage, { maxResults: modeConfig.maxResults });
+  }
+
   const plan = await planWebSearchQueries(userMessage, {
     history: opts.history,
     topic: modeConfig.topic,
@@ -268,11 +278,25 @@ export async function searchWebWithUnderstanding(userMessage, opts = {}) {
   const payloads = await Promise.all(
     uniqueQueries.map(async (q) => {
       try {
-        return await searchWeb(q, { depth, maxResults: perQueryResults, topic, days, region });
+        return await searchWeb(q, {
+          depth,
+          maxResults: perQueryResults,
+          topic,
+          days,
+          region,
+          includeRawContent: modeConfig.includeRawContent,
+        });
       } catch (e) {
         if (topic === "news") {
           try {
-            return await searchWeb(q, { depth, maxResults: perQueryResults, topic: "general", days, region });
+            return await searchWeb(q, {
+              depth,
+              maxResults: perQueryResults,
+              topic: "general",
+              days,
+              region,
+              includeRawContent: modeConfig.includeRawContent,
+            });
           } catch {
             return null;
           }
@@ -284,7 +308,14 @@ export async function searchWebWithUnderstanding(userMessage, opts = {}) {
 
   const validPayloads = payloads.filter(Boolean);
   if (!validPayloads.length) {
-    return searchWeb(plan.searchQuery || plan.originalQuery, { depth, maxResults, topic, days, region });
+    return searchWeb(plan.searchQuery || plan.originalQuery, {
+      depth,
+      maxResults,
+      topic,
+      days,
+      region,
+      includeRawContent: modeConfig.includeRawContent,
+    });
   }
 
   const primary = validPayloads[0];
@@ -299,7 +330,7 @@ export async function searchWebWithUnderstanding(userMessage, opts = {}) {
     },
   );
 
-  const forceChinese = opts.forceChinese === true || modeConfig.forceChinese;
+  const forceChinese = Boolean(opts.forceChinese);
   const finalResults = forceChinese ? filterChineseResults(mergedResults) : mergedResults;
 
   const answers = validPayloads

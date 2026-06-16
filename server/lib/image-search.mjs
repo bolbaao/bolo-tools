@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { fetchWithProxyFallback } from "./fetch-helper.mjs";
 import { env } from "./env.mjs";
 import { HttpError } from "./http-error.mjs";
 import { assertPublicHttpUrlResolved } from "./url-guard.mjs";
@@ -12,16 +13,28 @@ import {
 import {
   searchMultiPlatformImages,
   searchDouyinImages,
+  searchWechatOfficialImages,
   detectImagePlatforms,
   normalizePlatformIds,
   platformReferer,
   IMAGE_PLATFORMS,
+  searchSerperImages,
+  normalizeImageCandidate,
 } from "./platform-image-search.mjs";
 import {
   searchXiaohongshuImages,
   xiaohongshuImageSearchReady,
 } from "./xiaohongshu-image-search.mjs";
-import { expandImageSearchVariants, stripImageSearchNoise, coreSubjectTokens, titleMatchesSubject, platformSearchKeyword } from "./image-search-query.mjs";
+import {
+  expandImageSearchVariants,
+  stripImageSearchNoise,
+  coreSubjectTokens,
+  titleMatchesSubject,
+  platformSearchKeyword,
+  isHotelLikeSubject,
+  buildHotelEnglishVariants,
+  isStoreLikeSubject,
+} from "./image-search-query.mjs";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 20_000;
@@ -57,22 +70,15 @@ function extFromContentType(contentType) {
   return "png";
 }
 
-function normalizeCandidate(url, meta = {}) {
-  const trimmed = String(url || "").trim();
-  if (!trimmed) return null;
-  try {
-    const parsed = new URL(trimmed);
-    if (!["http:", "https:"].includes(parsed.protocol)) return null;
-    return {
-      url: parsed.toString(),
-      title: String(meta.title || "").trim(),
-      pageUrl: String(meta.pageUrl || meta.link || "").trim() || undefined,
-      domain: String(meta.domain || parsed.hostname || "").trim(),
-      score: Number(meta.score) || 0,
-    };
-  } catch {
-    return null;
-  }
+function withPlatformHint(query, platforms = []) {
+  const q = String(query || "").trim();
+  if (!platforms.length) return q;
+  const hints = platforms
+    .map((id) => IMAGE_PLATFORMS[id]?.searchHint)
+    .filter(Boolean)
+    .filter((h) => !q.includes(h));
+  if (!hints.length) return q;
+  return `${q} ${hints[0]}`;
 }
 
 function resolvePreferredPlatforms(meta = {}) {
@@ -105,6 +111,13 @@ function scoreCandidate(candidate, query, meta = {}) {
   }
   if (/pinimg|alicdn|qhimg|bdstatic|googleusercontent|gstatic/.test(candidate.domain || "")) score += 1;
   const titleHay = `${candidate.title || ""} ${candidate.pageUrl || ""}`.toLowerCase();
+  if (isHotelLikeSubject(meta.subject || q)) {
+    if (/hilton|marriott|hyatt|ihg|accor|ctrip|trip\.com|meituan|dianping|booking|hotels\.com/i.test(haystack)) {
+      score += 10;
+    }
+    if (/外观|外景|实景|酒店|hotel/i.test(titleHay)) score += 4;
+    if (/套餐|团购|优惠券|三日游|线路\)/.test(titleHay)) score -= 6;
+  }
   if (/排行榜|榜单|top\s*\d|截图|商品列表|热卖榜|畅销榜/.test(titleHay)) score -= 8;
   if (/海报|宣传|官方|产品图|主视觉/.test(titleHay)) score += 3;
   if (preferred.includes("xiaohongshu") && /海报|宣传/.test(String(query || ""))) score += 2;
@@ -124,54 +137,6 @@ function scoreCandidate(candidate, query, meta = {}) {
   }
 
   return score;
-}
-
-function withPlatformHint(query, platforms = []) {
-  const q = String(query || "").trim();
-  if (!platforms.length) return q;
-  const hints = platforms
-    .map((id) => IMAGE_PLATFORMS[id]?.searchHint)
-    .filter(Boolean)
-    .filter((h) => !q.includes(h));
-  if (!hints.length) return q;
-  return `${q} ${hints[0]}`;
-}
-
-async function searchSerperImages(query, maxResults = 8, platforms = []) {
-  const q = withPlatformHint(query, platforms);
-  const apiKey = env("SERPER_API_KEY");
-  if (!apiKey) return [];
-
-  let data;
-  try {
-    const res = await fetch("https://google.serper.dev/images", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-KEY": apiKey,
-      },
-      body: JSON.stringify({
-        q: q,
-        num: Math.min(12, Math.max(3, maxResults)),
-      }),
-      signal: AbortSignal.timeout(15000),
-    });
-    data = await res.json().catch(() => ({}));
-    if (!res.ok) return [];
-  } catch {
-    return [];
-  }
-
-  return (data.images || [])
-    .map((item) =>
-      normalizeCandidate(item.imageUrl || item.thumbnailUrl, {
-        title: item.title,
-        pageUrl: item.link,
-        domain: item.domain,
-        score: 2,
-      }),
-    )
-    .filter(Boolean);
 }
 
 async function searchWikipediaThumb(query) {
@@ -194,7 +159,7 @@ async function searchWikipediaThumb(query) {
       const data = await res.json();
       const thumb = data?.thumbnail?.source;
       const full = data?.originalimage?.source;
-      const candidate = normalizeCandidate(full || thumb, {
+      const candidate = normalizeImageCandidate(full || thumb, {
         title: data?.title || title,
         pageUrl: data?.content_urls?.desktop?.page,
         domain: `${lang}.wikipedia.org`,
@@ -210,7 +175,7 @@ async function searchWikipediaThumb(query) {
 
 async function extractOgImageFromPage(pageUrl) {
   const safe = await assertPublicHttpUrlResolved(pageUrl);
-  const res = await fetch(safe, {
+  const res = await fetchWithProxyFallback(safe, {
     headers: { "User-Agent": UA, Accept: "text/html,application/xhtml+xml" },
     redirect: "follow",
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -224,7 +189,7 @@ async function extractOgImageFromPage(pageUrl) {
     $('link[rel="image_src"]').attr("href");
   if (!og) return null;
   try {
-    return normalizeCandidate(new URL(og, safe).href, {
+    return normalizeImageCandidate(new URL(og, safe).href, {
       title: $("title").first().text().trim(),
       pageUrl: safe,
       score: 1,
@@ -232,6 +197,55 @@ async function extractOgImageFromPage(pageUrl) {
   } catch {
     return null;
   }
+}
+
+/** 酒店 / 门店：全网检索官网与旅游平台配图 */
+async function searchHotelWebImages(subject) {
+  const core = platformSearchKeyword(subject, subject);
+  if (!core || !isHotelLikeSubject(core)) return [];
+
+  const queries = [
+    `${core}酒店 外观 实景`,
+    `${core}酒店 外景`,
+    `site:ctrip.com ${core}`,
+    `site:meituan.com ${core}酒店`,
+    ...buildHotelEnglishVariants(core).map((en) => `${en} hotel exterior`),
+  ];
+
+  const out = [];
+  const seen = new Set();
+  for (const q of [...new Set(queries)].slice(0, 6)) {
+    try {
+      const payload = await searchWeb(q, { depth: "basic", maxResults: 4 });
+      for (const item of payload.results || []) {
+        const og = await extractOgImageFromPage(item.url);
+        if (!og) continue;
+        const key = og.url.split("?")[0];
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ ...og, score: (og.score || 1) + 6, source: "hotel-web" });
+      }
+    } catch {
+      /* try next query */
+    }
+  }
+  return out;
+}
+
+/** 门店 / KTV / 餐饮：优先微信公众号搜狗检索 */
+async function searchBrandStoreImages(subject) {
+  const core = platformSearchKeyword(subject, subject);
+  if (!core || !isStoreLikeSubject(core)) return [];
+
+  const out = [];
+  const seen = new Set();
+  for (const item of await searchWechatOfficialImages(core)) {
+    const key = item.url.split("?")[0];
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ ...item, score: (item.score || 0) + 8, source: item.source || "wechat" });
+  }
+  return out;
 }
 
 async function searchWebPageImages(query, platforms = []) {
@@ -262,14 +276,17 @@ export async function collectImageCandidates(query, opts = {}) {
   const nativePlatforms = platforms.filter((id) => id !== "xiaohongshu");
   const searchDouyin = nativePlatforms.includes("douyin") || autoDiscovery;
 
+  const hotelSubject = opts.subject || q;
   const buckets = await Promise.all([
     preferXhs ? searchXiaohongshuImages(platformKw || q) : Promise.resolve([]),
     nativePlatforms.length
       ? searchMultiPlatformImages(platformKw || q, nativePlatforms.filter((id) => id !== "douyin"))
       : Promise.resolve([]),
     searchDouyin ? searchDouyinImages(platformKw || q, opts.subject) : Promise.resolve([]),
-    searchSerperImages(q, 8, platforms),
-    preferXhs || platforms.length ? Promise.resolve([]) : searchWikipediaThumb(q),
+    searchSerperImages(withPlatformHint(q, platforms), { maxResults: 8, score: 2 }),
+    searchWikipediaThumb(platformKw || q),
+    isHotelLikeSubject(hotelSubject) ? searchHotelWebImages(hotelSubject) : Promise.resolve([]),
+    isStoreLikeSubject(hotelSubject) ? searchBrandStoreImages(hotelSubject) : Promise.resolve([]),
     imageSearchConfigured() || preferXhs || platforms.length || autoDiscovery
       ? searchWebPageImages(platformKw || q, platforms.length ? platforms : AUTO_DISCOVERY_PLATFORMS)
       : Promise.resolve([]),
@@ -288,6 +305,7 @@ export async function collectImageCandidates(query, opts = {}) {
           preferXhs,
           platforms,
           intentType: opts.intentType,
+          subject: opts.subject || q,
         }),
       });
     }
@@ -333,6 +351,15 @@ async function fetchBestUnverifiedImage(ordered, opts = {}) {
   return null;
 }
 
+function shouldEnforceTitleMatch(opts = {}) {
+  const intent = opts.intentType || "general";
+  if (intent === "poster" || intent === "logo" || intent === "materials") return true;
+  const subject = String(opts.subject || opts.query || "");
+  if (isHotelLikeSubject(subject) || isStoreLikeSubject(subject)) return true;
+  if (/ktv|KTV|酒吧|餐厅|咖啡|奶茶|门店|店/i.test(subject)) return true;
+  return false;
+}
+
 function isLikelyLowQuality(buffer, meta = {}, opts = {}) {
   const minBytes = opts.intentType === "logo" ? 8_000 : 20_000;
   if (!buffer || buffer.length < minBytes) return true;
@@ -340,7 +367,14 @@ function isLikelyLowQuality(buffer, meta = {}, opts = {}) {
   if (/微信图标|wechat\s*icon|app\s*icon|favicon|platform\s*logo|logo\s*icon/.test(hay)) return true;
   if (/排行榜|榜单|商品列表|商城截图/.test(hay)) return true;
   const subject = opts.subject || opts.query || "";
-  if (subject && meta.title && !titleMatchesSubject(meta.title, subject)) return true;
+  if (subject && meta.title && !titleMatchesSubject(meta.title, subject)) {
+    if (shouldEnforceTitleMatch(opts)) {
+      if (!isHotelLikeSubject(subject)) return true;
+      const { primary } = coreSubjectTokens(subject);
+      const hay = `${meta.title || ""}`.toLowerCase();
+      if (primary && primary.length >= 4 && !hay.includes(primary.slice(0, 4).toLowerCase())) return true;
+    }
+  }
   const rejects = Array.isArray(opts.rejectHints) ? opts.rejectHints : [];
   for (const hint of rejects) {
     const h = String(hint || "").trim().toLowerCase();
@@ -349,99 +383,143 @@ function isLikelyLowQuality(buffer, meta = {}, opts = {}) {
   return false;
 }
 
+const BATCH_FETCH_CONCURRENCY = 4;
+
+async function tryFetchOneCandidate(item, q, opts, verify, brief, query) {
+  try {
+    const fetched = await fetchRemoteImage(item.url);
+    if (isLikelyLowQuality(fetched.buffer, item, opts)) return null;
+    if (verify && brief) {
+      const check = await verifyImageAgainstBrief({
+        buffer: fetched.buffer,
+        contentType: fetched.contentType,
+        brief,
+        query: opts.subject || query,
+        platformMeta: item,
+      });
+      if (!check.match) return null;
+    }
+    return {
+      ...fetched,
+      title: item.title || q,
+      sourceUrl: item.pageUrl || item.url,
+      verified: Boolean(verify && brief),
+      _key: item.url.split("?")[0],
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchCandidatesInParallel(entries, maxImages, opts, verify, brief, query) {
+  const results = [];
+  const seen = new Set();
+  for (let i = 0; i < entries.length && results.length < maxImages; i += BATCH_FETCH_CONCURRENCY) {
+    const chunk = entries.slice(i, i + BATCH_FETCH_CONCURRENCY);
+    const settled = await Promise.all(
+      chunk.map(({ item, q }) => tryFetchOneCandidate(item, q, opts, verify, brief, query)),
+    );
+    for (const row of settled) {
+      if (!row || seen.has(row._key)) continue;
+      seen.add(row._key);
+      const { _key, ...rest } = row;
+      results.push(rest);
+      if (results.length >= maxImages) break;
+    }
+  }
+  return results;
+}
+
+function variantLimitForIntent(intentType) {
+  return intentType === "general" ? 3 : 8;
+}
+
+async function gatherCandidateEntries(uniqueVariants, opts, maxImages, intentType) {
+  const seen = new Set();
+  const entries = [];
+  const limit = variantLimitForIntent(intentType);
+  const targetCount = maxImages * 2;
+  for (const q of uniqueVariants.slice(0, limit)) {
+    if (entries.length >= targetCount) break;
+    const candidates = await collectImageCandidates(q, {
+      ...opts,
+      maxCandidates: Math.max(maxImages * 2, 8),
+    });
+    const ordered = orderCandidatesForVerify(candidates, true);
+    const strong = ordered.filter((item) => (item.score || 0) >= 6).length;
+    for (const item of ordered) {
+      const key = item.url.split("?")[0];
+      if (seen.has(key)) continue;
+      seen.add(key);
+      entries.push({ item, q });
+      if (entries.length >= maxImages * 3) return entries;
+    }
+    // 首个 variant 已有足够高分候选时提前结束，减少串行 API 调用
+    if (entries.length >= targetCount && strong >= maxImages) break;
+  }
+  return entries;
+}
+
 /**
  * 批量检索并校验图片（用于素材包）
  */
 export async function findVerifiedImageBatch(query, opts = {}) {
   const maxImages = resolveMaxImages(opts);
+  const intentType = opts.intentType || "materials";
   const variants = expandImageSearchVariants(query, opts);
   const uniqueVariants = [...new Set(variants.map((q) => String(q).trim()).filter(Boolean))];
 
-  const verify = opts.verify !== false && mediaVerifyEnabled();
-  const brief = verify
-    ? await buildMediaVerifyBrief(query, "image", { intentType: opts.intentType || "materials" })
-    : null;
-
-  const seen = new Set();
-  const results = [];
-  let lastVerifyReason = null;
-
-  for (const q of uniqueVariants) {
-    if (results.length >= maxImages) break;
-    const candidates = await collectImageCandidates(q, {
-      ...opts,
-      maxCandidates: 20,
-    });
-    const ordered = orderCandidatesForVerify(candidates, true);
-
-    for (const item of ordered) {
-      if (results.length >= maxImages) break;
-      const key = item.url.split("?")[0];
-      if (seen.has(key)) continue;
-
-      try {
-        const fetched = await fetchRemoteImage(item.url);
-        if (isLikelyLowQuality(fetched.buffer, item, opts)) continue;
-
-        if (verify && brief) {
-          const check = await verifyImageAgainstBrief({
-            buffer: fetched.buffer,
-            contentType: fetched.contentType,
-            brief,
-            query: opts.subject || query,
-            platformMeta: item,
-          });
-          if (!check.match) {
-            lastVerifyReason = check.reason;
-            continue;
-          }
-        }
-
-        seen.add(key);
-        results.push({
-          ...fetched,
-          title: item.title || q,
-          sourceUrl: item.pageUrl || item.url,
-          verified: Boolean(verify && brief),
-        });
-      } catch {
-        // try next candidate
-      }
+  let verify = opts.verify !== false && mediaVerifyEnabled() && intentType !== "general";
+  let brief = null;
+  if (verify) {
+    try {
+      brief = await buildMediaVerifyBrief(query, "image", { intentType });
+    } catch {
+      verify = false;
     }
   }
 
+  let results = await fetchCandidatesInParallel(
+    await gatherCandidateEntries(uniqueVariants, opts, maxImages, intentType),
+    maxImages,
+    opts,
+    verify,
+    brief,
+    query,
+  );
+
   if (!results.length) {
-    for (const q of uniqueVariants) {
-      if (results.length >= maxImages) break;
-      const candidates = await collectImageCandidates(q, {
+    const relaxedEntries = await gatherCandidateEntries(
+      uniqueVariants,
+      { ...opts, intentType: "general", rejectHints: [] },
+      maxImages,
+      "general",
+    );
+    results = await fetchCandidatesInParallel(
+      relaxedEntries,
+      maxImages,
+      { ...opts, intentType: "general", rejectHints: [] },
+      false,
+      null,
+      query,
+    );
+  }
+
+  if (!results.length) {
+    try {
+      const one = await findAndFetchImage(query, {
         ...opts,
-        maxCandidates: 20,
+        verify: false,
+        intentType: "general",
       });
-      const ordered = orderCandidatesForVerify(candidates, true);
-
-      for (const item of ordered) {
-        if (results.length >= maxImages) break;
-        const key = item.url.split("?")[0];
-        if (seen.has(key)) continue;
-        try {
-          const fetched = await fetchRemoteImage(item.url);
-          if (isLikelyLowQuality(fetched.buffer, item, opts)) continue;
-          seen.add(key);
-          results.push({
-            ...fetched,
-            title: item.title || q,
-            sourceUrl: item.pageUrl || item.url,
-            verified: false,
-          });
-        } catch {
-          // try next candidate
-        }
-      }
+      results = [one];
+    } catch {
+      // fall through
     }
   }
 
   if (!results.length) {
-    throw new HttpError(422, lastVerifyReason || "NO_VERIFIED_IMAGES");
+    throw new HttpError(404, "NO_IMAGE_CANDIDATES");
   }
 
   return results;
@@ -462,7 +540,7 @@ function imageFetchHeaders(url) {
 
 export async function fetchRemoteImage(url) {
   const safe = await assertPublicHttpUrlResolved(url);
-  const res = await fetch(safe, {
+  const res = await fetchWithProxyFallback(safe, {
     headers: imageFetchHeaders(safe),
     redirect: "follow",
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -506,10 +584,15 @@ async function findAndFetchImageOnce(query, opts = {}) {
     throw new HttpError(404, "NO_IMAGE_CANDIDATES");
   }
 
-  const verify = opts.verify !== false && mediaVerifyEnabled();
-  const brief = verify
-    ? await buildMediaVerifyBrief(query, "image", { intentType: opts.intentType })
-    : null;
+  let verify = opts.verify !== false && mediaVerifyEnabled();
+  let brief = null;
+  if (verify) {
+    try {
+      brief = await buildMediaVerifyBrief(query, "image", { intentType: opts.intentType });
+    } catch {
+      verify = false;
+    }
+  }
   const ordered = orderCandidatesForVerify(candidates, true);
 
   let lastError = null;
@@ -553,6 +636,17 @@ async function findAndFetchImageOnce(query, opts = {}) {
   if (verify && brief) {
     const fallback = await fetchBestUnverifiedImage(ordered, { ...opts, query });
     if (fallback) return fallback;
+  }
+
+  const relaxed = await fetchBestUnverifiedImage(ordered, {
+    ...opts,
+    query,
+    intentType: "general",
+    rejectHints: [],
+  });
+  if (relaxed) return relaxed;
+
+  if (verify && brief) {
     throw new HttpError(422, lastVerifyReason || "VERIFY_FAILED");
   }
 
@@ -577,6 +671,20 @@ export async function findAndFetchImage(query, opts = {}) {
       if (e instanceof HttpError && e.statusCode === 404) continue;
       if (e instanceof HttpError && e.statusCode === 422) continue;
       throw e;
+    }
+  }
+
+  const core = stripImageSearchNoise(opts.subject || cleaned || query);
+  if (core && core !== cleaned) {
+    try {
+      return await findAndFetchImageOnce(core, {
+        ...opts,
+        subject: core,
+        verify: false,
+        queryVariants: buildHotelEnglishVariants(core),
+      });
+    } catch {
+      /* fall through */
     }
   }
 

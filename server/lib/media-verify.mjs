@@ -5,6 +5,15 @@ import { env } from "./env.mjs";
 import { searchWeb, getWebSearchCapabilities } from "./web-search.mjs";
 import { photoVisionConfigured } from "./photo-vision.mjs";
 import { parseJsonBlock } from "./parse-json-block.mjs";
+import { formatImageNotFound } from "../../shared/public-error.mjs";
+import { DEFAULT_IMAGE_REJECT_HINTS } from "./image-search-query.mjs";
+import {
+  extractSearchKeywords,
+  isStoreLikeSubject,
+  matchedSearchKeywords,
+  textMatchesSearchKeywords,
+  titleMatchesSubject,
+} from "./image-search-query.mjs";
 
 const PLATFORM_RE =
   /xiaohongshu|xhscdn|douyin|iesdouyin|douyinvod|douyinstatic|douyinpic|snssdk|amemv|taobao|tmall|alicdn|meituan|mp\.weixin|mmbiz\.qpic|wx\.qlogo/i;
@@ -32,15 +41,6 @@ function tokenize(text) {
  * @param {string} query
  * @param {'image'|'video'} mediaType
  */
-const DEFAULT_IMAGE_REJECT = [
-  "排行榜截图",
-  "榜单截图",
-  "商品列表页",
-  "商城界面截图",
-  "APP界面截图",
-  "多商品合集拼图",
-];
-
 export async function buildMediaVerifyBrief(query, mediaType = "image", opts = {}) {
   const q = String(query || "").trim();
   if (!q) throw new HttpError(400, "缺少检索关键词");
@@ -53,21 +53,50 @@ export async function buildMediaVerifyBrief(query, mediaType = "image", opts = {
       keywords: tokenize(q),
       expectedDescription: q,
       referenceTitles: [],
-      rejectHints: intentType === "poster" ? [...DEFAULT_IMAGE_REJECT] : [],
+      rejectHints: intentType === "poster" ? [...DEFAULT_IMAGE_REJECT_HINTS] : [],
       intentType,
       searchSummary: "",
       source: "query-only",
     };
   }
 
-  const searchPayload = await searchWeb(q, { depth: "advanced", maxResults: 8 });
+  // 普通找图（地标/风景等）不做 LLM 摘要，避免敏感检索摘要触发模型拒答
+  if (mediaType === "image" && intentType === "general") {
+    return {
+      subject: q,
+      keywords: tokenize(q),
+      expectedDescription: q,
+      referenceTitles: [],
+      rejectHints: [],
+      intentType,
+      searchSummary: "",
+      source: "general-query",
+    };
+  }
+
+  let searchPayload = { answer: "", results: [] };
+  try {
+    searchPayload = await searchWeb(q, { depth: "advanced", maxResults: 8 });
+  } catch {
+    return {
+      subject: q,
+      keywords: tokenize(q),
+      expectedDescription: q,
+      referenceTitles: [],
+      rejectHints: intentType === "poster" ? [...DEFAULT_IMAGE_REJECT_HINTS] : [],
+      intentType,
+      searchSummary: "",
+      source: "query-only",
+    };
+  }
+
   if (!chatConfig) {
     return {
       subject: q,
       keywords: tokenize(q),
       expectedDescription: searchPayload.answer || q,
       referenceTitles: (searchPayload.results || []).map((r) => r.title).slice(0, 6),
-      rejectHints: intentType === "poster" ? [...DEFAULT_IMAGE_REJECT] : [],
+      rejectHints: intentType === "poster" ? [...DEFAULT_IMAGE_REJECT_HINTS] : [],
       intentType,
       searchSummary: searchPayload.answer || "",
       source: "search-only",
@@ -95,34 +124,33 @@ export async function buildMediaVerifyBrief(query, mediaType = "image", opts = {
           ? "用户在找某主题的高清宣传配图素材（可能来自微信/抖音/小红书），请总结主题名称、画面元素、风格。subject 只用用户检索词中的核心品牌/产品名，不要臆造公司全称或业务细节。rejectHints 必须包含：微信图标、平台logo、模糊低清、无关截图。"
           : "用户在找图片，请总结画面主体、品牌/人物/物体、风格。subject 保持检索词核心名即可，不要补充未在检索结果出现的公司全称、授权、系统型号等细节。";
 
-  const completion = await client.chat.completions.create({
-    model: chatConfig.model,
-    messages: [
-      {
-        role: "system",
-        content: `你是媒体内容校验助手。根据全网检索结果，提炼用户要找的${mediaType === "video" ? "视频" : "图片"}「预期内容」。
-只输出 JSON，不要其它文字：
-{"subject":"一句话主体","keywords":["词1","词2"],"expectedDescription":"2-4句描述","referenceTitles":["标题"],"rejectHints":["应排除的内容"]}`,
-      },
-      {
-        role: "user",
-        content: `${typeHint}\n用户检索词：${q}\n\n搜索引擎摘要：${searchPayload.answer || "无"}\n\n检索来源：\n${sources || "无"}`,
-      },
-    ],
-    temperature: 0.2,
-    max_tokens: 800,
-  });
-
-  const text = completion.choices?.[0]?.message?.content?.trim();
   let parsed;
   try {
+    const completion = await client.chat.completions.create({
+      model: chatConfig.model,
+      messages: [
+        {
+          role: "system",
+          content: `你是媒体内容校验助手。根据全网检索结果，提炼用户要找的${mediaType === "video" ? "视频" : "图片"}「预期内容」。
+只输出 JSON，不要其它文字：
+{"subject":"一句话主体","keywords":["词1","词2"],"expectedDescription":"2-4句描述","referenceTitles":["标题"],"rejectHints":["应排除的内容"]}`,
+        },
+        {
+          role: "user",
+          content: `${typeHint}\n用户检索词：${q}\n\n搜索引擎摘要：${searchPayload.answer || "无"}\n\n检索来源：\n${sources || "无"}`,
+        },
+      ],
+      temperature: 0.2,
+      max_tokens: 800,
+    });
+    const text = completion.choices?.[0]?.message?.content?.trim();
     parsed = parseJsonBlock(text || "{}");
   } catch {
     parsed = {
       subject: q,
       keywords: tokenize(q),
-      expectedDescription: searchPayload.answer || q,
-      referenceTitles: [],
+      expectedDescription: q,
+      referenceTitles: (searchPayload.results || []).map((r) => r.title).slice(0, 6),
       rejectHints: [],
     };
   }
@@ -140,7 +168,7 @@ export async function buildMediaVerifyBrief(query, mediaType = "image", opts = {
     referenceTitles: Array.isArray(parsed.referenceTitles)
       ? parsed.referenceTitles.map((t) => String(t).trim()).filter(Boolean)
       : [],
-    rejectHints: [...new Set([...rejectHints, ...(intentType === "poster" ? DEFAULT_IMAGE_REJECT : [])])],
+    rejectHints: [...new Set([...rejectHints, ...(intentType === "poster" ? DEFAULT_IMAGE_REJECT_HINTS : [])])],
     intentType,
     searchSummary: searchPayload.answer || "",
     source: "llm-search",
@@ -357,8 +385,12 @@ export async function verifyVideoAgainstBrief(videoMeta, brief, query) {
 }
 
 export function formatVerifyFailedReply(query, mediaType = "image", reason = "", opts = {}) {
+  const code = String(reason || "").trim();
+  if (code === "NO_VERIFIED_IMAGES" || code === "VERIFY_FAILED") {
+    return formatImageNotFound(query);
+  }
   const label = mediaType === "video" ? "视频" : "图片";
-  const detail = String(reason || "").trim();
+  const detail = code;
   const reasonLine = detail && detail !== "VERIFY_FAILED" ? `\n\n原因：${detail}` : "";
   const intentType = opts.intentType || "general";
   const posterHint =
@@ -371,4 +403,147 @@ export function formatVerifyFailedReply(query, mediaType = "image", reason = "",
 - 换个更具体的关键词（如「${query || "品牌名"} 官方宣传图」）
 - 直接粘贴${label}链接
 - 说明要小红书或抖音来源`;
+}
+
+async function judgeWebSearchImageWithVision(dataUrl, query, keywords, platformMeta = {}) {
+  const cfg = resolveArkVisionConfig();
+  if (!cfg) return null;
+
+  const keywordLine = keywords.length ? keywords.join("、") : query;
+  const storeHint = isStoreLikeSubject(query)
+    ? "\n若搜索词为「品牌+咖啡店/门店」形式，画面中出现该品牌 logo、门店外观、店内环境或相关产品，即 match=true。detectedKeywords 须写出品牌中文名或英文（如 Starbucks）。"
+    : "";
+  const response = await fetch(`${cfg.baseURL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${cfg.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: cfg.model,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: dataUrl } },
+            {
+              type: "text",
+              text: `用户搜索关键词：${query}
+核心关键词：${keywordLine}
+
+请识别图片中的文字、商标、地标、人物、物体与场景，判断画面内容是否与上述搜索关键词一致或高度相关。
+若是排行榜截图、商品列表、无关广告拼图 → match=false。${storeHint}
+
+只输出 JSON：
+{"detectedKeywords":["图中识别到的关键词"],"match":true|false,"reason":"一句话说明"}`,
+            },
+          ],
+        },
+      ],
+      max_tokens: 280,
+      temperature: 0.1,
+    }),
+    signal: AbortSignal.timeout(60000),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) return null;
+  try {
+    const parsed = parseJsonBlock(data?.choices?.[0]?.message?.content || "{}");
+    const detected = Array.isArray(parsed.detectedKeywords)
+      ? parsed.detectedKeywords.map((k) => String(k).trim()).filter(Boolean)
+      : [];
+    const detectedText = detected.join(" ");
+    const keywordHit = textMatchesSearchKeywords(
+      [detectedText, String(parsed.reason || "")].filter(Boolean).join(" "),
+      query,
+    );
+    const match =
+      Boolean(parsed.match) &&
+      (keywordHit || (isStoreLikeSubject(query) && Boolean(parsed.match) && detected.length > 0));
+    return {
+      match,
+      reason: String(parsed.reason || "").trim() || (match ? "画面与检索词一致" : "画面与检索词不符"),
+      detectedKeywords: detected.length ? detected : matchedSearchKeywords(detectedText, query),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 全网图片搜索：识别画面内容，仅在与检索关键词一致时通过
+ * @param {{ buffer: Buffer, contentType: string, query: string, platformMeta?: object }} args
+ */
+export async function verifyImageForWebSearch({ buffer, contentType, query, platformMeta = {} }) {
+  const { core, primary, keywords } = extractSearchKeywords(query);
+  if (!core) return { match: false, reason: "缺少检索词", detectedKeywords: [] };
+
+  const titleHay = `${platformMeta.title || ""} ${platformMeta.pageUrl || ""}`;
+  if (
+    primary.length >= 2 &&
+    !titleMatchesSubject(platformMeta.title || "", core) &&
+    !textMatchesSearchKeywords(titleHay, core)
+  ) {
+    return { match: false, reason: "来源标题与检索词不符", detectedKeywords: [] };
+  }
+
+  const b64 = buffer.toString("base64");
+  const mime = contentType || "image/png";
+  const dataUrl = `data:${mime};base64,${b64}`;
+
+  if (photoVisionConfigured()) {
+    const vision = await judgeWebSearchImageWithVision(dataUrl, core, keywords, platformMeta);
+    if (vision) return vision;
+  }
+
+  if (textMatchesSearchKeywords(titleHay, core)) {
+    return {
+      match: true,
+      reason: "标题与检索关键词一致",
+      detectedKeywords: matchedSearchKeywords(titleHay, core),
+    };
+  }
+
+  return { match: false, reason: "未识别到与检索词一致的内容", detectedKeywords: [] };
+}
+
+/**
+ * 全网视频搜索：标题/封面与检索关键词一致时通过
+ * @param {{ query: string, title?: string, snippet?: string, thumbnailBuffer?: Buffer, thumbnailContentType?: string }} args
+ */
+export async function verifyVideoCandidateForWebSearch({
+  query,
+  title = "",
+  snippet = "",
+  thumbnailBuffer,
+  thumbnailContentType,
+}) {
+  const { core, keywords } = extractSearchKeywords(query);
+  if (!core) return { match: false, reason: "缺少检索词", detectedKeywords: [] };
+
+  const textHay = `${title} ${snippet}`;
+  if (!textMatchesSearchKeywords(textHay, core)) {
+    return { match: false, reason: "标题与检索词不符", detectedKeywords: [] };
+  }
+
+  if (thumbnailBuffer?.length && photoVisionConfigured()) {
+    const mime = thumbnailContentType || "image/jpeg";
+    const dataUrl = `data:${mime};base64,${thumbnailBuffer.toString("base64")}`;
+    const vision = await judgeWebSearchImageWithVision(dataUrl, core, keywords, { title });
+    if (vision) {
+      return {
+        ...vision,
+        detectedKeywords: vision.detectedKeywords?.length
+          ? vision.detectedKeywords
+          : matchedSearchKeywords(textHay, core),
+      };
+    }
+  }
+
+  return {
+    match: true,
+    reason: "标题与检索关键词一致",
+    detectedKeywords: matchedSearchKeywords(textHay, core),
+  };
 }

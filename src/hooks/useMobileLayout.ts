@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 const MOBILE_QUERY = "(max-width: 1023px)";
-const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
+export const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
 
 /** 服务端与首屏：移动端默认收起侧边栏 */
 export function readInitialSidebarCollapsed(): boolean {

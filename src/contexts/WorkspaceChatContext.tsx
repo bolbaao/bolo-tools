@@ -82,6 +82,65 @@ function newId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** 从某条消息定位其所属对话段（用户一问 + 后续助手回复），返回该段全部 id */
+function turnMessageIds(messages: ChatMessage[], id: string): string[] {
+  const index = messages.findIndex((m) => m.id === id);
+  if (index === -1) return [];
+
+  let start = index;
+  while (start > 0 && messages[start].role !== "user") start -= 1;
+  if (messages[start].role !== "user") return [id];
+
+  let end = start + 1;
+  while (end < messages.length && messages[end].role !== "user") end += 1;
+  return messages.slice(start, end).map((m) => m.id);
+}
+
+const CHAT_STORAGE_KEY = "workspace-chat-messages";
+const CHAT_STORAGE_MAX = 80;
+
+type StoredChatMessage = Omit<ChatMessage, "attachments"> & {
+  attachments?: Omit<ChatMessageAttachment, "previewUrl">[];
+};
+
+function loadStoredMessages(): ChatMessage[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as StoredChatMessage[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+      .slice(-CHAT_STORAGE_MAX)
+      .map((m) => ({
+        id: m.id || newId(),
+        role: m.role,
+        content: m.content,
+        attachments: m.attachments?.map((a) => ({ ...a, previewUrl: undefined })),
+        agentAction: m.agentAction ?? null,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredMessages(messages: ChatMessage[]) {
+  if (typeof window === "undefined") return;
+  try {
+    const trimmed = messages.slice(-CHAT_STORAGE_MAX).map((m) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      attachments: m.attachments?.map(({ previewUrl: _p, ...rest }) => rest),
+      agentAction: m.agentAction ?? null,
+    }));
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(trimmed));
+  } catch {
+    /* quota exceeded — ignore */
+  }
+}
+
 const isToolPath = isToolPathname;
 
 const BACK_EXIT_MS = 320;
@@ -99,7 +158,7 @@ function backTransitionDelay(kind: "exit" | "enter") {
 export function WorkspaceChatProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadStoredMessages());
   const [caps, setCaps] = useState<Capabilities | null>(null);
   const [backChatTransition, setBackChatTransition] = useState(false);
   const [toolPageExiting, setToolPageExiting] = useState(false);
@@ -108,6 +167,10 @@ export function WorkspaceChatProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<PendingChatFile[]>([]);
+
+  useEffect(() => {
+    saveStoredMessages(messages);
+  }, [messages]);
 
   useEffect(() => {
     if (isToolPath(pathname)) {
@@ -143,10 +206,20 @@ export function WorkspaceChatProvider({ children }: { children: ReactNode }) {
   const clearMessages = useCallback(() => {
     setMessages([]);
     setError(null);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(CHAT_STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
   }, []);
 
   const deleteMessage = useCallback((id: string) => {
-    setMessages((prev) => prev.filter((m) => m.id !== id));
+    setMessages((prev) => {
+      const remove = new Set(turnMessageIds(prev, id));
+      return prev.filter((m) => !remove.has(m.id));
+    });
   }, []);
 
   const backToChat = useCallback(() => {
@@ -265,7 +338,7 @@ export function WorkspaceChatProvider({ children }: { children: ReactNode }) {
           form.append("files", item.file, item.file.name);
         }
 
-        const raw = await apiUpload("/api/chat", form, { timeoutMs: 180000 });
+        const raw = await apiUpload("/api/chat", form, { timeoutMs: 360000 });
         if (raw instanceof Blob) {
           throw new ApiError("服务返回异常");
         }

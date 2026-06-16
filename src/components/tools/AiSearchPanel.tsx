@@ -12,6 +12,10 @@ type SearchResult = {
   score?: number;
   platform?: string;
   platformLabel?: string;
+  imageUrl?: string;
+  thumbnailUrl?: string;
+  duration?: string;
+  channel?: string;
 };
 
 type SearchResponse = {
@@ -25,15 +29,54 @@ type SearchResponse = {
   summary: string | null;
   synthesized: boolean;
   results: SearchResult[];
+  forceChinese?: boolean;
 };
+
+const PREFER_CHINESE_KEY = "ai-search-prefer-chinese";
+
+function readPreferChinese() {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(PREFER_CHINESE_KEY) !== "0";
+}
+
+function resolveForceChinese(mode: SearchMode, preferChinese: boolean) {
+  if (mode === "multilingual") return false;
+  return preferChinese;
+}
 
 type Capabilities = {
   ok: boolean;
   tavily: boolean;
   serper: boolean;
   available: boolean;
+  imageSearch?: boolean;
+  videoSearch?: boolean;
   aiSynthesis: boolean;
 };
+
+function isModeReady(mode: SearchMode, caps: Capabilities | null) {
+  if (!caps) return false;
+  if (mode === "images") return Boolean(caps.imageSearch ?? caps.available);
+  if (mode === "videos") return Boolean(caps.videoSearch ?? caps.available);
+  return caps.available;
+}
+
+function modeUnavailableMessage(mode: SearchMode) {
+  if (mode === "images") return "图片搜索暂不可用，请稍后再试。如需开通请联系客服。";
+  if (mode === "videos") return "视频搜索暂不可用，请稍后再试。如需开通请联系客服。";
+  return AI_SERVICE_UNAVAILABLE;
+}
+
+function showsLanguagePrefs(mode: SearchMode) {
+  return mode !== "media" && mode !== "images" && mode !== "videos";
+}
+
+function searchPlaceholder(mode: SearchMode) {
+  if (mode === "images") return "描述你想找的图片，如：西湖日落、咖啡店门头…";
+  if (mode === "videos") return "输入视频主题或片名，如：达芬奇调色教程、流浪地球…";
+  if (mode === "media") return "输入关键词，在抖音、小红书、公众号中检索…";
+  return "输入你想查询的问题…";
+}
 
 type HotTopic = {
   title: string;
@@ -41,7 +84,7 @@ type HotTopic = {
   tag: string;
 };
 
-type SearchMode = "quick" | "deep" | "academic" | "news" | "multilingual" | "media";
+type SearchMode = "quick" | "deep" | "academic" | "news" | "multilingual" | "media" | "web" | "images" | "videos";
 
 type MediaPlatformId = "douyin" | "xiaohongshu" | "wechat";
 
@@ -100,6 +143,27 @@ const EXPLORE_MODES: {
     tone: "rose",
     icon: "📱",
   },
+  {
+    id: "web",
+    title: "网页搜索",
+    desc: "检索全网网页、博客与文档，附来源链接",
+    tone: "indigo",
+    icon: "🌐",
+  },
+  {
+    id: "images",
+    title: "图片搜索",
+    desc: "全网检索图片，覆盖主流平台与网页配图",
+    tone: "fuchsia",
+    icon: "🖼",
+  },
+  {
+    id: "videos",
+    title: "视频搜索",
+    desc: "检索 B 站、抖音、YouTube 等全网视频",
+    tone: "orange",
+    icon: "🎬",
+  },
 ];
 
 function formatHotUpdatedAt(iso?: string) {
@@ -131,6 +195,7 @@ export default function AiSearchPanel() {
   const searchSeqRef = useRef(0);
   const [query, setQuery] = useState("");
   const [searchMode, setSearchMode] = useState<SearchMode>("deep");
+  const [preferChinese, setPreferChinese] = useState(true);
   const [mediaPlatforms, setMediaPlatforms] = useState<MediaPlatformId[]>([
     "douyin",
     "xiaohongshu",
@@ -147,7 +212,7 @@ export default function AiSearchPanel() {
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
 
-  const searchReady = serviceOnline === true && (caps?.available ?? false);
+  const searchReady = serviceOnline === true && isModeReady(searchMode, caps);
 
   const cancelSearch = useCallback(() => {
     searchAbortRef.current?.abort();
@@ -157,16 +222,21 @@ export default function AiSearchPanel() {
   const runSearch = useCallback(
     async (
       q?: string,
-      opts?: { mode?: SearchMode; forceChinese?: boolean; mediaPlatforms?: MediaPlatformId[] },
+      opts?: {
+        mode?: SearchMode;
+        forceChinese?: boolean;
+        mediaPlatforms?: MediaPlatformId[];
+      },
     ) => {
       const term = (q ?? query).trim();
       if (!term) return;
       if (!searchReady) {
+        const mode = opts?.mode ?? searchMode;
         setError(
           serviceOnline === false
             ? apiNotFoundMessage()
-            : caps && !caps.available
-              ? AI_SERVICE_UNAVAILABLE
+            : caps && !isModeReady(mode, caps)
+              ? modeUnavailableMessage(mode)
               : "搜索服务尚未就绪，请稍候",
         );
         return;
@@ -174,6 +244,7 @@ export default function AiSearchPanel() {
 
       const mode = opts?.mode ?? searchMode;
       const platforms = opts?.mediaPlatforms ?? mediaPlatforms;
+      const forceChinese = opts?.forceChinese ?? resolveForceChinese(mode, preferChinese);
       const seq = ++searchSeqRef.current;
 
       cancelSearch();
@@ -194,8 +265,8 @@ export default function AiSearchPanel() {
           {
             query: term,
             mode,
-            synthesize: true,
-            forceChinese: opts?.forceChinese ?? (mode === "news" || mode === "media"),
+            synthesize: mode !== "images" && mode !== "videos",
+            forceChinese,
             mediaPlatforms: mode === "media" ? platforms : undefined,
           },
           { timeoutMs: 120000, signal: controller.signal },
@@ -203,7 +274,13 @@ export default function AiSearchPanel() {
         if (seq !== searchSeqRef.current || controller.signal.aborted) return;
         setData(result);
         if (result.mode) setSearchMode(result.mode);
-        setSourcesExpanded(result.mode === "media" || result.results.length <= 5);
+        setSourcesExpanded(
+          result.mode === "media" ||
+            result.mode === "web" ||
+            result.mode === "images" ||
+            result.mode === "videos" ||
+            result.results.length <= 5,
+        );
       } catch (e) {
         if (controller.signal.aborted || seq !== searchSeqRef.current) return;
         const msg = e instanceof ApiError ? e.message : "搜索失败";
@@ -220,7 +297,21 @@ export default function AiSearchPanel() {
         }
       }
     },
-    [cancelSearch, caps, query, searchMode, searchReady, serviceOnline, mediaPlatforms],
+    [cancelSearch, caps, preferChinese, query, searchMode, searchReady, serviceOnline, mediaPlatforms],
+  );
+
+  const handlePreferChineseChange = useCallback(
+    (next: boolean) => {
+      setPreferChinese(next);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(PREFER_CHINESE_KEY, next ? "1" : "0");
+      }
+      const term = query.trim();
+      if (term && searchReady && showsLanguagePrefs(searchMode)) {
+        void runSearch(term, { forceChinese: resolveForceChinese(searchMode, next) });
+      }
+    },
+    [query, runSearch, searchMode, searchReady],
   );
 
   const handleModeChange = useCallback(
@@ -234,7 +325,10 @@ export default function AiSearchPanel() {
 
       const term = query.trim();
       if (term && searchReady) {
-        void runSearch(term, { mode });
+        void runSearch(term, {
+          mode,
+          forceChinese: resolveForceChinese(mode, preferChinese),
+        });
         return;
       }
 
@@ -244,7 +338,7 @@ export default function AiSearchPanel() {
         setShowLanding(true);
       }
     },
-    [cancelSearch, data, loading, query, runSearch, searchMode, searchReady],
+    [cancelSearch, data, loading, preferChinese, query, runSearch, searchMode, searchReady],
   );
 
   useAgentPrefill("ai-search", {
@@ -254,6 +348,10 @@ export default function AiSearchPanel() {
     canSubmit: (fields) => Boolean(fields.query?.trim()),
     submit: (fields) => runSearch(fields.query),
   });
+
+  useEffect(() => {
+    setPreferChinese(readPreferChinese());
+  }, []);
 
   useEffect(() => {
     apiGet<Capabilities>("/api/ai-search/capabilities", { timeoutMs: 15000 })
@@ -308,8 +406,8 @@ export default function AiSearchPanel() {
         </p>
       ) : null}
 
-      {serviceOnline === true && caps && !caps.available ? (
-        <p className="ai-search-alert ai-search-alert--warn">{AI_SERVICE_UNAVAILABLE}</p>
+      {serviceOnline === true && caps && !isModeReady(searchMode, caps) ? (
+        <p className="ai-search-alert ai-search-alert--warn">{modeUnavailableMessage(searchMode)}</p>
       ) : null}
 
       <section className="ai-search-hero-block">
@@ -342,6 +440,41 @@ export default function AiSearchPanel() {
           </div>
           <span className="ai-search-mode-desc">{activeMode.desc}</span>
         </div>
+
+        {showsLanguagePrefs(searchMode) ? (
+          <div className="ai-search-language-prefs">
+            <span className="ai-search-language-prefs-label">结果语言</span>
+            <div className="ai-search-language-prefs-row">
+              <button
+                type="button"
+                onClick={() => handlePreferChineseChange(true)}
+                disabled={searchMode === "multilingual" || loading}
+                className={`ai-search-language-chip${
+                  resolveForceChinese(searchMode, preferChinese)
+                    ? " ai-search-language-chip--active"
+                    : ""
+                }`}
+              >
+                优先中文网页
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePreferChineseChange(false)}
+                disabled={searchMode === "multilingual" || loading}
+                className={`ai-search-language-chip${
+                  !resolveForceChinese(searchMode, preferChinese)
+                    ? " ai-search-language-chip--active"
+                    : ""
+                }`}
+              >
+                不限语言
+              </button>
+            </div>
+            {searchMode === "multilingual" ? (
+              <span className="ai-search-language-prefs-hint">多语言模式默认不限语言</span>
+            ) : null}
+          </div>
+        ) : null}
 
         {searchMode === "media" ? (
           <div className="ai-search-media-platforms">
@@ -388,7 +521,7 @@ export default function AiSearchPanel() {
                 void runSearch();
               }
             }}
-            placeholder="输入你想查询的问题…"
+            placeholder={searchPlaceholder(searchMode)}
             className="ai-search-input"
           />
           <div className="ai-search-input-actions">
@@ -471,7 +604,12 @@ export default function AiSearchPanel() {
                     <button
                       key={item.title}
                       type="button"
-                      onClick={() => runSearch(item.title, { mode: "news", forceChinese: true })}
+                      onClick={() =>
+                        runSearch(item.title, {
+                          mode: "news",
+                          forceChinese: resolveForceChinese("news", preferChinese),
+                        })
+                      }
                       disabled={loading || !searchReady}
                       title={`${item.heat}${item.tag ? ` · ${item.tag}` : ""}`}
                       className="ai-search-hot-item"
@@ -544,7 +682,10 @@ export default function AiSearchPanel() {
                 {data.synthesized ? (
                   <span className="ai-search-result-badge">DeepSeek 整理</span>
                 ) : null}
-                <span className="ai-search-result-meta">{data.results.length} 条来源</span>
+                <span className="ai-search-result-meta">
+                  {data.results.length} 条来源
+                  {data.forceChinese ? " · 已优先中文网页" : " · 不限语言"}
+                </span>
               </div>
               <div className="ai-search-result-body">{data.summary}</div>
             </section>
@@ -588,7 +729,114 @@ export default function AiSearchPanel() {
             </section>
           ) : null}
 
-          {data.results.length > 0 && data.mode !== "media" ? (
+          {data.mode === "images" && data.results.length > 0 ? (
+            <section className="ai-search-image-results">
+              <h3 className="ai-search-result-title">
+                图片结果
+                <span className="ai-search-result-meta">{data.results.length} 张</span>
+              </h3>
+              <ul className="ai-search-image-grid">
+                {data.results.map((item, i) => (
+                  <li key={`${item.url}-${i}`} className="ai-search-image-card">
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ai-search-image-card-link"
+                    >
+                      {item.thumbnailUrl || item.imageUrl ? (
+                        <img
+                          src={item.thumbnailUrl || item.imageUrl}
+                          alt={item.title}
+                          className="ai-search-image-thumb"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="ai-search-image-thumb ai-search-image-thumb--placeholder">无预览</div>
+                      )}
+                      <div className="ai-search-image-card-body">
+                        {item.platformLabel ? (
+                          <span className="ai-search-source-platform">{item.platformLabel}</span>
+                        ) : null}
+                        <span className="ai-search-image-title">{item.title}</span>
+                      </div>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {data.mode === "videos" && data.results.length > 0 ? (
+            <section className="ai-search-video-results">
+              <h3 className="ai-search-result-title">
+                视频结果
+                <span className="ai-search-result-meta">{data.results.length} 条</span>
+              </h3>
+              <ul className="ai-search-video-results-list">
+                {data.results.map((item, i) => (
+                  <li key={`${item.url}-${i}`} className="ai-search-video-result-item">
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ai-search-video-thumb-wrap"
+                    >
+                      {item.thumbnailUrl ? (
+                        <img
+                          src={item.thumbnailUrl}
+                          alt={item.title}
+                          className="ai-search-video-thumb"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="ai-search-video-thumb ai-search-video-thumb--placeholder">▶</div>
+                      )}
+                      {item.duration ? (
+                        <span className="ai-search-video-duration">{item.duration}</span>
+                      ) : null}
+                    </a>
+                    <div className="min-w-0 flex-1">
+                      <div className="ai-search-media-result-head">
+                        {item.platformLabel ? (
+                          <span className="ai-search-source-platform">{item.platformLabel}</span>
+                        ) : null}
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ai-search-source-link"
+                        >
+                          {item.title}
+                        </a>
+                      </div>
+                      {item.channel ? (
+                        <p className="ai-search-video-channel">{item.channel}</p>
+                      ) : null}
+                      {item.snippet ? (
+                        <p className="ai-search-source-snippet">{item.snippet}</p>
+                      ) : null}
+                    </div>
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ai-search-open-link"
+                    >
+                      打开视频
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {data.results.length > 0 &&
+          data.mode !== "media" &&
+          data.mode !== "images" &&
+          data.mode !== "videos" ? (
             <section className="ai-search-sources">
               <button
                 type="button"
@@ -596,7 +844,7 @@ export default function AiSearchPanel() {
                 className="ai-search-sources-toggle"
               >
                 <h3 className="ai-search-result-title">
-                  来源链接
+                  {data.mode === "web" ? "网页结果" : "来源链接"}
                   <span className="ai-search-result-meta">{data.results.length} 条</span>
                 </h3>
                 <span className="ai-search-sources-chevron">{sourcesExpanded ? "收起 △" : "展开 ▽"}</span>

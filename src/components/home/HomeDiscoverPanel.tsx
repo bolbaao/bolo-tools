@@ -24,8 +24,7 @@ export default function HomeDiscoverPanel() {
         <div className="home-discover-logo" aria-hidden>
           ✦
         </div>
-        <h2 className="home-discover-title">有什么可以帮你的？</h2>
-        <p className="home-discover-greeting">{greeting}</p>
+        <h2 className="home-discover-title">{greeting}</h2>
       </div>
 
       <section className="home-discover-section">

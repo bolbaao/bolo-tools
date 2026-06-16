@@ -3,7 +3,9 @@
 import WorkspaceChatPanel from "@/components/workspace/WorkspaceChatPanel";
 import WorkspaceDialogChat from "@/components/workspace/WorkspaceDialogChat";
 import { useOptionalWorkspaceChat } from "@/contexts/WorkspaceChatContext";
+import { pickRandomGreeting } from "@/lib/chat-greetings";
 import { usePathname } from "next/navigation";
+import { useMemo } from "react";
 
 type Props = {
   children?: React.ReactNode;
@@ -26,6 +28,7 @@ export default function WorkspaceFrame({
   const pathname = usePathname();
   const isHome = pathname === "/";
   const isToolRoute = pathname.startsWith("/tools/");
+  const homeGreeting = useMemo(() => pickRandomGreeting(), []);
   const showChat = Boolean(chatCtx && isHome);
   const showToolHeader = header && !showChat;
   const dialogExpanded = chatCtx?.dialogExpanded ?? true;
@@ -85,7 +88,7 @@ export default function WorkspaceFrame({
                 </span>
                 <span className="workspace-dialog-collapsed-text">
                   <span className="workspace-dialog-collapsed-title">
-                    {isToolRoute ? "需要 AI 协助？" : "有什么可以帮你的？"}
+                    {isToolRoute ? "需要 AI 协助？" : homeGreeting}
                   </span>
                   <span className="workspace-dialog-collapsed-desc">
                     {isToolRoute ? "随时向我提问，我会尽力为你解答" : "点击展开，开始对话"}

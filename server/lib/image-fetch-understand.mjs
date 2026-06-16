@@ -4,11 +4,11 @@ import { env } from "./env.mjs";
 import {
   buildGeneralSearchVariants,
   stripImageSearchNoise,
+  wantsImageZipBundle,
+  resolveImageFetchCount,
+  DIRECT_IMAGE_URL_RE,
 } from "./image-search-query.mjs";
 import { parseJsonBlock } from "./parse-json-block.mjs";
-
-const DIRECT_IMAGE_URL_RE =
-  /https?:\/\/\S+\.(?:png|jpe?g|webp|gif)(?:\?\S*)?/i;
 
 const IMAGE_HINT_RE =
   /(?:图|照|海报|宣传|封面|头像|配图|logo|标志|商标|图标|icon|主视觉|kv|小红书|xiaohongshu|xhs)/i;
@@ -41,14 +41,6 @@ function normalizeIntentType(value) {
   if (t === "logo" || /logo|标志|商标|图标/.test(t)) return "logo";
   if (t === "materials" || /素材|配图集|图包/.test(t)) return "materials";
   return "general";
-}
-
-function normalizeFetchMode(value, msg) {
-  const m = String(value || "").trim().toLowerCase();
-  if (m === "collection" || /压缩包|打包|多张|一批|整理成|素材包|图包/.test(msg)) {
-    return "collection";
-  }
-  return "single";
 }
 
 function normalizePlatforms(arr) {
@@ -162,15 +154,15 @@ export async function understandImageFetchRequest(userMessage, history = []) {
 规则：
 1. 先理解用户真实意图，再结合上下文补全省略的主体（如「就上面那个」「同款海报」）
 2. needsImageFetch=true 当用户要获取/展示/下载图片或素材包，不是要 AI 画新图、不是要纯文字介绍
-3. fetchMode：single=单张图；collection=多张高清图并打包（用户说压缩包/整理/一批/素材包）
+3. fetchMode：固定为 collection（返回多张预览）；用户说压缩包/素材包时再打包下载
 4. subject=核心主题（如「唱无界KTV」），不要把平台名（微信/抖音/小红书/淘宝/美团）当成 subject；用户说「X的图片/照片」时 subject 就是 X
 5. intentType：poster=海报；logo=标志；materials=运营配图/宣传素材集；general=其它（含门店/KTV/品牌相关图）
-6. searchQuery 用中文，写「主体+画面类型」，如「唱无界KTV 门店」「唱无界 宣传海报」。禁止在 searchQuery 里写「图片」「照片」「高清」——图搜引擎不需要这些词
+6. searchQuery 用中文。用户只说「X的图片/照片」时，searchQuery 就是 X（如「南京滨江希尔顿」），不要擅自加「酒店外观」「门店环境」等用户没提到的词；只有用户明确要外观/大堂/客房时才加画面类型
 7. platforms 从用户话里提取：wechat/douyin/xiaohongshu/taobao/meituan，用于生成备选搜索词
 8. searchVariants 给 3-5 个备选，必须带 subject，可含 logo/门店/宣传/官方 等，禁止只搜平台名
 9. rejectHints：平台图标、微信图标、模糊低清、无关截图、排行榜；用户说质量差不要则加「低清晰度」「模糊」
-10. maxImages：collection 时按用户需要填写，未说明则 20；single 时 1
-11. bundleZip：collection 且用户要压缩包时为 true
+10. maxImages：未说明张数时填 4；用户说「几张/一些」填 4，「多张/一批」填 6，明确数字按数字；压缩包/素材包填 20
+11. bundleZip：仅当用户明确要压缩包/打包时为 true
 12. preferXiaohongshu 仅当用户明确只要小红书
 13. 闲聊、问知识、要写文章 → needsImageFetch=false
 
@@ -200,7 +192,7 @@ export async function understandImageFetchRequest(userMessage, history = []) {
   if (!searchQuery && subject) searchQuery = subject;
   if (!searchQuery) return null;
 
-  const fetchMode = normalizeFetchMode(parsed.fetchMode, msg);
+  const wantsZip = wantsImageZipBundle(msg);
   const intentType = normalizeIntentType(parsed.intentType);
   const platforms = normalizePlatforms(parsed.platforms);
   const platformVariants = buildPlatformVariants(subject || searchQuery, platforms);
@@ -211,13 +203,15 @@ export async function understandImageFetchRequest(userMessage, history = []) {
   );
 
   const defaultReject =
-    fetchMode === "collection" || normalizeIntentType(parsed.intentType) === "materials"
+    wantsZip || intentType === "materials"
       ? ["微信图标", "平台logo", "应用图标", "模糊", "低清晰度", "无关截图"]
       : [];
 
+  const requestedCount = resolveImageFetchCount(msg);
+
   return {
     needsImageFetch: true,
-    fetchMode,
+    fetchMode: "collection",
     intentType,
     subject: subject || searchQuery,
     searchQuery,
@@ -225,8 +219,8 @@ export async function understandImageFetchRequest(userMessage, history = []) {
     platforms,
     preferXiaohongshu: Boolean(parsed.preferXiaohongshu),
     rejectHints: [...new Set([...sanitizeList(parsed.rejectHints, 8), ...defaultReject])],
-    maxImages: Math.max(1, Number(parsed.maxImages) || (fetchMode === "collection" ? 20 : 1)),
-    bundleZip: fetchMode === "collection" ? parsed.bundleZip !== false : false,
+    maxImages: requestedCount,
+    bundleZip: wantsZip,
     displayLabel: String(parsed.displayLabel || subject || searchQuery).trim().slice(0, 40) || searchQuery,
     understanding: String(parsed.understanding || "").trim().slice(0, 160),
   };

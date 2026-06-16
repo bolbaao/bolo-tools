@@ -2,13 +2,11 @@ import JSZip from "jszip";
 import { HttpError } from "./http-error.mjs";
 import {
   formatArtifactImage,
-  formatArtifactImageReply,
   formatArtifactLink,
   putChatArtifact,
 } from "./chat-tool-artifacts.mjs";
 import {
   fetchRemoteImage,
-  findAndFetchImage,
   findVerifiedImageBatch,
   imageSearchConfigured,
   xiaohongshuImageSearchAvailable,
@@ -27,14 +25,18 @@ import { resolveChatConfig } from "./chat-config.mjs";
 import {
   stripImageSearchNoise,
   buildGeneralSearchVariants,
+  stripImageRequestFluff,
+  parseRequestedImageCount,
+  wantsImageZipBundle,
+  resolveImageFetchCount,
+  DIRECT_IMAGE_URL_RE,
+  DEFAULT_IMAGE_REJECT_HINTS,
 } from "./image-search-query.mjs";
 
 const IMAGE_FETCH_INTENT_RE =
   /(?:logo|标志|商标|图标|icon|徽标|配图|海报|封面图|头像|小红书|xiaohongshu|xhs|抖音|douyin|淘宝|taobao|天猫|美团|meituan|微信|wechat|公众号)/i;
 const IMAGE_FETCH_ACTION_RE =
   /(?:给我|帮我|请|要|想要|找|搜|查|发|提供|展示|显示|看看|下载|来一?张|出一?张|直接)/i;
-const DIRECT_IMAGE_URL_RE =
-  /https?:\/\/\S+\.(?:png|jpe?g|webp|gif)(?:\?\S*)?/i;
 
 const QUERY_PATTERNS = [
   /(?:我要|给我|帮我|请)?(?:找|搜|查|发|提供|展示|显示|要|想要|看看|下载)?[「『""]?([^」』""?\n，。！？!?]{2,40})[」』""]?(?:的)?(?:产品)?(?:海报|宣传图|广告图|主视觉)/i,
@@ -45,16 +47,6 @@ const QUERY_PATTERNS = [
   /(?:logo|标志|商标|图标|icon|徽标)[：:\s]*([^，。！？!?\s]{2,30})/i,
 ];
 
-const DEFAULT_POSTER_REJECT = [
-  "排行榜截图",
-  "榜单截图",
-  "商品列表",
-  "商城界面",
-  "APP截图",
-  "多商品拼接",
-  "无关竞品合集",
-];
-
 function stripQueryNoise(raw) {
   return String(raw || "")
     .replace(/^(?:请|帮我?|给我|麻烦|能否|可以)/, "")
@@ -63,6 +55,10 @@ function stripQueryNoise(raw) {
     .replace(/不可以.*$/i, "")
     .replace(/[？?。！!…]+$/g, "")
     .trim();
+}
+
+export function posterRejectHints() {
+  return [...DEFAULT_IMAGE_REJECT_HINTS];
 }
 
 export function wantsXiaohongshuImageSource(text) {
@@ -106,18 +102,38 @@ export function detectImageIntentType(text) {
 
 export { stripImageSearchNoise, buildGeneralSearchVariants } from "./image-search-query.mjs";
 
+const FIND_IMAGE_SUBJECT_RE =
+  /(?:找|搜|查|发|要|下载|看看|提供|展示|显示)(?:几(?:张|个)?|一些|多张|若干|多个)?(?:张|个)?[「『""]?([\u4e00-\u9fff\w·-]{2,30}?)[」』""]?(?:的)?(?:高清)?(?:配图|图片|照片|图像|素材|图)/i;
+
+const POSSESSIVE_IMAGE_SUBJECT_RE =
+  /([\u4e00-\u9fff\w·-]{2,20})的(?:相关)?(?:高清)?(?:宣传)?(?:配图|图片|照片|图像|素材)/i;
+
+function normalizeExtractedSubject(raw) {
+  const cleaned = stripImageSearchNoise(stripImageRequestFluff(raw));
+  return cleaned.length >= 2 ? cleaned : "";
+}
+
 /** 从用户原话提取核心主体（品牌/店名/产品） */
 export function extractImageSubject(text) {
   const msg = stripQueryNoise(String(text || "").trim());
   if (!msg) return "";
 
-  const about = msg.match(/关于[「『""]?([^」』""，。！？!?\s/的]{2,30})/);
-  if (about?.[1]) return stripImageSearchNoise(about[1]);
+  const findImage = msg.match(FIND_IMAGE_SUBJECT_RE);
+  if (findImage?.[1]) {
+    const q = normalizeExtractedSubject(findImage[1]);
+    if (q) return q;
+  }
 
-  const possessive = msg.match(
-    /([^，。！？!?\s「『""]{2,30})的(?:相关)?(?:高清)?(?:宣传)?(?:配图|图片|照片|图像|素材)/i,
+  const about = msg.match(/关于[「『""]?([^」』""，。！？!?\s/的]{2,30})/);
+  if (about?.[1]) return normalizeExtractedSubject(about[1]);
+
+  const possessive = msg.match(POSSESSIVE_IMAGE_SUBJECT_RE);
+  if (possessive?.[1]) return normalizeExtractedSubject(possessive[1]);
+
+  const giveMe = msg.match(
+    /(?:给我|帮我|请|要|想要|发|来)(?:几(?:张|个)?|一些|多张|若干|多个)?(?:张|个|一下)?(.{2,40}?)(?:的)?(?:图片|照片|配图|素材|图)/i,
   );
-  if (possessive?.[1]) return stripImageSearchNoise(possessive[1]);
+  if (giveMe?.[1]) return normalizeExtractedSubject(giveMe[1]);
 
   for (const re of QUERY_PATTERNS) {
     const m = msg.match(re);
@@ -129,7 +145,7 @@ export function extractImageSubject(text) {
 
   let fallback = msg
     .replace(
-      /^(?:请|帮我?|给我|麻烦)?(?:直接)?(?:在)?(?:小红书|xiaohongshu|xhs)?(?:上)?(?:找|搜|查|发|提供|展示|显示|要|想要|看看|下载|来一?张|出一?张)(?:一下|下)?/gi,
+      /^(?:请|帮我?|给我|麻烦)?(?:直接)?(?:在)?(?:小红书|xiaohongshu|xhs)?(?:上)?(?:找|搜|查|发|提供|展示|显示|要|想要|看看|下载|来一?张|出一?张)(?:几(?:张|个)?|一些|多张|若干|多个)?(?:张|个)?(?:一下|下)?/gi,
       "",
     )
     .replace(/(?:小红书|xiaohongshu|xhs|logo|标志|商标|图标|icon|徽标|图片|配图|封面图|头像|照片|素材)/gi, " ")
@@ -137,7 +153,7 @@ export function extractImageSubject(text) {
     .replace(/的$/g, "")
     .trim();
 
-  return stripImageSearchNoise(fallback);
+  return normalizeExtractedSubject(fallback);
 }
 
 /** 根据用户原话补全搜索词（避免把「海报」误删） */
@@ -177,10 +193,6 @@ export function buildSearchQueryVariants(userMessage, extracted) {
   }
 
   return [...new Set(variants.filter(Boolean))];
-}
-
-export function posterRejectHints() {
-  return [...DEFAULT_POSTER_REJECT];
 }
 
 export function detectImageFetchIntent(text) {
@@ -233,6 +245,16 @@ function escapeMd(text) {
   return String(text || "").replace(/[\[\]]/g, "");
 }
 
+function normalizeImageFetchPlan(plan, userMessage) {
+  const wantsZip = wantsImageZipBundle(userMessage);
+  return {
+    ...plan,
+    fetchMode: "collection",
+    maxImages: resolveImageFetchCount(userMessage),
+    bundleZip: wantsZip,
+  };
+}
+
 export async function fetchImageReplyForQuery(query, {
   title,
   preferXhs = false,
@@ -240,8 +262,8 @@ export async function fetchImageReplyForQuery(query, {
   rawMessage,
   intentType,
   queryVariants,
-  understanding,
   subject,
+  maxImages,
 } = {}) {
   const q = String(query || "").trim();
   if (!q) throw new HttpError(400, "请说明要找什么图片");
@@ -252,7 +274,7 @@ export async function fetchImageReplyForQuery(query, {
   try {
     if (DIRECT_IMAGE_URL_RE.test(q)) {
       const fetched = await findAndFetchImageFromUrl(q);
-      return formatFetchedImageReply(fetched, title || "图片", understanding);
+      return formatMultiImageReply({ images: [fetched], label: title || "图片" });
     }
 
     const resolvedPlatforms = resolveImagePlatforms({ rawMessage: sourceText, platforms, preferXhs });
@@ -260,17 +282,17 @@ export async function fetchImageReplyForQuery(query, {
       Array.isArray(queryVariants) && queryVariants.length
         ? queryVariants
         : buildSearchQueryVariants(sourceText, q);
-    const fetched = await findAndFetchImage(q, {
+    const images = await findVerifiedImageBatch(q, {
       preferXhs: resolvedPlatforms.includes("xiaohongshu") || preferXhs,
       platforms: resolvedPlatforms,
-      rawMessage: sourceText,
       intentType: resolvedIntent,
       queryVariants: variants,
       subject: subject || stripImageSearchNoise(sourceText) || q,
+      maxImages: maxImages || resolveImageFetchCount(sourceText),
     });
-    let text = formatFetchedImageReply(fetched, title || q, understanding);
+    let text = formatMultiImageReply({ images, label: title || q });
     text += platformHintMessage(resolvedPlatforms);
-    text += xiaohongshuCookieHint(resolvedPlatforms.includes("xiaohongshu"), fetched);
+    text += xiaohongshuCookieHint(resolvedPlatforms.includes("xiaohongshu"), images[0] || {});
     return text;
   } catch (e) {
     if (e instanceof HttpError) {
@@ -278,6 +300,9 @@ export async function fetchImageReplyForQuery(query, {
         throw new HttpError(404, formatImageNotFound(q));
       }
       if (e.statusCode === 422) {
+        if (e.message === "NO_VERIFIED_IMAGES" || e.message === "VERIFY_FAILED") {
+          throw new HttpError(404, formatImageNotFound(q));
+        }
         throw new HttpError(422, formatVerifyFailedReply(q, "image", e.message, { intentType: resolvedIntent }));
       }
       throw e;
@@ -313,13 +338,23 @@ async function buildImageCollectionZip(images, label) {
   return { zipId, zipName };
 }
 
-function formatCollectionReply({ images, zipId, zipName, label, understanding }) {
+function formatMultiImageReply({ images, label }) {
+  const safeLabel = escapeMd(label || "图片");
+  let text = `**已找到 ${images.length} 张：${safeLabel}**\n\n`;
+  for (const preview of images) {
+    const previewId = putChatArtifact({
+      buffer: preview.buffer,
+      filename: `preview-${Date.now()}-${preview.ext}`,
+      contentType: preview.contentType,
+    });
+    text += `${formatArtifactImage(previewId, escapeMd(preview.title || safeLabel))}\n\n`;
+  }
+  return text.trim();
+}
+
+function formatCollectionReply({ images, zipId, zipName, label }) {
   const safeLabel = escapeMd(label || "素材");
   let text = `**已整理：${safeLabel}（${images.length} 张高清图）**\n\n`;
-  const understood = String(understanding || "").trim();
-  if (understood) {
-    text = `_理解：${escapeMd(understood)}_\n\n${text}`;
-  }
   text += `${formatArtifactLink(zipId, `下载压缩包 ${zipName}`)}\n\n`;
   text += "**预览：**\n\n";
   for (const preview of images) {
@@ -334,63 +369,101 @@ function formatCollectionReply({ images, zipId, zipName, label, understanding })
   return text;
 }
 
-async function fetchImageCollectionReply(plan) {
+async function fetchImageCollectionReply(plan, userMessage = "") {
   const platforms = resolveImagePlatforms({
-    rawMessage: plan.displayLabel,
+    rawMessage: userMessage || plan.displayLabel,
     platforms: plan.platforms,
     preferXhs: plan.preferXiaohongshu,
   });
   const images = await findVerifiedImageBatch(plan.searchQuery, {
     preferXhs: platforms.includes("xiaohongshu") || plan.preferXiaohongshu,
     platforms,
-    intentType: plan.intentType || "materials",
+    intentType: plan.intentType || "general",
     queryVariants: plan.searchVariants,
     maxImages: plan.maxImages,
     rejectHints: plan.rejectHints,
     subject: plan.subject,
+    verify: plan.verify,
   });
 
-  if (!plan.bundleZip) {
-    const first = images[0];
-    return formatFetchedImageReply(first, plan.displayLabel, plan.understanding);
+  let text;
+  if (plan.bundleZip) {
+    const { zipId, zipName } = await buildImageCollectionZip(images, plan.displayLabel);
+    text = formatCollectionReply({
+      images,
+      zipId,
+      zipName,
+      label: plan.displayLabel,
+    });
+  } else {
+    text = formatMultiImageReply({ images, label: plan.displayLabel });
   }
-
-  const { zipId, zipName } = await buildImageCollectionZip(images, plan.displayLabel);
-  return formatCollectionReply({
-    images,
-    zipId,
-    zipName,
-    label: plan.displayLabel,
-    understanding: plan.understanding,
-  });
-}
-
-function formatFetchedImageReply(fetched, label, understanding) {
-  const safeLabel = escapeMd(label || "图片");
-  const id = putChatArtifact({
-    buffer: fetched.buffer,
-    filename: `${String(label || "image")
-      .replace(/[^\w\u4e00-\u9fff-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 40) || "image"}-${Date.now()}.${fetched.ext}`,
-    contentType: fetched.contentType,
-  });
-
-  let text = formatArtifactImageReply(`已找到：${safeLabel}`, id, safeLabel);
-  const understood = String(understanding || "").trim();
-  if (understood) {
-    text = `_理解：${escapeMd(understood)}_\n\n${text}`;
-  }
-  if (fetched.verified) {
-    text += "\n\n_✓ 已通过大模型检索与平台内容校验_";
-  }
-  if (fetched.sourceUrl) {
-    text += `\n\n_来源：${fetched.sourceUrl}_`;
-  }
+  text += platformHintMessage(platforms);
+  text += xiaohongshuCookieHint(platforms.includes("xiaohongshu"), images[0] || {});
   return text;
 }
 
+function buildImageSearchVariants(userMessage, subject, query, intentType) {
+  const detectedPlatforms = detectImagePlatforms(userMessage);
+  if (subject) {
+    if (intentType === "materials" || detectedPlatforms.length) {
+      return [
+        ...buildGeneralSearchVariants(subject, intentType),
+        `${subject} 小红书 配图`,
+        `${subject} 抖音 宣传图`,
+        `${subject} 微信公众号 配图`,
+        `${subject} 淘宝 商品主图`,
+        `${subject} 美团 配图`,
+      ];
+    }
+    return buildGeneralSearchVariants(subject, intentType);
+  }
+  return buildSearchQueryVariants(userMessage, query);
+}
+
+function buildRegexImageFetchPlan(userMessage) {
+  if (!detectImageFetchIntent(userMessage)) return null;
+
+  const wantsZip = wantsImageZipBundle(userMessage);
+  const maxImages = resolveImageFetchCount(userMessage);
+  const subject = extractImageSubject(userMessage) || "";
+  let query = subject
+    ? (wantsZip ? `${subject} 宣传配图` : refineImageSearchQuery(userMessage, subject))
+    : extractImageQuery(userMessage);
+  if (!query) return null;
+
+  query = stripImageSearchNoise(query) || query;
+  const intentType =
+    wantsZip || /素材包|图包|宣传配图|运营素材/.test(userMessage)
+      ? "materials"
+      : detectImageIntentType(userMessage);
+  const variants = buildImageSearchVariants(userMessage, subject, query, intentType);
+
+  return {
+    needsImageFetch: true,
+    fetchMode: "collection",
+    intentType,
+    subject: subject || stripImageSearchNoise(query) || query,
+    searchQuery: query,
+    searchVariants: [...new Set(variants)].filter((v) => v && v !== query),
+    platforms: detectImagePlatforms(userMessage),
+    preferXiaohongshu: wantsXiaohongshuImageSource(userMessage),
+    rejectHints: wantsZip ? ["微信图标", "平台logo", "模糊", "低清晰度"] : [],
+    maxImages,
+    bundleZip: wantsZip,
+    displayLabel: query,
+    understanding: "",
+  };
+}
+
 async function resolveImageFetchPlan(userMessage, history = []) {
+  const regexPlan = buildRegexImageFetchPlan(userMessage);
+  const clearRegexIntent = Boolean(regexPlan?.subject && regexPlan.subject.length >= 2);
+
+  if (clearRegexIntent) {
+    return regexPlan;
+  }
+
   if (resolveChatConfig()) {
     try {
       const understood = await understandImageFetchRequest(userMessage, history);
@@ -401,45 +474,7 @@ async function resolveImageFetchPlan(userMessage, history = []) {
     }
   }
 
-  if (!detectImageFetchIntent(userMessage)) return null;
-
-  const isCollection = /压缩包|素材包|图包|整理成.*包|打包|多张|一批/.test(userMessage);
-  const subject = extractImageSubject(userMessage) || "";
-  let query = subject
-    ? (isCollection ? `${subject} 宣传配图` : refineImageSearchQuery(userMessage, subject))
-    : extractImageQuery(userMessage);
-  if (!query) return null;
-
-  query = stripImageSearchNoise(query) || query;
-  const intentType = isCollection ? "materials" : detectImageIntentType(userMessage);
-  const variants = subject
-    ? [
-        ...buildGeneralSearchVariants(subject, intentType),
-        `${subject} 小红书 配图`,
-        `${subject} 抖音 宣传图`,
-        `${subject} 微信公众号 配图`,
-        `${subject} 淘宝 商品主图`,
-        `${subject} 美团 配图`,
-      ]
-    : buildSearchQueryVariants(userMessage, query);
-
-  const detectedPlatforms = detectImagePlatforms(userMessage);
-
-  return {
-    needsImageFetch: true,
-    fetchMode: isCollection ? "collection" : "single",
-    intentType,
-    subject: subject || stripImageSearchNoise(query) || query,
-    searchQuery: query,
-    searchVariants: [...new Set(variants)].filter((v) => v && v !== query),
-    platforms: detectedPlatforms,
-    preferXiaohongshu: wantsXiaohongshuImageSource(userMessage),
-    rejectHints: isCollection ? ["微信图标", "平台logo", "模糊", "低清晰度"] : [],
-    maxImages: isCollection ? 20 : 1,
-    bundleZip: isCollection,
-    displayLabel: query,
-    understanding: "",
-  };
+  return regexPlan;
 }
 
 /**
@@ -452,35 +487,30 @@ export function buildAgentImageFetchPlan(query, rawMessage, { platforms = [], pr
   const q = String(query || "").trim();
   if (!q) return null;
 
-  const isCollection = /压缩包|素材包|图包|整理成.*包|打包|多张|一批/.test(userMessage);
+  const wantsZip = wantsImageZipBundle(userMessage);
+  const maxImages = resolveImageFetchCount(userMessage);
   const subject = extractImageSubject(userMessage) || "";
   const cleanedQuery = stripImageSearchNoise(q) || q;
-  const intentType = isCollection ? "materials" : detectImageIntentType(userMessage);
-  const variants = subject
-    ? [
-        ...buildGeneralSearchVariants(subject, intentType),
-        `${subject} 小红书 配图`,
-        `${subject} 抖音 宣传图`,
-        `${subject} 微信公众号 配图`,
-        `${subject} 淘宝 商品主图`,
-        `${subject} 美团 配图`,
-      ]
-    : buildSearchQueryVariants(userMessage, cleanedQuery);
+  const intentType =
+    wantsZip || /素材包|图包|宣传配图|运营素材/.test(userMessage)
+      ? "materials"
+      : detectImageIntentType(userMessage);
+  const variants = buildImageSearchVariants(userMessage, subject, cleanedQuery, intentType);
 
   const detectedPlatforms = platforms.length ? normalizePlatformIds(platforms) : detectImagePlatforms(userMessage);
 
   return {
     needsImageFetch: true,
-    fetchMode: isCollection ? "collection" : "single",
+    fetchMode: "collection",
     intentType,
     subject: subject || stripImageSearchNoise(cleanedQuery) || cleanedQuery,
     searchQuery: cleanedQuery,
     searchVariants: [...new Set(variants)].filter((v) => v && v !== cleanedQuery),
     platforms: detectedPlatforms,
     preferXiaohongshu: preferXhs || detectedPlatforms.includes("xiaohongshu"),
-    rejectHints: isCollection ? ["微信图标", "平台logo", "模糊", "低清晰度"] : [],
-    maxImages: isCollection ? 20 : 1,
-    bundleZip: isCollection,
+    rejectHints: wantsZip ? ["微信图标", "平台logo", "模糊", "低清晰度"] : [],
+    maxImages,
+    bundleZip: wantsZip,
     displayLabel: cleanedQuery,
     understanding: "",
   };
@@ -492,14 +522,17 @@ export function buildAgentImageFetchPlan(query, rawMessage, { platforms = [], pr
  * @returns {Promise<string>}
  */
 export async function runImageFetchPlan(plan, userMessage) {
-  const query = plan.searchQuery;
+  const normalized = normalizeImageFetchPlan(plan, userMessage);
+  const query = normalized.searchQuery;
   const platforms = resolveImagePlatforms({
     rawMessage: userMessage,
-    platforms: plan.platforms,
-    preferXhs: plan.preferXiaohongshu,
+    platforms: normalized.platforms,
+    preferXhs: normalized.preferXiaohongshu,
   });
   const preferXhs =
-    platforms.includes("xiaohongshu") || plan.preferXiaohongshu || wantsXiaohongshuImageSource(userMessage);
+    platforms.includes("xiaohongshu") ||
+    normalized.preferXiaohongshu ||
+    wantsXiaohongshuImageSource(userMessage);
 
   if (!imageSearchConfigured() && !DIRECT_IMAGE_URL_RE.test(query)) {
     return formatImageSearchUnavailable();
@@ -509,19 +542,20 @@ export async function runImageFetchPlan(plan, userMessage) {
     preferXhs,
     platforms,
     rawMessage: userMessage,
-    intentType: plan.intentType,
-    queryVariants: plan.searchVariants,
-    understanding: plan.understanding,
-    subject: plan.subject || stripImageSearchNoise(query),
+    intentType: normalized.intentType,
+    queryVariants: normalized.searchVariants,
+    subject: normalized.subject || stripImageSearchNoise(query),
+    maxImages: normalized.maxImages,
   };
 
   try {
-    if (plan.fetchMode === "collection") {
-      return await fetchImageCollectionReply(plan);
+    if (DIRECT_IMAGE_URL_RE.test(query)) {
+      const fetched = await findAndFetchImageFromUrl(query);
+      return formatMultiImageReply({ images: [fetched], label: normalized.displayLabel || "图片" });
     }
-    return await fetchImageReplyForQuery(query, fetchOpts);
+    return await fetchImageCollectionReply(normalized, userMessage);
   } catch (e) {
-    const subject = stripImageSearchNoise(plan.subject || query);
+    const subject = stripImageSearchNoise(normalized.subject || query);
     const canRetry =
       subject &&
       subject.length >= 2 &&
@@ -532,8 +566,8 @@ export async function runImageFetchPlan(plan, userMessage) {
     if (canRetry) {
       try {
         const retryVariants = [
-          ...(plan.searchVariants || []),
-          ...buildGeneralSearchVariants(subject, plan.intentType),
+          ...(normalized.searchVariants || []),
+          ...buildGeneralSearchVariants(subject, normalized.intentType),
         ];
         return await fetchImageReplyForQuery(subject, {
           ...fetchOpts,
@@ -546,16 +580,36 @@ export async function runImageFetchPlan(plan, userMessage) {
 
     if (e instanceof HttpError) {
       if (e.message === "NO_IMAGE_CANDIDATES" || e.statusCode === 404) {
-        return formatImageNotFound(subject || plan.subject || query);
+        return formatImageNotFound(subject || normalized.subject || query);
       }
       if (e.statusCode === 422) {
-        return formatVerifyFailedReply(subject || plan.subject || query, "image", e.message, {
-          intentType: plan.intentType,
+        if (e.message === "NO_VERIFIED_IMAGES" || e.message === "VERIFY_FAILED") {
+          return formatImageNotFound(subject || normalized.subject || query);
+        }
+        return formatVerifyFailedReply(subject || normalized.subject || query, "image", e.message, {
+          intentType: normalized.intentType,
         });
       }
       return toUserFacingErrorMessage(e.message);
     }
-    return formatImageNotFound(subject || plan.subject || query);
+
+    if (subject && subject.length >= 2) {
+      try {
+        return await fetchImageCollectionReply({ ...normalized, verify: false }, userMessage);
+      } catch {
+        try {
+          return await fetchImageReplyForQuery(subject, {
+            ...fetchOpts,
+            verify: false,
+            queryVariants: [...new Set([...(normalized.searchVariants || []), ...buildGeneralSearchVariants(subject, normalized.intentType)])],
+          });
+        } catch {
+          // fall through
+        }
+      }
+    }
+
+    return formatImageNotFound(subject || normalized.subject || query);
   }
 }
 

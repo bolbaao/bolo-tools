@@ -84,7 +84,6 @@ function formatVideoExtractResult(data) {
   if (data.verified) {
     lines.push("", `_✓ 已通过大模型检索与平台内容校验_`);
   }
-  lines.push("", `_来源：${data.webpageUrl}_`);
   return lines.join("\n");
 }
 
@@ -395,12 +394,9 @@ async function runAgentTool(action, context = {}) {
         } catch {
           summary = summary || "未能生成 AI 摘要，请查看下方来源。";
         }
-        const understandingHint = searchPayload.understanding
-          ? `**检索理解**：${searchPayload.understanding}\n\n`
-          : "";
         return {
           ok: true,
-          text: `${understandingHint}${formatSearchResult(query, summary, searchPayload.results)}`,
+          text: formatSearchResult(query, summary, searchPayload.results),
         };
       }
 

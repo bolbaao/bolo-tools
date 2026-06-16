@@ -1,20 +1,30 @@
 "use client";
 
 import AppSidebar from "@/components/AppSidebar";
+import SidebarOpenControl, { SidebarEdgeOpen } from "@/components/SidebarOpenControl";
 import HomeBackground from "@/components/home/HomeBackground";
 import HomeBackgroundControl from "@/components/home/HomeBackgroundControl";
 import { useMobileLayout } from "@/hooks/useMobileLayout";
 import { WorkspaceChatProvider } from "@/contexts/WorkspaceChatContext";
 import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isMobile = useMobileLayout();
-  const { phase, sidebarPinned, sidebarCollapsed, toggleSidebar, closeSidebar, startWorkspace } =
+  const { phase, sidebarPinned, sidebarCollapsed, closeSidebar, startWorkspace } =
     useWorkspace();
   const sidebarOpen = sidebarPinned && !sidebarCollapsed;
   const homeIntro = pathname === "/" && phase === "intro";
+  const isToolRoute = pathname.startsWith("/tools/");
+
+  useEffect(() => {
+    if (isMobile && sidebarOpen) {
+      document.body.classList.add("sidebar-open-mobile");
+      return () => document.body.classList.remove("sidebar-open-mobile");
+    }
+  }, [isMobile, sidebarOpen]);
 
   return (
     <div className="app-shell relative flex h-full min-h-0 flex-1 overflow-hidden">
@@ -49,17 +59,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         <HomeBackground />
         {homeIntro ? <HomeBackgroundControl /> : null}
         {sidebarPinned && sidebarCollapsed ? (
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className="app-sidebar-expand absolute z-30 flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-surface-elevated/90 text-white/55 backdrop-blur-md transition-colors hover:bg-white/[0.06] hover:text-white/85"
-            aria-label="展开侧边栏"
-            title="展开侧边栏"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
+          isToolRoute ? <SidebarEdgeOpen /> : <SidebarOpenControl />
         ) : null}
         <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
         {homeIntro ? (

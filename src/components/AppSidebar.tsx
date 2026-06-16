@@ -25,7 +25,7 @@ function groupToolsByCategory(allTools: Tool[]) {
 export default function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user, loading, logout } = useAuth();
-  const { toggleSidebar } = useWorkspace();
+  const { closeSidebar } = useWorkspace();
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
 
@@ -58,10 +58,10 @@ export default function AppSidebar({ onNavigate }: { onNavigate?: () => void }) 
         </Link>
         <button
           type="button"
-          onClick={toggleSidebar}
+          onClick={closeSidebar}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/35 transition-colors hover:bg-white/[0.06] hover:text-white/70"
           aria-label="收起侧边栏"
-          title="收起侧边栏"
+          title="收起侧边栏 (Esc)"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

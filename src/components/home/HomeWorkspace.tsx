@@ -4,13 +4,29 @@ import WorkspaceFrame from "@/components/workspace/WorkspaceFrame";
 import { useDisplayContent } from "@/hooks/useDisplayContent";
 import { useOptionalWorkspaceChat } from "@/contexts/WorkspaceChatContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 
 export default function HomeWorkspace() {
+  const router = useRouter();
   const { phase } = useWorkspace();
   const chatCtx = useOptionalWorkspaceChat();
   const active = phase === "active";
   const backChatTransition = chatCtx?.backChatTransition ?? false;
   const { siteTagline } = useDisplayContent();
+
+  const goHomeMain = useCallback(() => {
+    router.push("/", { scroll: false });
+    chatCtx?.setDialogExpanded(true);
+    requestAnimationFrame(() => {
+      document
+        .querySelector(".home-workspace .workspace-panel")
+        ?.scrollTo({ top: 0, behavior: "smooth" });
+      document
+        .querySelector(".home-workspace .workspace-chat-scroll")
+        ?.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }, [router, chatCtx]);
 
   return (
     <div
@@ -20,8 +36,22 @@ export default function HomeWorkspace() {
     >
       <div
         className={`home-hero-shell z-20 flex flex-col items-center px-4 text-center sm:px-6 lg:px-12 ${
-          active ? "home-hero-shell-active" : "home-hero-shell-intro home-hero-enter"
+          active ? "home-hero-shell-active home-hero-shell-home-link" : "home-hero-shell-intro home-hero-enter"
         }`}
+        {...(active
+          ? {
+              role: "button",
+              tabIndex: 0,
+              "aria-label": "返回主页面",
+              onClick: goHomeMain,
+              onKeyDown: (e: React.KeyboardEvent) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  goHomeMain();
+                }
+              },
+            }
+          : {})}
       >
         <h1 className="home-hero-title max-w-lg font-semibold leading-[1.15] tracking-tight text-white">
           <span className="home-hero-line home-hero-line-1 block">把日常</span>

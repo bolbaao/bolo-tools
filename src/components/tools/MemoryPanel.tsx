@@ -118,13 +118,14 @@ export default function MemoryPanel() {
     return (
       <>
         <div className="bento-card p-8 text-center">
-          <p className="text-white/70 text-sm leading-relaxed">
+          <p className="text-lg font-medium text-white/85">记忆库</p>
+          <p className="mt-2 text-sm leading-relaxed text-white/45">
             登录后可创建专属记忆库，保存偏好、习惯与重要信息，随时查看和编辑。
           </p>
           <button
             type="button"
             onClick={() => setAuthOpen(true)}
-            className="mt-6 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-2.5 text-sm font-medium text-white hover:brightness-110 transition-all"
+            className="mt-6 rounded-full btn-primary px-6 py-2.5 text-sm font-medium transition-all"
           >
             登录 / 注册
           </button>

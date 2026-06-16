@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import axios from "axios";
+import { fetchWithProxyFallback } from "./fetch-helper.mjs";
 import { env } from "./env.mjs";
 import { assertPublicHttpUrlResolved } from "./url-guard.mjs";
 import { searchWeb, getWebSearchCapabilities } from "./web-search.mjs";
@@ -52,7 +53,7 @@ export const IMAGE_PLATFORMS = {
 
 export const IMAGE_PLATFORM_IDS = Object.keys(IMAGE_PLATFORMS);
 
-function normalizeCandidate(url, meta = {}) {
+export function normalizeImageCandidate(url, meta = {}) {
   const trimmed = String(url || "").trim();
   if (!trimmed) return null;
   try {
@@ -136,9 +137,6 @@ export function isPlatformImageSource(meta = {}, platformId) {
 function resolveWechatImageUrl(thumb) {
   const raw = String(thumb || "").trim();
   if (!raw) return null;
-  if (/mmbiz\.qpic|wx\.qlogo/i.test(raw)) {
-    return raw.startsWith("//") ? `https:${raw}` : raw;
-  }
   try {
     const href = raw.startsWith("//") ? `https:${raw}` : raw;
     const u = new URL(href);
@@ -147,8 +145,14 @@ function resolveWechatImageUrl(thumb) {
       const decoded = decodeURIComponent(inner);
       return decoded.startsWith("http") ? decoded : `https:${decoded}`;
     }
+    if (/mmbiz\.qpic|wx\.qlogo/i.test(`${u.hostname}${u.pathname}`)) {
+      return href;
+    }
   } catch {
     /* ignore */
+  }
+  if (/^https?:\/\/[^/]*mmbiz\.qpic|wx\.qlogo/i.test(raw) || /^\/\/[^/]*mmbiz\.qpic/i.test(raw)) {
+    return raw.startsWith("//") ? `https:${raw}` : raw;
   }
   return null;
 }
@@ -157,7 +161,7 @@ async function extractOgImageFromPage(pageUrl, meta = {}) {
   try {
     const safe = await assertPublicHttpUrlResolved(pageUrl);
     const referer = platformReferer(safe) || safe;
-    const res = await fetch(safe, {
+    const res = await fetchWithProxyFallback(safe, {
       headers: {
         "User-Agent": UA,
         Accept: "text/html,application/xhtml+xml",
@@ -174,7 +178,7 @@ async function extractOgImageFromPage(pageUrl, meta = {}) {
       $('meta[name="twitter:image"]').attr("content") ||
       $('link[rel="image_src"]').attr("href");
     if (!og) return null;
-    return normalizeCandidate(new URL(og, safe).href, {
+    return normalizeImageCandidate(new URL(og, safe).href, {
       title: meta.title || $("title").first().text().trim(),
       pageUrl: safe,
       domain: new URL(safe).hostname,
@@ -186,13 +190,19 @@ async function extractOgImageFromPage(pageUrl, meta = {}) {
   }
 }
 
-async function searchSerperSiteImages(query, siteFilter, maxResults = 8) {
+/**
+ * Serper 图片搜索（支持 site: 过滤与平台 hint）
+ * @param {string} query
+ * @param {{ maxResults?: number, siteFilter?: string, score?: number, source?: string }} opts
+ */
+export async function searchSerperImages(query, opts = {}) {
   const apiKey = env("SERPER_API_KEY");
   if (!apiKey) return [];
 
+  const { maxResults = 8, siteFilter, score = 2, source } = opts;
   const q = siteFilter ? `${query} site:${siteFilter}` : query;
   try {
-    const res = await fetch("https://google.serper.dev/images", {
+    const res = await fetchWithProxyFallback("https://google.serper.dev/images", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -205,21 +215,34 @@ async function searchSerperSiteImages(query, siteFilter, maxResults = 8) {
       signal: AbortSignal.timeout(15000),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.warn("[image-search] Serper HTTP", res.status, data?.message || "");
+      return [];
+    }
     return (data.images || [])
       .map((item) =>
-        normalizeCandidate(item.imageUrl || item.thumbnailUrl, {
+        normalizeImageCandidate(item.imageUrl || item.thumbnailUrl, {
           title: item.title,
           pageUrl: item.link,
           domain: item.domain,
-          score: 5,
-          source: siteFilter?.split(".")[0],
+          score,
+          source: source || siteFilter?.split(".")[0],
         }),
       )
       .filter(Boolean);
-  } catch {
+  } catch (e) {
+    console.warn("[image-search] Serper failed:", e?.message || e);
     return [];
   }
+}
+
+async function searchSerperSiteImages(query, siteFilter, maxResults = 8) {
+  return searchSerperImages(query, {
+    maxResults,
+    siteFilter,
+    score: 5,
+    source: siteFilter?.split(".")[0],
+  });
 }
 
 async function searchWebSiteImages(query, siteFilter, source, maxPages = 4) {
@@ -293,7 +316,7 @@ export async function searchWechatOfficialImages(query) {
           : `https://weixin.sogou.com${link}`
         : undefined;
 
-      const candidate = normalizeCandidate(imageUrl, {
+      const candidate = normalizeImageCandidate(imageUrl, {
         title,
         pageUrl,
         domain: "mp.weixin.qq.com",
@@ -342,7 +365,7 @@ export async function searchDouyinImages(query, subject = "") {
         if (seen.has(key)) continue;
         seen.add(key);
         out.push(
-          normalizeCandidate(thumb, {
+          normalizeImageCandidate(thumb, {
             title,
             pageUrl: info.webpage_url || pageUrl,
             domain: "douyin.com",
@@ -372,7 +395,7 @@ export async function searchDouyinImages(query, subject = "") {
         if (seen.has(key)) continue;
         seen.add(key);
         out.push(
-          normalizeCandidate(thumb, {
+          normalizeImageCandidate(thumb, {
             title,
             pageUrl: shareUrl,
             domain: "douyin.com",

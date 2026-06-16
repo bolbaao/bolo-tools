@@ -4,17 +4,17 @@ const DEFAULT_REGION = {
   label: "中国",
   gl: "cn",
   hl: "zh-cn",
-  tavilyCountry: "cn",
+  tavilyCountry: "china",
 };
 
 const REGION_RULES = [
-  { id: "us", label: "美国", gl: "us", hl: "en", tavilyCountry: "us", re: /美国|美区|USA\b|U\.S\.|美式/ },
-  { id: "jp", label: "日本", gl: "jp", hl: "ja", tavilyCountry: "jp", re: /日本|日区|日式|Japan/ },
-  { id: "kr", label: "韩国", gl: "kr", hl: "ko", tavilyCountry: "kr", re: /韩国|韩区|韩式|Korea/ },
-  { id: "uk", label: "英国", gl: "uk", hl: "en", tavilyCountry: "gb", re: /英国|英伦|UK\b|Britain/ },
-  { id: "tw", label: "台湾", gl: "tw", hl: "zh-tw", tavilyCountry: "tw", re: /台湾|台剧|台版/ },
-  { id: "hk", label: "香港", gl: "hk", hl: "zh-hk", tavilyCountry: "hk", re: /香港|港剧|港版/ },
-  { id: "cn", label: "中国", gl: "cn", hl: "zh-cn", tavilyCountry: "cn", re: /中国|国内|内地|大陆|国服|国产/ },
+  { id: "us", label: "美国", gl: "us", hl: "en", tavilyCountry: "united states", re: /美国|美区|USA\b|U\.S\.|美式/ },
+  { id: "jp", label: "日本", gl: "jp", hl: "ja", tavilyCountry: "japan", re: /日本|日区|日式|Japan/ },
+  { id: "kr", label: "韩国", gl: "kr", hl: "ko", tavilyCountry: "south korea", re: /韩国|韩区|韩式|Korea/ },
+  { id: "uk", label: "英国", gl: "uk", hl: "en", tavilyCountry: "united kingdom", re: /英国|英伦|UK\b|Britain/ },
+  { id: "tw", label: "台湾", gl: "tw", hl: "zh-tw", tavilyCountry: "taiwan", re: /台湾|台剧|台版/ },
+  { id: "hk", label: "香港", gl: "hk", hl: "zh-hk", re: /香港|港剧|港版/ },
+  { id: "cn", label: "中国", gl: "cn", hl: "zh-cn", tavilyCountry: "china", re: /中国|国内|内地|大陆|国服|国产/ },
 ];
 
 const ENTERTAINMENT_RE = /(?:剧|电影|影片|综艺|动漫|仙侠|修仙|热播|电视剧|院线)/;
@@ -56,7 +56,7 @@ export function detectSearchRegion(text) {
         label: rule.label,
         gl: rule.gl,
         hl: rule.hl,
-        tavilyCountry: rule.tavilyCountry,
+        ...(rule.tavilyCountry ? { tavilyCountry: rule.tavilyCountry } : {}),
         userSpecified: true,
       };
     }
