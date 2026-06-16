@@ -1,7 +1,6 @@
 "use client";
 
 import { ChatAttachIcon, ChatSendIcon } from "@/components/workspace/ChatComposerIcons";
-import ChatTypingIndicator from "@/components/workspace/ChatTypingIndicator";
 import { ChatPendingAttachmentGrid } from "@/components/workspace/ChatMessageMedia";
 import WorkspaceDialogToolThread from "@/components/workspace/WorkspaceDialogToolThread";
 import { useWorkspaceChat } from "@/contexts/WorkspaceChatContext";
@@ -110,8 +109,6 @@ export default function WorkspaceDialogChat() {
         {pendingAttachments.length > 0 ? (
           <ChatPendingAttachmentGrid items={pendingAttachments} onRemove={removePendingFile} />
         ) : null}
-
-        {loading ? <ChatTypingIndicator compact label="思考中" /> : null}
 
         <div className="workspace-chat-composer-box">
           <input

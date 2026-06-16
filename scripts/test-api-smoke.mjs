@@ -86,20 +86,15 @@ async function main() {
     skip("影视资源下载", resource.data?.error || `status=${resource.status}`);
   }
 
-  const spider = await post(
-    "/api/spider/run",
-    {
-      url: "https://example.com",
-      listSelector: "body",
-      itemSelector: "h1, p, a",
-      limit: 5,
-    },
+  const webVideo = await post(
+    "/api/web-video/extract",
+    { url: "https://example.com" },
     60000,
   );
-  if (spider.status === 200 && spider.data?.ok) {
-    ok("小蜘蛛爬虫", `${spider.data.items?.length ?? 0} 条`);
+  if (webVideo.status === 200 && webVideo.data?.ok) {
+    ok("网页视频提取", `${webVideo.data.videos?.length ?? 0} 条直链`);
   } else {
-    skip("小蜘蛛爬虫", spider.data?.error || `status=${spider.status}`);
+    skip("网页视频提取", webVideo.data?.error || `status=${webVideo.status}`);
   }
 
   const aiCap = await get("/api/ai-search/capabilities");

@@ -362,26 +362,13 @@ export default function AuthModal({ open, onClose, initialMode = "login" }: Prop
 
             {mode === "register" && (
               <div>
-                <label htmlFor="register-captcha" className="auth-field-label">
-                  图形验证码
-                </label>
-                <div className="mt-1.5 flex items-stretch gap-2.5">
-                  <input
-                    id="register-captcha"
-                    type="text"
-                    value={captchaCode}
-                    onChange={(e) => setCaptchaCode(e.target.value.replace(/\s/g, "").slice(0, 8))}
-                    placeholder="输入右侧字符"
-                    autoComplete="off"
-                    inputMode="text"
-                    spellCheck={false}
-                    className="auth-captcha-input min-w-0 flex-1 rounded-xl border input-dark px-4 py-3 text-base font-mono tracking-[0.18em] focus:outline-none"
-                  />
+                <span className="auth-field-label">图形验证码</span>
+                <div className="mt-1.5 flex flex-col gap-2.5">
                   <button
                     type="button"
                     onClick={() => void loadCaptcha()}
                     disabled={captchaLoading}
-                    className="auth-captcha-btn shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] transition-all hover:border-white/16 hover:bg-white/[0.06] disabled:opacity-50"
+                    className="auth-captcha-btn self-start overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] transition-all hover:border-white/16 hover:bg-white/[0.06] disabled:opacity-50"
                     aria-label="刷新验证码"
                     title="点击刷新验证码"
                   >
@@ -394,6 +381,17 @@ export default function AuthModal({ open, onClose, initialMode = "login" }: Prop
                       </span>
                     )}
                   </button>
+                  <input
+                    id="register-captcha"
+                    type="text"
+                    value={captchaCode}
+                    onChange={(e) => setCaptchaCode(e.target.value.replace(/\s/g, "").slice(0, 8))}
+                    placeholder="输入上方字符"
+                    autoComplete="off"
+                    inputMode="text"
+                    spellCheck={false}
+                    className="auth-captcha-input w-full rounded-xl border input-dark px-4 py-3 text-base font-mono tracking-[0.18em] focus:outline-none"
+                  />
                 </div>
               </div>
             )}

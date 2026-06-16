@@ -215,6 +215,8 @@ body.page-ready .reveal {
 
 .app-sidebar-slot {
   will-change: width;
+  background: var(--color-surface-elevated);
+  /* 侧边栏即时展开/收起 */
 }
 
 .app-sidebar-expand,
@@ -300,7 +302,8 @@ body.sidebar-open-mobile {
   transition: transform 0.38s var(--ease-apple);
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  box-shadow: 8px 0 32px -8px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  background: var(--color-surface-elevated);
 }
 
 .app-sidebar-mobile-layer[data-open="true"] {
@@ -316,9 +319,7 @@ body.sidebar-open-mobile {
 }
 
 .app-sidebar {
-  box-shadow:
-    1px 0 0 rgba(255, 255, 255, 0.03) inset,
-    4px 0 24px -8px rgba(0, 0, 0, 0.35);
+  border-right: 1px solid var(--color-border);
 }
 
 .sidebar-active-bar {
@@ -331,10 +332,6 @@ body.sidebar-open-mobile {
   background: linear-gradient(180deg, var(--color-accent) 0%, var(--color-accent-deep) 100%);
   transform: translateY(-50%);
   opacity: 0.85;
-}
-
-.app-sidebar-slot {
-  /* 侧边栏即时展开/收起 */
 }
 
 .workspace-canvas {
@@ -2303,48 +2300,62 @@ body.sidebar-open-mobile {
   color: #0369a1 !important;
 }
 
-/* —— 工具页 · 简洁高级 —— */
-.workspace-frame--tool {
-  padding: 0.5rem 0.625rem 0.625rem;
-}
-
-.workspace-unified--tool {
+/* Bento 卡片 · 浅色工作区（与首页 featured-tool-card-light 一致） */
+.workspace-light .bento-card {
   border-radius: 1.25rem;
-  background: #fafafa;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(248, 249, 252, 0.95) 100%
+  );
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.04) inset,
-    0 12px 40px -24px rgba(15, 18, 28, 0.1);
+    0 0 0 1px rgba(255, 255, 255, 0.8) inset,
+    0 8px 28px -12px rgba(0, 0, 0, 0.12);
 }
 
-.workspace-frame--tool .workspace-panel-inner,
+.workspace-light .bento-card::before {
+  background: linear-gradient(
+    135deg,
+    rgba(20, 184, 166, 0.22) 0%,
+    transparent 45%,
+    transparent 55%,
+    rgba(13, 148, 136, 0.16) 100%
+  );
+}
+
+.workspace-light .bento-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(20, 184, 166, 0.22);
+  box-shadow:
+    0 0 0 1px rgba(20, 184, 166, 0.06) inset,
+    0 16px 40px -16px rgba(13, 148, 136, 0.14),
+    0 8px 20px -8px rgba(0, 0, 0, 0.08);
+}
+
+.workspace-light .bento-card:active {
+  transform: translateY(-1px) scale(0.998);
+}
+
+/* —— 工具页 · 与主页工作区一致 —— */
+.workspace-unified--tool {
+  border-radius: 1.375rem;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.05) inset,
+    0 16px 48px -20px rgba(15, 18, 28, 0.1),
+    0 4px 16px -6px rgba(15, 18, 28, 0.04);
+}
+
 .workspace-panel-inner--tool {
-  max-width: 42rem;
-  --ws-section-gap: 1rem;
-  padding: 1rem 1.25rem 1.5rem;
-}
-
-.tool-workspace[data-tool-id="ai-search"] .workspace-panel-inner--tool {
-  max-width: 56rem;
-}
-
-.tool-workspace[data-tool-id="ai-search"] .workspace-header--tool {
-  margin-bottom: 0.75rem;
+  max-width: 52rem;
+  --ws-section-gap: 1.75rem;
 }
 
 .tool-workspace[data-tool-id="ai-search"] .tool-task-main {
   gap: 0;
-}
-
-@media (min-width: 640px) {
-  .workspace-panel-inner--tool {
-    padding: 1.25rem 1.75rem 1.75rem;
-  }
-}
-
-.workspace-header--tool {
-  margin-bottom: 1.25rem;
-  padding-bottom: 0;
-  border-bottom: none;
 }
 
 .tool-page-header {
@@ -3810,19 +3821,19 @@ body.sidebar-open-mobile {
 }
 
 .workspace-frame--tool .action-btn-primary {
-  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%) !important;
+  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%) !important;
   border: none !important;
   box-shadow:
-    0 1px 2px rgba(99, 102, 241, 0.18),
-    0 4px 14px -4px rgba(99, 102, 241, 0.35) !important;
+    0 1px 2px rgba(20, 184, 166, 0.18),
+    0 4px 14px -4px rgba(20, 184, 166, 0.35) !important;
 }
 
 .workspace-frame--tool .action-btn-primary:hover:not(:disabled) {
   transform: none;
   filter: brightness(1.05);
   box-shadow:
-    0 2px 4px rgba(99, 102, 241, 0.22),
-    0 8px 20px -6px rgba(99, 102, 241, 0.4) !important;
+    0 2px 4px rgba(20, 184, 166, 0.22),
+    0 8px 20px -6px rgba(20, 184, 166, 0.4) !important;
 }
 
 /* —— 工具页 · 区块 / 模板卡片 / 控件 —— */
@@ -3901,15 +3912,15 @@ body.sidebar-open-mobile {
 }
 
 .tool-preset-card:hover:not(:disabled) {
-  border-color: rgba(99, 102, 241, 0.22);
+  border-color: rgba(20, 184, 166, 0.22);
   background: #fafafa;
-  box-shadow: 0 2px 8px -4px rgba(99, 102, 241, 0.12);
+  box-shadow: 0 2px 8px -4px rgba(20, 184, 166, 0.12);
 }
 
 .tool-preset-card--active {
-  border-color: rgba(99, 102, 241, 0.35) !important;
-  background: rgba(99, 102, 241, 0.06) !important;
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.08) inset;
+  border-color: rgba(20, 184, 166, 0.35) !important;
+  background: rgba(20, 184, 166, 0.06) !important;
+  box-shadow: 0 0 0 1px rgba(20, 184, 166, 0.08) inset;
 }
 
 .tool-preset-card:disabled {
@@ -3990,9 +4001,9 @@ body.sidebar-open-mobile {
 }
 
 .tool-chip--active {
-  color: #6366f1 !important;
-  background: rgba(99, 102, 241, 0.1) !important;
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.12);
+  color: #0f766e !important;
+  background: rgba(20, 184, 166, 0.1) !important;
+  box-shadow: 0 0 0 1px rgba(20, 184, 166, 0.12);
 }
 
 .tool-inline-form {
@@ -4037,7 +4048,7 @@ body.sidebar-open-mobile {
 
 .tool-drop-zone:hover,
 .tool-drop-zone--active {
-  border-color: rgba(99, 102, 241, 0.28);
+  border-color: rgba(20, 184, 166, 0.28);
   background: #fafafa;
 }
 
@@ -4145,11 +4156,7 @@ body.sidebar-open-mobile {
 
 .workspace-frame--tool .workspace-dialog-bar {
   border-top-color: rgba(0, 0, 0, 0.06);
-  background: color-mix(in srgb, #ffffff 94%, transparent);
-}
-
-.workspace-frame--tool .workspace-dialog-bar--tool {
-  box-shadow: 0 -8px 24px -16px rgba(15, 18, 28, 0.06);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .tool-dialog-collapse {
@@ -4180,14 +4187,6 @@ body.sidebar-open-mobile {
   font-size: 0.625rem;
   line-height: 1;
   opacity: 0.7;
-}
-
-.workspace-frame--tool .workspace-dialog-collapsed:hover {
-  background: rgba(0, 0, 0, 0.025);
-}
-
-.workspace-frame--tool .workspace-panel-inner {
-  padding-bottom: 1.5rem;
 }
 
 @media (max-width: 1023px) {
@@ -4244,14 +4243,6 @@ body.sidebar-open-mobile {
   .workspace-header {
     margin-bottom: 1.25rem;
     padding-bottom: 1.25rem;
-  }
-
-  .workspace-header--tool {
-    margin-bottom: 1rem;
-  }
-
-  .workspace-panel-inner--tool {
-    padding: 0.875rem 1rem 1.25rem;
   }
 
   .tool-page-header-icon.tool-icon-box-md {

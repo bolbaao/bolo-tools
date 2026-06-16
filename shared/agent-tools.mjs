@@ -35,7 +35,7 @@ export const AGENT_TOOLS = [
     id: "image-fetch",
     title: "图片检索",
     href: "/tools/image-studio",
-    description: "按主题搜索 logo、海报、配图；支持美团/抖音/小红书/淘宝/微信公众号等平台高清素材，可批量整理为压缩包",
+    description: "按主题搜索 logo、海报、配图；识图校验后仅返回画面一致的图片，支持多平台高清素材与压缩包",
     fields: {
       query: "主题+图类型，如「唱无界 高清配图」；指定平台可写 source=wechat,douyin,xiaohongshu,taobao,meituan",
     },
@@ -46,18 +46,6 @@ export const AGENT_TOOLS = [
     href: "/tools/ai-search",
     description: "有问题直接问，系统会先理解意图再扩散检索全网，整理摘要并附来源链接",
     fields: { query: "用户原话问题（系统会自动改写检索词，勿自行压缩）" },
-  },
-  {
-    id: "app-builder",
-    title: "一键做 App",
-    href: "/tools/app-builder",
-    description: "说出想做的小工具或页面，AI 生成、预览、继续优化并下载，可配合快捷指令",
-    fields: {
-      description: "应用需求描述",
-      appType: "tool|shortcuts|api|landing|dashboard|game|form",
-      appName: "应用名称",
-      styleTheme: "auto|dark|light|minimal|colorful|glass",
-    },
   },
   {
     id: "ppt-generate",
@@ -77,11 +65,16 @@ export const AGENT_TOOLS = [
     },
   },
   {
-    id: "ai-workflow",
-    title: "AI 工作流",
-    href: "/tools/ai-workflow",
-    description: "选创作流程，从成稿、社媒文案到视频脚本，可逐步做或一键完成",
-    fields: { workflowId: "content-pipeline|social-pack|script-pipeline", input: "主题或素材" },
+    id: "storyboard",
+    title: "分镜生图",
+    href: "/tools/storyboard",
+    description: "输入视频主题或脚本，自动拆分分镜并为每个镜头生成配图",
+    fields: {
+      topic: "视频主题或脚本",
+      sceneCount: "镜头数量 2-8",
+      style: "cinematic|realistic|illustration|anime|minimal",
+      aspectRatio: "9:16|16:9|1:1",
+    },
   },
   {
     id: "hot-trends",
@@ -103,11 +96,11 @@ export const AGENT_TOOLS = [
     },
   },
   {
-    id: "spider-builder",
-    title: "小蜘蛛爬虫",
-    href: "/tools/spider-builder",
-    description: "从网页整理标题、链接等列表，导出成表格，不用写代码",
-    fields: { url: "要抓取的网页地址" },
+    id: "web-video-extract",
+    title: "网页视频提取",
+    href: "/tools/web-video-extract",
+    description: "粘贴网页链接，扫描页面中的视频地址并下载",
+    fields: { url: "包含视频的网页地址" },
   },
   {
     id: "doc-convert",

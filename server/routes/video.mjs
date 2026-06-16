@@ -15,7 +15,9 @@ import {
 } from "../lib/video-platform.mjs";
 import {
   buildProxyHeaders,
+  buildWebPageProxyHeaders,
   isAllowedMediaUrl,
+  isAllowedWebPageMediaUrl,
   safeFilename,
 } from "../lib/video-download.mjs";
 import { mapFormatsWithFallback } from "../lib/video-formats.mjs";
@@ -181,14 +183,20 @@ router.get("/download", async (req, res) => {
 
     if (!rawUrl) throw new HttpError(400, "缺少 url 参数");
     const safeUrl = parseVideoUrl(rawUrl);
-    if (!isAllowedMediaUrl(safeUrl)) {
+    const allowMedia =
+      platform === "web-page" ? isAllowedWebPageMediaUrl(safeUrl) : isAllowedMediaUrl(safeUrl);
+    if (!allowMedia) {
       throw new HttpError(403, "不允许代理该地址");
     }
 
     let safeAudioUrl = "";
     if (rawAudioUrl) {
       safeAudioUrl = parseVideoUrl(rawAudioUrl);
-      if (!isAllowedMediaUrl(safeAudioUrl)) {
+      const allowAudio =
+        platform === "web-page"
+          ? isAllowedWebPageMediaUrl(safeAudioUrl)
+          : isAllowedMediaUrl(safeAudioUrl);
+      if (!allowAudio) {
         throw new HttpError(403, "不允许代理该音频地址");
       }
     }
@@ -248,7 +256,10 @@ router.get("/download", async (req, res) => {
       return;
     }
 
-    const headers = buildProxyHeaders(platform, safeUrl);
+    const headers =
+      platform === "web-page"
+        ? buildWebPageProxyHeaders(webpageUrl, safeUrl)
+        : buildProxyHeaders(platform, safeUrl);
     const upstream = await fetch(safeUrl, {
       headers,
       redirect: "follow",

@@ -15,7 +15,8 @@
     "test:weixin-channels": "node scripts/test-weixin-channels.mjs",
     "test:video-platforms": "node scripts/test-video-platforms.mjs",
     "test:douyin-publish": "node scripts/test-douyin-publish.mjs",
-    "test:abc-features": "node scripts/test-abc-features.mjs"
+    "test:abc-features": "node scripts/test-abc-features.mjs",
+    "test:storyboard": "node scripts/test-storyboard.mjs"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

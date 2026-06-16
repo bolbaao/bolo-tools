@@ -1,8 +1,7 @@
 import { AGENT_TOOLS } from "../../shared/agent-tools.mjs";
-import { generateAppHtml } from "./app-builder.mjs";
 import { generateWriting } from "./ai-writer.mjs";
 import { synthesizeSearchAnswer } from "./ai-search-synthesize.mjs";
-import { runWorkflow } from "./ai-workflow.mjs";
+import { generateStoryboard } from "./storyboard.mjs";
 import {
   generateArkImage,
   editArkImage,
@@ -28,7 +27,7 @@ import { searchWebWithUnderstanding } from "./web-search-understand.mjs";
 import { shouldSkipSearchHistory, classifyLiveInfoQuery } from "./live-info-detect.mjs";
 import { formatLiveInfoReply } from "./live-info-format.mjs";
 import { extractVerifiedVideoByUrl } from "./video-extract-service.mjs";
-import { runSpider, SPIDER_PRESETS } from "./spider-run.mjs";
+import { extractVideosFromWebPage } from "./web-page-video-extract.mjs";
 import { adaptCaptionsForPlatforms, runSocialPublish } from "./social-publish.mjs";
 import { addUserMemory, listUserMemories, formatMemoriesForPrompt } from "./user-memory.mjs";
 import {
@@ -159,19 +158,28 @@ function runTextToolbox(fields, fallbackText) {
   ].join("\n");
 }
 
-function formatSpiderResult(data) {
+function formatWebVideoResult(data) {
   const lines = [`**${data.pageTitle}**`, ""];
-  for (const [i, item] of data.items.slice(0, 25).entries()) {
-    lines.push(item.link ? `${i + 1}. [${item.title}](${item.link})` : `${i + 1}. ${item.title}`);
+  for (const [i, item] of data.videos.slice(0, 12).entries()) {
+    lines.push(`${i + 1}. ${item.label} · ${item.type}`, item.url, "");
   }
-  if (!data.items.length) lines.push("_暂未抓取到内容，可换网址或关键词重试_");
+  if (data.ytdlp?.formats?.length) {
+    lines.push(`_另找到 ${data.ytdlp.formats.length} 个可下载清晰度（${data.ytdlp.title || "平台视频"}）_`);
+  }
+  if (!data.videos.length && !data.ytdlp?.formats?.length) {
+    lines.push("_未找到可下载视频_");
+  }
+  lines.push("", `[打开网页视频提取](/tools/web-video-extract)`);
   return lines.join("\n");
 }
 
-function formatWorkflowResult(result) {
-  const lines = ["**工作流已完成**", ""];
-  for (const step of result.results || []) {
-    lines.push(`### ${step.stepTitle}`, "", step.output, "");
+function formatStoryboardResult(result) {
+  const lines = [`**${result.title || "分镜"}**`, "", `共 ${result.scenes?.length || 0} 个镜头`, ""];
+  for (const scene of result.scenes || []) {
+    lines.push(`### 镜头 ${scene.index} · ${scene.title}`, "");
+    if (scene.narration) lines.push(`**口播**：${scene.narration}`, "");
+    if (scene.visual) lines.push(`**画面**：${scene.visual}`, "");
+    lines.push("");
   }
   return lines.join("\n").trim();
 }
@@ -442,32 +450,30 @@ async function runAgentTool(action, context = {}) {
         return { ok: true, text: `**${result.modeLabel}**\n\n${result.text}` };
       }
 
-      case "ai-workflow": {
-        const input = pickField(fields, ["input", "topic"], fallback);
-        const result = await runWorkflow({
-          workflowId: pickField(fields, ["workflowId"], "content-pipeline") || "content-pipeline",
-          input,
-          runAll: true,
+      case "storyboard": {
+        const topic = pickField(fields, ["topic", "script", "input"], fallback);
+        const result = await generateStoryboard({
+          topic,
+          sceneCount: Number(pickField(fields, ["sceneCount"], "4")) || 4,
+          aspectRatio: pickField(fields, ["aspectRatio"], "9:16") || "9:16",
+          style: pickField(fields, ["style"], "cinematic") || "cinematic",
         });
-        return { ok: true, text: formatWorkflowResult(result) };
-      }
-
-      case "app-builder": {
-        const description = pickField(fields, ["description", "input"], fallback);
-        const result = await generateAppHtml({
-          description,
-          appType: pickField(fields, ["appType"], "tool") || "tool",
-          appName: pickField(fields, ["appName"]),
-          presetId: pickField(fields, ["presetId"]),
-        });
-        const id = putChatArtifact({
-          buffer: Buffer.from(result.html, "utf8"),
-          filename: `${(result.title || "app").replace(/[^\w\u4e00-\u9fff-]+/g, "-") || "app"}.html`,
-          contentType: "text/html; charset=utf-8",
-        });
+        const imageLines = [];
+        for (const scene of result.scenes || []) {
+          if (scene.imageBase64) {
+            const id = putChatArtifact({
+              buffer: Buffer.from(scene.imageBase64, "base64"),
+              filename: `scene-${scene.index}.png`,
+              contentType: scene.mimeType || "image/png",
+            });
+            imageLines.push(formatArtifactImageReply(`镜头 ${scene.index}`, id, scene.title));
+          } else if (scene.imageUrl) {
+            imageLines.push(`**镜头 ${scene.index}** · ${scene.title}\n\n![${scene.title}](${scene.imageUrl})`);
+          }
+        }
         return {
           ok: true,
-          text: `**${result.title || "应用"}已生成**\n\n${formatArtifactLink(id, "下载 HTML 应用")}\n\n_可用浏览器打开预览_`,
+          text: [formatStoryboardResult(result), ...imageLines].join("\n\n"),
         };
       }
 
@@ -487,18 +493,10 @@ async function runAgentTool(action, context = {}) {
         return { ok: true, text: runTextToolbox(fields, fallback) };
       }
 
-      case "spider-builder": {
+      case "web-video-extract": {
         const url = pickField(fields, ["url"], fallback);
-        const presetKey = pickField(fields, ["preset"]);
-        const preset = presetKey && SPIDER_PRESETS[presetKey] ? presetKey : undefined;
-        const data = await runSpider({
-          url,
-          preset,
-          listSelector: pickField(fields, ["listSelector"]),
-          itemSelector: pickField(fields, ["itemSelector"]),
-          limit: Number(fields.limit) || 30,
-        });
-        return { ok: true, text: formatSpiderResult(data) };
+        const data = await extractVideosFromWebPage(url);
+        return { ok: true, text: formatWebVideoResult(data) };
       }
 
       case "social-publish": {

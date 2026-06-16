@@ -41,7 +41,7 @@ cp .env.example .env
 
 | 变量 | 用途 | 是否必需 |
 |------|------|----------|
-| `DEEPSEEK_API_KEY` | 全网搜索摘要、做 App、写作、工作流 | 使用该功能时必需 |
+| `DEEPSEEK_API_KEY` | 全网搜索摘要、写作、分镜规划 | 使用该功能时必需 |
 | `TAVILY_API_KEY` | AI 全网搜索（推荐） | 搜索时二选一 |
 | `SERPER_API_KEY` | AI 全网搜索（Google） | 搜索时二选一 |
 | `DEEPSEEK_BASE_URL` | DeepSeek API（默认 `https://api.deepseek.com/v1`） | 可选 |
@@ -106,13 +106,12 @@ node scripts/create-admin-user.mjs [用户名] [密码]
 | 工具 | 路径 | 实现方式 |
 |------|------|----------|
 | 图像工坊 | `/tools/image-studio` | 本地处理 + 火山方舟 Seedream |
-| 一键做 App | `/tools/app-builder` | DeepSeek 生成单页 HTML |
 | AI 写作助手 | `/tools/ai-writer` | DeepSeek |
-| AI 工作流 | `/tools/ai-workflow` | DeepSeek 多步流水线 |
+| 分镜生图 | `/tools/storyboard` | DeepSeek 规划分镜 + 火山方舟 Seedream 出图 |
 | 社媒一键分发 | `/tools/social-publish` | Playwright + Cookie |
 | 热点中心 | `/tools/hot-trends` | 抖音 / 小红书抓取 |
 | 影视资源下载 | `/tools/media-download` | 网盘资源检索 `/api/media/resource-search` |
-| 制作爬虫 | `/tools/spider-builder` | Cheerio |
+| 网页视频提取 | `/tools/web-video-extract` | Cheerio + yt-dlp |
 | 音乐工坊 | `/tools/music-convert` | 本地解锁 + ffmpeg |
 | 视频链接提取 | `/tools/video-extract` | yt-dlp |
 | 文档转换 | `/tools/doc-convert` | ConvertAPI / 本地 PDF 处理 |

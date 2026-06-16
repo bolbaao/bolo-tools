@@ -34,8 +34,8 @@ export default function VerifyEmailPageClient() {
   }, [searchParams, refresh]);
 
   return (
-    <div className="mx-auto max-w-md px-4 py-16 text-center">
-      <div className="bento-card p-8">
+    <div className="flex flex-col items-center justify-center py-8 sm:py-12">
+      <div className="bento-card mx-auto w-full max-w-md p-8 text-center">
         {status === "loading" && (
           <p className="text-sm text-white/60 animate-pulse">{message}</p>
         )}
@@ -46,7 +46,7 @@ export default function VerifyEmailPageClient() {
             <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center sm:gap-3">
               <Link
                 href="/tools/memory"
-                className="rounded-full bg-white px-5 py-2.5 text-sm font-medium text-[#0a0b14] hover:bg-white/92"
+                className="rounded-full bg-[#18181c] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#18181c]/90"
               >
                 记忆库
               </Link>
@@ -65,7 +65,7 @@ export default function VerifyEmailPageClient() {
             <p className="mt-3 text-sm text-white/45">登录后可在页面顶部重新发送验证邮件。</p>
             <Link
               href="/"
-              className="mt-6 inline-block rounded-full bg-white/10 px-5 py-2.5 text-sm text-white/80 hover:bg-white/15"
+              className="mt-6 inline-block rounded-full border border-white/15 px-5 py-2.5 text-sm text-white/80 hover:bg-white/5"
             >
               返回首页
             </Link>

@@ -63,14 +63,6 @@ export const tools: Tool[] = [
     tag: "AI",
   },
   {
-    id: "app-builder",
-    title: "一键做 App",
-    description: "说出你想做的小工具或页面，AI 生成后可继续优化、多端预览并下载，也能配合 iPhone 快捷指令使用。",
-    href: "/tools/app-builder",
-    gradient: "from-cyan-500/20 via-teal-500/15 to-emerald-500/10",
-    tag: "AI",
-  },
-  {
     id: "ai-writer",
     title: "AI 写作助手",
     description: "写文章、润色扩写、工作报告、简历优化、文档速读、社媒文案、邮件或翻译，选对模式就能开始。",
@@ -79,10 +71,10 @@ export const tools: Tool[] = [
     tag: "AI",
   },
   {
-    id: "ai-workflow",
-    title: "AI 工作流",
-    description: "选一条创作流程，从成稿、社媒文案到视频脚本，可以一步步做，也能一键跑完。",
-    href: "/tools/ai-workflow",
+    id: "storyboard",
+    title: "分镜生图",
+    description: "输入视频主题或脚本，AI 自动拆分分镜并为每个镜头生成配图，适合短视频前期策划。",
+    href: "/tools/storyboard",
     gradient: "from-teal-500/20 via-emerald-500/15 to-cyan-500/10",
     tag: "AI",
   },
@@ -111,12 +103,12 @@ export const tools: Tool[] = [
     tag: "影视",
   },
   {
-    id: "spider-builder",
-    title: "小蜘蛛爬虫",
-    description: "不会写代码也能从网页里整理出标题、链接等列表，导出成表格文件备用。",
-    href: "/tools/spider-builder",
-    gradient: "from-slate-500/20 to-zinc-500/10",
-    tag: "开发",
+    id: "web-video-extract",
+    title: "网页视频提取",
+    description: "粘贴任意网页链接，自动扫描页面中的视频地址并下载，也支持解析嵌入的平台播放器。",
+    href: "/tools/web-video-extract",
+    gradient: "from-cyan-500/20 to-teal-500/10",
+    tag: "视频",
   },
   {
     id: "doc-convert",
@@ -165,4 +157,4 @@ export function getPersonalCenterTools(): Tool[] {
 }
 
 /** 侧边栏分类展示顺序 */
-export const CATEGORY_ORDER = ["AI", "图像", "视频", "音频", "文档", "运营", "影视", "开发"];
+export const CATEGORY_ORDER = ["AI", "图像", "视频", "音频", "文档", "运营", "影视"];

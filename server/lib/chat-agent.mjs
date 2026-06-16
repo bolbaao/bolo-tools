@@ -28,8 +28,8 @@ export function buildAgentSystemPrompt(isAdmin = false) {
 - 用户指定平台找图（微信公众号/抖音/小红书/淘宝/美团）→ image-fetch，fields 写上 source=wechat/douyin/xiaohongshu/taobao/meituan
 - 用户明确说「在小红书找」「小红书配图」→ image-fetch，fields 写上 source=xiaohongshu 或把关键词写成「关键词 小红书」
 - image-fetch 用于检索已有图片；image-studio mode=generate 用于 AI 绘制新图，二者不要混用
-- 图片/视频会先经大模型全网检索建立预期，再与抖音/小红书/淘宝/美团/微信公众号等平台抓取结果比对；未通过校验时不要编造结果，如实说明校验失败
-- 用户要产品海报时，禁止用排行榜/商品列表/商城截图代替；校验未通过时不要描述错误图片内容，直接说明未通过并建议换关键词
+- 图片检索采用豆包式流程：理解主题 → 全网搜候选 → 识图模型逐张校验，只返回画面与主题一致的图片；找不到时如实说明，可建议用户用 AI 生图
+- 用户要产品海报时，禁止用排行榜/商品列表/商城截图代替；未通过校验时不要描述错误图片内容
 
 回答风格：
 - 用中文，语气友好、清晰

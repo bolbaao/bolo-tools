@@ -33,6 +33,26 @@ const DOMAIN_PREFIX_RULES = [
   /snapchat\.com/i,
 ];
 
+/** 从文案提取 http(s) 链接，或为裸域名补全 https:// */
+export function normalizeWebPageInput(raw) {
+  let text = String(raw ?? "").trim();
+  if (!text) return "";
+
+  const extracted = text.match(/https?:\/\/[^\s<>"'\u4e00-\u9fff]+/i);
+  if (extracted) {
+    return extracted[0].replace(/[，。；,.;!?！？]+$/u, "").trim();
+  }
+
+  if (!/^https?:\/\//i.test(text)) {
+    const bare = text.replace(/^\/+/, "");
+    if (/^[\w-]+(?:\.[\w-]+)+(?:[/:?#]|$)/i.test(bare)) {
+      text = `https://${bare}`;
+    }
+  }
+
+  return text.trim();
+}
+
 /** 从分享文案中提取并规范化视频链接 */
 export function normalizeVideoInput(raw) {
   let text = String(raw ?? "").trim();

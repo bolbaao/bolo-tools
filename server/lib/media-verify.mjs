@@ -480,6 +480,9 @@ export async function verifyImageForWebSearch({ buffer, contentType, query, plat
   if (!core) return { match: false, reason: "缺少检索词", detectedKeywords: [] };
 
   const titleHay = `${platformMeta.title || ""} ${platformMeta.pageUrl || ""}`;
+  if (/排行榜|榜单|热卖榜|商品列表|商城.*榜|top\s*\d|微信图标|wechat\s*icon|app\s*icon/i.test(titleHay)) {
+    return { match: false, reason: "来源疑似排行榜或平台图标", detectedKeywords: [] };
+  }
   if (
     primary.length >= 2 &&
     !titleMatchesSubject(platformMeta.title || "", core) &&

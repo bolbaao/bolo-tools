@@ -1,11 +1,20 @@
-import { apiDelete, apiGet, apiPost, ApiError } from "@/lib/api";
+import { apiDelete, apiGet, apiPost, ApiError, apiUpload } from "@/lib/api";
 
 export type MemoryItem = {
   id: string;
   content: string;
-  source?: "manual" | "auto";
+  source?: "manual" | "auto" | "file";
   createdAt: string;
   updatedAt: string;
+};
+
+export type MemoryFileExtractResult = {
+  added: MemoryItem[];
+  meta: {
+    filename: string;
+    kind: string;
+    truncated: boolean;
+  };
 };
 
 const cred = { credentials: "include" as const };
@@ -48,4 +57,18 @@ export async function updateMemory(id: string, content: string) {
 
 export async function deleteMemory(id: string) {
   await apiDelete(`/api/memory/${encodeURIComponent(id)}`, cred);
+}
+
+export async function extractMemoriesFromFile(file: File) {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const raw = await apiUpload("/api/memory/extract-file", form, {
+    credentials: "include",
+    timeoutMs: 120000,
+  });
+  if (raw instanceof Blob) {
+    throw new ApiError("服务返回异常");
+  }
+  const data = raw as { ok: boolean; added: MemoryItem[]; meta: MemoryFileExtractResult["meta"] };
+  return { added: data.added, meta: data.meta };
 }

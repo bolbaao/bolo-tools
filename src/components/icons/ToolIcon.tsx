@@ -129,13 +129,15 @@ function MediaDownloadIcon({ gradId }: IconProps) {
   );
 }
 
-function SpiderBuilderIcon({ gradId }: IconProps) {
+function WebVideoExtractIcon({ gradId }: IconProps) {
   const g = `url(#${gradId})`;
   return (
     <>
-      <circle cx="12" cy="12" r="2" {...stroke} stroke={g} />
-      <path d="M12 4v3M12 17v3M4 12h3M17 12h3" {...stroke} stroke={g} strokeWidth={1.25} />
-      <path d="M6.3 6.3l2.1 2.1M15.6 15.6l2.1 2.1M17.7 6.3l-2.1 2.1M8.4 15.6l-2.1 2.1" {...stroke} stroke={g} strokeWidth={1.25} />
+      <circle cx="12" cy="12" r="7.5" {...stroke} stroke={g} />
+      <path d="M3.5 12h17" {...stroke} stroke={g} strokeWidth={1.1} />
+      <path d="M12 4.5c2.2 2.5 3.5 5.2 3.5 7.5S14.2 17 12 19.5" {...stroke} stroke={g} strokeWidth={1.1} />
+      <path d="M12 4.5c-2.2 2.5-3.5 5.2-3.5 7.5S9.8 17 12 19.5" {...stroke} stroke={g} strokeWidth={1.1} />
+      <path d="M10.5 11.5l3.5 2.25-3.5 2.25V11.5z" {...stroke} stroke={g} strokeWidth={1.1} />
     </>
   );
 }
@@ -189,18 +191,6 @@ function MemoryIcon({ gradId }: IconProps) {
   );
 }
 
-function AppBuilderIcon({ gradId }: IconProps) {
-  const g = `url(#${gradId})`;
-  return (
-    <>
-      <rect x="5" y="4.5" width="14" height="15" rx="2.5" {...stroke} stroke={g} />
-      <path d="M8.5 8h7M8.5 11.5h5M8.5 15h6" {...stroke} stroke={g} strokeWidth={1.25} />
-      <path d="M16 17.5l2.5 2.5" {...stroke} stroke={g} />
-      <path d="M17.5 17.5l-1 1 .5.5 1-1" {...stroke} stroke={g} strokeWidth={1.2} />
-    </>
-  );
-}
-
 function AiWriterIcon({ gradId }: IconProps) {
   const g = `url(#${gradId})`;
   return (
@@ -213,14 +203,16 @@ function AiWriterIcon({ gradId }: IconProps) {
   );
 }
 
-function AiWorkflowIcon({ gradId }: IconProps) {
+function StoryboardIcon({ gradId }: IconProps) {
   const g = `url(#${gradId})`;
   return (
     <>
-      <rect x="4" y="5" width="5" height="4" rx="1" {...stroke} stroke={g} />
-      <rect x="15" y="5" width="5" height="4" rx="1" {...stroke} stroke={g} />
-      <rect x="9.5" y="15" width="5" height="4" rx="1" {...stroke} stroke={g} />
-      <path d="M6.5 9v2.5h5M17.5 9v2.5h-5M12 11.5v3.5" {...stroke} stroke={g} strokeWidth={1.25} />
+      <rect x="4" y="6" width="5.5" height="4.5" rx="1" {...stroke} stroke={g} />
+      <rect x="10.25" y="6" width="5.5" height="4.5" rx="1" {...stroke} stroke={g} />
+      <rect x="16.5" y="6" width="3.5" height="4.5" rx="0.75" {...stroke} stroke={g} />
+      <path d="M5.5 13.5h13" {...stroke} stroke={g} strokeWidth={1.25} />
+      <path d="M5.5 16h9" {...stroke} stroke={g} strokeWidth={1.25} />
+      <circle cx="18.5" cy="16.5" r="1" fill={g} />
     </>
   );
 }
@@ -256,11 +248,10 @@ const ICONS: Record<string, (props: IconProps) => ReactNode> = {
   toolkit: ToolkitIcon,
   memory: MemoryIcon,
   "ai-search": AiSearchIcon,
-  "app-builder": AppBuilderIcon,
   "ai-writer": AiWriterIcon,
-  "ai-workflow": AiWorkflowIcon,
+  storyboard: StoryboardIcon,
   "media-download": MediaDownloadIcon,
-  "spider-builder": SpiderBuilderIcon,
+  "web-video-extract": WebVideoExtractIcon,
   "subtitle-workshop": SubtitleWorkshopIcon,
   "gif-maker": GifMakerIcon,
   "text-toolbox": TextToolboxIcon,

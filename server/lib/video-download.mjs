@@ -67,6 +67,33 @@ export function isAllowedMediaUrl(raw) {
   );
 }
 
+/** 网页直链视频：允许公网 HTTP(S)，由下载代理携带 Referer */
+export function isAllowedWebPageMediaUrl(raw) {
+  try {
+    assertPublicHttpUrl(raw);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function buildWebPageProxyHeaders(pageUrl, mediaUrl) {
+  const headers = {
+    "User-Agent": DESKTOP_UA,
+    Accept: "*/*",
+  };
+  const referer = String(pageUrl || mediaUrl || "").trim();
+  if (referer) {
+    try {
+      headers.Referer = referer;
+      headers.Origin = new URL(referer).origin;
+    } catch {
+      headers.Referer = referer;
+    }
+  }
+  return headers;
+}
+
 export function buildProxyHeaders(platform, sourceUrl) {
   const headers = {
     "User-Agent": DESKTOP_UA,

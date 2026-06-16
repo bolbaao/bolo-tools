@@ -45,6 +45,8 @@ export function addUserMemory(userId, content, source = "manual") {
     throw Object.assign(new Error(`记忆内容不能超过 ${MAX_CONTENT_LEN} 字`), { status: 400 });
   }
 
+  const normalizedSource = source === "auto" || source === "file" ? source : "manual";
+
   const items = loadMemories(userId);
   if (items.length >= MAX_MEMORIES) {
     throw Object.assign(new Error(`记忆库已满（最多 ${MAX_MEMORIES} 条）`), { status: 400 });
@@ -54,7 +56,7 @@ export function addUserMemory(userId, content, source = "manual") {
   const item = {
     id: randomUUID(),
     content: text,
-    source: source === "auto" ? "auto" : "manual",
+    source: normalizedSource,
     createdAt: now,
     updatedAt: now,
   };
@@ -65,6 +67,10 @@ export function addUserMemory(userId, content, source = "manual") {
 
 export function addUserMemoryAuto(userId, content) {
   return addUserMemory(userId, content, "auto");
+}
+
+export function addUserMemoryFromFile(userId, content) {
+  return addUserMemory(userId, content, "file");
 }
 
 export function updateUserMemory(userId, memoryId, content) {

@@ -6,11 +6,12 @@ import { ApiError } from "@/lib/api";
 import {
   addMemory,
   deleteMemory,
+  extractMemoriesFromFile,
   listMemories,
   updateMemory,
   type MemoryItem,
 } from "@/lib/memory";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgentPrefill } from "@/hooks/useAgentPrefill";
 
 function formatDate(iso: string) {
@@ -36,6 +37,9 @@ export default function MemoryPanel() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadHint, setUploadHint] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const handleAdd = useCallback(async (contentOverride?: string) => {
     const text = (contentOverride ?? draft).trim();
@@ -110,6 +114,24 @@ export default function MemoryPanel() {
     }
   };
 
+  const handleUploadFile = async (file: File) => {
+    if (uploading || busy) return;
+    setUploading(true);
+    setError(null);
+    setUploadHint(null);
+    try {
+      const { added, meta } = await extractMemoriesFromFile(file);
+      setItems((prev) => [...added, ...prev]);
+      const suffix = meta.truncated ? "（文档较长，已截取前段分析）" : "";
+      setUploadHint(`已从「${meta.filename}」提取并保存 ${added.length} 条记忆${suffix}`);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "文件提取失败");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   if (authLoading) {
     return <p className="text-sm text-white/40">加载中…</p>;
   }
@@ -169,6 +191,39 @@ export default function MemoryPanel() {
             保存到记忆库
           </button>
         </div>
+      </div>
+
+      <div className="bento-card p-4 sm:p-5 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <label className="block text-xs text-white/40">从文件导入记忆</label>
+          <span className="text-[10px] text-white/30">支持 txt / md / pdf / doc / docx</span>
+        </div>
+        <p className="text-xs leading-relaxed text-white/35">
+          上传个人简介、偏好清单或笔记，AI 会自动拆分成多条记忆保存。
+        </p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".txt,.md,.json,.csv,.pdf,.doc,.docx"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void handleUploadFile(file);
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading || busy}
+          className="w-full rounded-xl border border-dashed border-white/12 bg-white/[0.03] px-4 py-4 text-sm text-white/65 transition-colors hover:border-emerald-500/30 hover:bg-emerald-500/[0.04] disabled:opacity-40"
+        >
+          {uploading ? "正在分析文件并提取记忆…" : "选择文件上传"}
+        </button>
+        {uploadHint ? (
+          <p className="text-xs text-emerald-400/85" role="status">
+            {uploadHint}
+          </p>
+        ) : null}
       </div>
 
       {error && <p className="text-center text-xs text-red-400/80">{error}</p>}
@@ -232,6 +287,11 @@ export default function MemoryPanel() {
                         {item.source === "auto" && (
                           <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] text-violet-300/80">
                             自动提取
+                          </span>
+                        )}
+                        {item.source === "file" && (
+                          <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] text-sky-300/80">
+                            来自文件
                           </span>
                         )}
                       </div>

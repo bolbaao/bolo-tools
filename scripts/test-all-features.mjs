@@ -9,9 +9,27 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import "../server/lib/env.mjs";
+import { createUserSessionToken } from "../server/lib/user-auth.mjs";
 
 const BASE = process.env.TEST_BASE_URL || "http://127.0.0.1:3000";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const USERS_PATH = path.join(__dirname, "..", "data", "users", "users.json");
+
+function loadVerifiedUserId() {
+  if (!fs.existsSync(USERS_PATH)) return null;
+  try {
+    const users = JSON.parse(fs.readFileSync(USERS_PATH, "utf8"));
+    const hit = users.find((u) => u.emailVerified || u.isAdmin);
+    return hit?.id || users[0]?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+function storyboardAuthCookie() {
+  const userId = loadVerifiedUserId();
+  return userId ? createUserSessionToken(userId) : null;
+}
 
 let passed = 0;
 let failed = 0;
@@ -32,20 +50,23 @@ function skip(name, reason) {
   console.log(`○ ${name} — 跳过: ${reason}`);
 }
 
-async function get(path) {
-  const res = await fetch(`${BASE}${path}`);
+async function get(path, cookie) {
+  const headers = cookie ? { Cookie: `user_session=${cookie}` } : {};
+  const res = await fetch(`${BASE}${path}`, { headers });
   const ct = res.headers.get("content-type") || "";
   const data = ct.includes("json") ? await res.json().catch(() => ({})) : null;
   return { status: res.status, data, text: data ? null : await res.text().catch(() => "") };
 }
 
-async function post(path, body, timeoutMs = 120000) {
+async function post(path, body, timeoutMs = 120000, cookie) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
+    const headers = { "Content-Type": "application/json" };
+    if (cookie) headers.Cookie = `user_session=${cookie}`;
     const res = await fetch(`${BASE}${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body),
       signal: controller.signal,
     });
@@ -82,13 +103,12 @@ const PAGES = [
   ["/tools/smart-cutout", "智能抠图（重定向）"],
   ["/tools/memory", "记忆库"],
   ["/tools/ai-search", "AI 全网搜索"],
-  ["/tools/app-builder", "一键做 App"],
   ["/tools/ai-writer", "AI 写作助手"],
-  ["/tools/ai-workflow", "AI 工作流"],
+  ["/tools/storyboard", "分镜生图"],
   ["/tools/social-publish", "社媒一键分发"],
   ["/tools/hot-trends", "热点中心"],
   ["/tools/media-download", "影视资源下载"],
-  ["/tools/spider-builder", "小蜘蛛爬虫"],
+  ["/tools/web-video-extract", "网页视频提取"],
   ["/tools/doc-convert", "文档转换"],
   ["/tools/subtitle-workshop", "字幕工坊"],
   ["/tools/gif-maker", "GIF 动图"],
@@ -103,9 +123,8 @@ const CAPABILITIES = [
   ["/api/documents/capabilities", "文档转换 capabilities"],
   ["/api/ai-search/capabilities", "AI 全网搜索 capabilities"],
   ["/api/social-publish/capabilities", "社媒分发 capabilities"],
-  ["/api/app-builder/capabilities", "一键做 App capabilities"],
   ["/api/ai-writer/capabilities", "AI 写作 capabilities"],
-  ["/api/ai-workflow/capabilities", "AI 工作流 capabilities"],
+  ["/api/storyboard/capabilities", "分镜生图 capabilities"],
   ["/api/chat/capabilities", "工作区对话 capabilities"],
   ["/api/subtitle/status", "字幕工坊 status"],
   ["/api/auth/captcha", "验证码"],
@@ -169,23 +188,14 @@ async function testTrendsAndMedia() {
   }
 }
 
-async function testSpider() {
-  console.log("\n— 小蜘蛛爬虫 —");
-  const run = await post(
-    "/api/spider/run",
-    { url: "https://example.com", listSelector: "body", itemSelector: "h1, p, a", limit: 5 },
-    60000,
-  );
-  if (run.status === 200 && run.data?.ok) ok("抓取 example.com", `${run.data.items?.length ?? 0} 条`);
-  else skip("抓取 example.com", run.data?.error || `status=${run.status}`);
-
-  const gen = await post("/api/spider/generate", {
-    url: "https://example.com",
-    preset: "links",
-    items: [{ title: "Example", url: "https://example.com" }],
-  });
-  if (gen.status === 200 && gen.data?.code) ok("生成 Node 脚本", `${gen.data.code.length} 字符`);
-  else skip("生成 Node 脚本", gen.data?.error || `status=${gen.status}`);
+async function testWebVideoExtract() {
+  console.log("\n— 网页视频提取 —");
+  const run = await post("/api/web-video/extract", { url: "https://example.com" }, 60000);
+  if (run.status === 200 && run.data?.ok) {
+    ok("扫描 example.com", `${run.data.videos?.length ?? 0} 条直链`);
+  } else {
+    skip("扫描 example.com", run.data?.error || `status=${run.status}`);
+  }
 }
 
 async function testChat() {
@@ -295,30 +305,22 @@ async function testAiFeatures() {
   if (adapt.status === 200 && adapt.data?.captions) ok("社媒文案适配", Object.keys(adapt.data.captions).join(", "));
   else skip("社媒文案适配", adapt.data?.error || `status=${adapt.status}`);
 
-  const appCap = await get("/api/app-builder/capabilities");
-  if (appCap.data?.aiConfigured) {
-    const app = await post("/api/app-builder/generate", {
-      description: "极简计数器，加减和重置",
-      appType: "tool",
-      appName: "计数器",
-    }, 180000);
-    if (app.status === 200 && app.data?.html) ok("一键做 App", `${app.data.html.length} 字符`);
-    else skip("一键做 App", app.data?.error || `status=${app.status}`);
-  } else {
-    skip("一键做 App", "未配置 DeepSeek");
-  }
-
-  const wfCap = await get("/api/ai-workflow/capabilities");
-  if (wfCap.data?.aiConfigured) {
-    const wf = await post("/api/ai-workflow/run", {
-      workflowId: "social-pack",
-      input: "春季露营清单",
-      runAll: true,
-    }, 360000);
-    if (wf.status === 200 && wf.data?.results?.length) ok("AI 工作流", `${wf.data.results.length} 步`);
-    else skip("AI 工作流", wf.data?.error || `status=${wf.status}`);
-  } else {
-    skip("AI 工作流", "未配置 DeepSeek");
+  const sbCookie = storyboardAuthCookie();
+  const sbCap = await get("/api/storyboard/capabilities", sbCookie || undefined);
+  if (!sbCookie) {
+    skip("分镜生图", "无已验证用户");
+  } else if (sbCap.data?.ready) {
+    const sb = await post("/api/storyboard/generate", {
+      topic: "一杯手冲咖啡的制作过程",
+      sceneCount: 2,
+      aspectRatio: "9:16",
+      style: "cinematic",
+    }, 600000, sbCookie);
+    if (sb.status === 200 && sb.data?.scenes?.length >= 2) {
+      ok("分镜生图", `${sb.data.scenes.length} 镜 · ${sb.data.title}`);
+    } else skip("分镜生图", sb.data?.error || `status=${sb.status}`);
+  } else if (sbCookie) {
+    skip("分镜生图", !sbCap.data?.aiConfigured ? "未配置 DeepSeek" : "未配置 ARK_API_KEY");
   }
 }
 
@@ -341,7 +343,7 @@ async function main() {
   await testPages();
   await testCapabilities();
   await testTrendsAndMedia();
-  await testSpider();
+  await testWebVideoExtract();
   await testChat();
   await testAiFeatures();
   await testExcludedNotCalled();

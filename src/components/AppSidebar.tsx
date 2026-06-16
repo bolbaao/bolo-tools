@@ -45,7 +45,7 @@ export default function AppSidebar({ onNavigate }: { onNavigate?: () => void }) 
   };
 
   return (
-    <aside className="app-sidebar flex h-full w-[260px] shrink-0 flex-col border-r border-white/[0.06] bg-surface-elevated/80 backdrop-blur-xl">
+    <aside className="app-sidebar flex h-full w-full shrink-0 flex-col bg-surface-elevated">
       <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-4 py-4">
         <Link
           href="/"

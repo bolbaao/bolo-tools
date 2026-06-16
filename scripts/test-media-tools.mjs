@@ -148,21 +148,16 @@ async function main() {
       fail("音乐工坊 · MP3 转 WAV", audioRes.data?.error || `status=${audioRes.status}`);
     }
 
-    const spider = await fetch(`${BASE}/api/spider/run`, {
+    const webVideo = await fetch(`${BASE}/api/web-video/extract`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url: "https://example.com",
-        listSelector: "body",
-        itemSelector: "h1, p, a",
-        limit: 5,
-      }),
+      body: JSON.stringify({ url: "https://example.com" }),
     }).then((r) => r.json().catch(() => ({})));
 
-    if (spider?.ok && Array.isArray(spider.items)) {
-      ok("小蜘蛛爬虫", `${spider.items.length} 条`);
+    if (webVideo?.ok) {
+      ok("网页视频提取", `${webVideo.videos?.length ?? 0} 条直链`);
     } else {
-      skip("小蜘蛛爬虫", spider?.error || "无结果");
+      skip("网页视频提取", webVideo?.error || "无结果");
     }
 
     const resource = await fetch(`${BASE}/api/media/resource-search?q=肖申克`)
