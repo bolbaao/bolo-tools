@@ -22,6 +22,7 @@ import {
 import { searchMediaPlatforms } from "./media-search.mjs";
 import { searchWebImages } from "./web-image-search.mjs";
 import { searchWebVideos } from "./web-video-search.mjs";
+import { isWeatherQuery } from "./weather.mjs";
 
 function formatHistory(history = []) {
   return (Array.isArray(history) ? history : [])
@@ -249,8 +250,9 @@ export async function searchWebWithUnderstanding(userMessage, opts = {}) {
     return searchWebVideos(userMessage, { maxResults: modeConfig.maxResults });
   }
 
+  const skipHistory = isWeatherQuery(userMessage);
   const plan = await planWebSearchQueries(userMessage, {
-    history: opts.history,
+    history: skipHistory ? undefined : opts.history,
     topic: modeConfig.topic,
     mode: modeConfig.mode,
   });

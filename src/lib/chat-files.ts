@@ -1,5 +1,8 @@
 export type ChatFileKind = "image" | "video" | "audio" | "document" | "text" | "unknown";
 
+import type { ChatWeatherCard } from "@/lib/chat-weather";
+import { parseChatWeatherCard, stripChatWeatherBlock } from "@/lib/chat-weather";
+
 const ACCEPT = [
   "image/*",
   "video/*",
@@ -128,7 +131,10 @@ export function extractChatReplyMedia(content: string): {
   text: string;
   images: ChatReplyImage[];
   downloads: ChatArtifactDownload[];
+  weather: ChatWeatherCard | null;
 } {
+  const weather = parseChatWeatherCard(content);
+  const source = weather ? stripChatWeatherBlock(content) : content;
   const images: ChatReplyImage[] = [];
   const downloads: ChatArtifactDownload[] = [];
   const seen = new Set<string>();
@@ -144,7 +150,7 @@ export function extractChatReplyMedia(content: string): {
     downloads.push({ id, label, href: normalized });
   };
 
-  let text = content;
+  let text = source;
 
   const imgMdRe = /!\[([^\]]*)\]\((\/api\/chat\/artifacts\/([a-f0-9]+)(?:\?[^)]*)?)\)/gi;
   text = text.replace(imgMdRe, (_match, alt, href, id) => {
@@ -163,7 +169,7 @@ export function extractChatReplyMedia(content: string): {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  return { text, images, downloads };
+  return { text, images, downloads, weather };
 }
 
 /** @deprecated 使用 extractChatReplyMedia */

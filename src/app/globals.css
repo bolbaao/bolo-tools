@@ -970,6 +970,107 @@ body.sidebar-open-mobile {
   color: rgba(24, 24, 28, 0.88);
 }
 
+.chat-weather-card {
+  margin-top: 0.75rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(16, 163, 127, 0.14);
+  background: linear-gradient(135deg, rgba(16, 163, 127, 0.08), rgba(59, 130, 246, 0.06));
+  padding: 0.875rem 1rem;
+  overflow: hidden;
+}
+
+.chat-weather-card-compact {
+  margin-top: 0.5rem;
+  padding: 0.625rem 0.75rem;
+}
+
+.chat-weather-card-main {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.chat-weather-card-icon {
+  flex-shrink: 0;
+  width: 3.25rem;
+  height: 3.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  line-height: 1;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(16, 163, 127, 0.08);
+}
+
+.chat-weather-card-compact .chat-weather-card-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1.5rem;
+}
+
+.chat-weather-card-body {
+  min-width: 0;
+}
+
+.chat-weather-card-location {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgba(24, 24, 28, 0.72);
+}
+
+.chat-weather-card-compact .chat-weather-card-location {
+  font-size: 0.6875rem;
+}
+
+.chat-weather-card-temp {
+  margin-top: 0.125rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: rgba(24, 24, 28, 0.92);
+}
+
+.chat-weather-card-compact .chat-weather-card-temp {
+  font-size: 1.375rem;
+}
+
+.chat-weather-card-temp-unit {
+  margin-left: 0.125rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(24, 24, 28, 0.45);
+}
+
+.chat-weather-card-condition {
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  color: rgba(24, 24, 28, 0.58);
+}
+
+.chat-weather-card-compact .chat-weather-card-condition {
+  font-size: 0.6875rem;
+}
+
+.chat-weather-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid rgba(16, 163, 127, 0.1);
+  font-size: 0.75rem;
+  color: rgba(24, 24, 28, 0.48);
+}
+
+.chat-weather-card-compact .chat-weather-card-meta {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  font-size: 0.6875rem;
+}
+
 .workspace-chat-markdown {
   min-width: 0;
   flex: 1;
